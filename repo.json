@@ -29,7 +29,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/SlotYield-0.2.0.2.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792811829
+        "LastUpdate":  1792812189
     },
     {
         "Author":  "Deepseek",
@@ -61,7 +61,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/RouletteBingo-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792811830
+        "LastUpdate":  1792812190
     },
     {
         "Author":  "Deepseek",
@@ -91,7 +91,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/CritSound-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792811831
+        "LastUpdate":  1792812191
     },
     {
         "Author":  "Deepseek",
@@ -121,14 +121,14 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/EnemyListCastBars-1.0.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792811832
+        "LastUpdate":  1792812192
     },
     {
         "Author":  "Deepseek",
         "Name":  "Desynth Lens",
         "InternalName":  "DesynthLens",
-        "AssemblyVersion":  "0.3.0.1",
-        "Description":  "Cross-references the item\u0027s desynthesis result with market prices and shows where buying the input and selling the yield is profitable.\n\nThe sheets provide one known result item per input, not the amount, so every number is shown per single yield and the window says so. Nothing is bought, sold or desynthesised - it only prices the trade.",
+        "AssemblyVersion":  "0.4.0.0",
+        "Description":  "Records what each desynthesis actually gives you and what those items are worth.\n\nThe desynthesis window shows the real result, so the plugin reads it from the game rather than guessing from a datamined table - those tables do not exist in a reliable form. Each item then keeps a small ledger: how often you desynthesised it, the average and best value of the yield, and the last result.",
         "ApplicableVersion":  "any",
         "RepoUrl":  "https://github.com/KazimeirzOdnowiciel/ffxiv-plugins",
         "Tags":  [
@@ -136,21 +136,21 @@
                      "market",
                      "gil",
                      "universalis",
-                     "profit"
+                     "ledger"
                  ],
         "DalamudApiLevel":  15,
         "LoadRequiredState":  0,
         "LoadSync":  false,
         "CanUnloadAsync":  false,
         "LoadPriority":  0,
-        "Punchline":  "Finds items that are worth buying only to desynthesise.",
+        "Punchline":  "Tracks what your desynths actually yield and what it is worth.",
         "AcceptsFeedback":  true,
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DesynthLens-0.3.0.1.zip",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DesynthLens-0.3.0.1.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DesynthLens-0.3.0.1.zip",
-        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DesynthLens-0.3.0.1.png",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DesynthLens-0.4.0.0.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DesynthLens-0.4.0.0.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DesynthLens-0.4.0.0.zip",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DesynthLens-0.4.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792811833
+        "LastUpdate":  1792812193
     }
 ]
