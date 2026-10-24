@@ -58,22 +58,24 @@ foreach ($plugin in $plugins)
     }
 
     $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
-    $target = Join-Path $dist "$($manifest.InternalName).zip"
+    $target = Join-Path $dist "$($manifest.InternalName)-$($manifest.AssemblyVersion).zip"
 
     Copy-Item $zip $target -Force
     Write-Host "  packaged $($manifest.InternalName).zip ($([math]::Round((Get-Item $target).Length / 1kb)) KB)"
 
     # Version-tagged so a CDN cannot hand back a previous release or a missing icon.
+    # Version in the path: a CDN cannot serve a previous release for a new version.
     $tag = $manifest.AssemblyVersion
-    $link = "$BaseUrl/dist/$($manifest.InternalName).zip?v=$tag"
+    $link = "$BaseUrl/dist/$($manifest.InternalName)-$tag.zip"
 
     $iconPath = Join-Path $root "icons/$($manifest.InternalName).png"
     $iconUrl = ""
 
     if (Test-Path $iconPath)
     {
-        Copy-Item $iconPath (Join-Path $dist "$($manifest.InternalName).png") -Force
-        $iconUrl = "$BaseUrl/dist/$($manifest.InternalName).png?v=$tag"
+        New-Item -ItemType Directory -Force -Path (Join-Path $dist "icons") | Out-Null
+        Copy-Item $iconPath (Join-Path $dist "icons/$($manifest.InternalName)-$tag.png") -Force
+        $iconUrl = "$BaseUrl/dist/icons/$($manifest.InternalName)-$tag.png"
     }
 
     $entries += [ordered]@{

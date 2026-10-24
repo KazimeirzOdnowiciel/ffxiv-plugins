@@ -23,13 +23,13 @@
         "LoadPriority":  0,
         "Punchline":  "Tells you what your retainer slots should actually be selling.",
         "AcceptsFeedback":  true,
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield.zip?v=0.1.0.0",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield.zip?v=0.1.0.0",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield.zip?v=0.1.0.0",
-        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield.png?v=0.1.0.0",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield-0.1.0.0.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield-0.1.0.0.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield-0.1.0.0.zip",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/SlotYield-0.1.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792808447
+        "LastUpdate":  1792808488
     },
     {
         "Author":  "Deepseek",
@@ -55,13 +55,13 @@
         "LoadPriority":  0,
         "Punchline":  "A bingo card for whatever the duty finder throws at you.",
         "AcceptsFeedback":  true,
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/RouletteBingo.zip?v=0.1.0.0",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/RouletteBingo.zip?v=0.1.0.0",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/RouletteBingo.zip?v=0.1.0.0",
-        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/RouletteBingo.png?v=0.1.0.0",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/RouletteBingo-0.1.0.0.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/RouletteBingo-0.1.0.0.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/RouletteBingo-0.1.0.0.zip",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/RouletteBingo-0.1.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792808447
+        "LastUpdate":  1792808489
     },
     {
         "Author":  "Deepseek",
@@ -85,13 +85,13 @@
         "LoadPriority":  0,
         "Punchline":  "Plays a sound when a hit crits, direct hits, or does both.",
         "AcceptsFeedback":  true,
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CritSound.zip?v=0.1.0.0",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CritSound.zip?v=0.1.0.0",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CritSound.zip?v=0.1.0.0",
-        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CritSound.png?v=0.1.0.0",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CritSound-0.1.0.0.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CritSound-0.1.0.0.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CritSound-0.1.0.0.zip",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/CritSound-0.1.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792808447
+        "LastUpdate":  1792808490
     },
     {
         "Author":  "KazimeirzOdnowiciel",
@@ -115,12 +115,12 @@
         "LoadPriority":  0,
         "Punchline":  "Shows a cast bar for every enemy in the enemy list.",
         "AcceptsFeedback":  true,
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars.zip?v=1.0.0.0",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars.zip?v=1.0.0.0",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars.zip?v=1.0.0.0",
-        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars.png?v=1.0.0.0",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars-1.0.0.0.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars-1.0.0.0.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars-1.0.0.0.zip",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/EnemyListCastBars-1.0.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792808447
+        "LastUpdate":  1792808490
     }
 ]
