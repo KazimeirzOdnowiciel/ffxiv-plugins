@@ -29,7 +29,7 @@
         "IconUrl":  "",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792807440
+        "LastUpdate":  1792807679
     },
     {
         "Author":  "Deepseek",
@@ -61,7 +61,7 @@
         "IconUrl":  "",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792807440
+        "LastUpdate":  1792807680
     },
     {
         "Author":  "Deepseek",
@@ -91,10 +91,10 @@
         "IconUrl":  "",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792807441
+        "LastUpdate":  1792807681
     },
     {
-        "Author":  "EnemyListCastBars",
+        "Author":  "KazimeirzOdnowiciel",
         "Name":  "Enemy List Cast Bars",
         "InternalName":  "EnemyListCastBars",
         "AssemblyVersion":  "1.0.0.0",
@@ -118,9 +118,9 @@
         "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars.zip",
         "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars.zip",
         "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars.zip",
-        "IconUrl":  "",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792807442
+        "LastUpdate":  1792807682
     }
 ]

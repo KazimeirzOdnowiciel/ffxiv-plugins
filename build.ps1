@@ -65,6 +65,15 @@ foreach ($plugin in $plugins)
 
     $link = "$BaseUrl/dist/$($manifest.InternalName).zip"
 
+    $iconPath = Join-Path $root "icons/$($manifest.InternalName).png"
+    $iconUrl = ""
+
+    if (Test-Path $iconPath)
+    {
+        Copy-Item $iconPath (Join-Path $dist "$($manifest.InternalName).png") -Force
+        $iconUrl = "$BaseUrl/dist/$($manifest.InternalName).png"
+    }
+
     $entries += [ordered]@{
         Author             = $manifest.Author
         Name               = $manifest.Name
@@ -84,7 +93,7 @@ foreach ($plugin in $plugins)
         DownloadLinkInstall = $link
         DownloadLinkUpdate  = $link
         DownloadLinkTesting = $link
-        IconUrl            = ""
+        IconUrl            = $iconUrl
         IsHide             = $false
         IsTestingExclusive = $false
         LastUpdate         = [int][DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
