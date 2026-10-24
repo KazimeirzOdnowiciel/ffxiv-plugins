@@ -29,7 +29,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792808043
+        "LastUpdate":  1792808430
     },
     {
         "Author":  "Deepseek",
@@ -61,7 +61,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/RouletteBingo.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792808043
+        "LastUpdate":  1792808430
     },
     {
         "Author":  "Deepseek",
@@ -91,7 +91,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CritSound.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792808043
+        "LastUpdate":  1792808430
     },
     {
         "Author":  "KazimeirzOdnowiciel",
@@ -121,6 +121,6 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792808043
+        "LastUpdate":  1792808430
     }
 ]
