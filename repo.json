@@ -26,10 +26,10 @@
         "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield.zip",
         "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield.zip",
         "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield.zip",
-        "IconUrl":  "",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792807679
+        "LastUpdate":  1792808043
     },
     {
         "Author":  "Deepseek",
@@ -58,10 +58,10 @@
         "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/RouletteBingo.zip",
         "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/RouletteBingo.zip",
         "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/RouletteBingo.zip",
-        "IconUrl":  "",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/RouletteBingo.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792807680
+        "LastUpdate":  1792808043
     },
     {
         "Author":  "Deepseek",
@@ -88,10 +88,10 @@
         "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CritSound.zip",
         "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CritSound.zip",
         "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CritSound.zip",
-        "IconUrl":  "",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CritSound.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792807681
+        "LastUpdate":  1792808043
     },
     {
         "Author":  "KazimeirzOdnowiciel",
@@ -121,6 +121,6 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792807682
+        "LastUpdate":  1792808043
     }
 ]
