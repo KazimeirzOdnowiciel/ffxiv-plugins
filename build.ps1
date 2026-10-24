@@ -63,7 +63,9 @@ foreach ($plugin in $plugins)
     Copy-Item $zip $target -Force
     Write-Host "  packaged $($manifest.InternalName).zip ($([math]::Round((Get-Item $target).Length / 1kb)) KB)"
 
-    $link = "$BaseUrl/dist/$($manifest.InternalName).zip"
+    # Version-tagged so a CDN cannot hand back a previous release or a missing icon.
+    $tag = $manifest.AssemblyVersion
+    $link = "$BaseUrl/dist/$($manifest.InternalName).zip?v=$tag"
 
     $iconPath = Join-Path $root "icons/$($manifest.InternalName).png"
     $iconUrl = ""
@@ -71,7 +73,7 @@ foreach ($plugin in $plugins)
     if (Test-Path $iconPath)
     {
         Copy-Item $iconPath (Join-Path $dist "$($manifest.InternalName).png") -Force
-        $iconUrl = "$BaseUrl/dist/$($manifest.InternalName).png"
+        $iconUrl = "$BaseUrl/dist/$($manifest.InternalName).png?v=$tag"
     }
 
     $entries += [ordered]@{
