@@ -17,7 +17,8 @@ $plugins = @(
     @{ Folder = "SlotYield"; Project = "SlotYield.csproj" },
     @{ Folder = "RouletteBingo"; Project = "RouletteBingo.csproj" },
     @{ Folder = "CritSound"; Project = "CritSound.csproj" },
-    @{ Folder = "EnemyListCastBars"; Project = "EnemyListCastBars.csproj"; Root = "$env:LOCALAPPDATA\XIVLauncher\devPlugins\sdsd" }
+    @{ Folder = "EnemyListCastBars"; Project = "EnemyListCastBars.csproj"; Root = "$env:LOCALAPPDATA\XIVLauncher\devPlugins\sdsd" },
+    @{ Folder = "DesynthLens"; Project = "DesynthLens.csproj" }
 )
 
 $parent = Split-Path $root -Parent

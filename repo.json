@@ -29,7 +29,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/SlotYield-0.2.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792809343
+        "LastUpdate":  1792809501
     },
     {
         "Author":  "Deepseek",
@@ -61,7 +61,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/RouletteBingo-0.1.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792809344
+        "LastUpdate":  1792809502
     },
     {
         "Author":  "Deepseek",
@@ -91,7 +91,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/CritSound-0.1.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792809345
+        "LastUpdate":  1792809503
     },
     {
         "Author":  "Deepseek",
@@ -121,6 +121,36 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/EnemyListCastBars-1.0.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792809346
+        "LastUpdate":  1792809504
+    },
+    {
+        "Author":  "Deepseek",
+        "Name":  "Desynth Lens",
+        "InternalName":  "DesynthLens",
+        "AssemblyVersion":  "0.1.0.0",
+        "Description":  "Cross-references the item\u0027s desynthesis result with market prices and shows where buying the input and selling the yield is profitable.\n\nThe sheets provide one known result item per input, not the amount, so every number is shown per single yield and the window says so. Nothing is bought, sold or desynthesised - it only prices the trade.",
+        "ApplicableVersion":  "any",
+        "RepoUrl":  "https://github.com/KazimeirzOdnowiciel/ffxiv-plugins",
+        "Tags":  [
+                     "desynth",
+                     "market",
+                     "gil",
+                     "universalis",
+                     "profit"
+                 ],
+        "DalamudApiLevel":  15,
+        "LoadRequiredState":  0,
+        "LoadSync":  false,
+        "CanUnloadAsync":  false,
+        "LoadPriority":  0,
+        "Punchline":  "Finds items that are worth buying only to desynthesise.",
+        "AcceptsFeedback":  true,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DesynthLens-0.1.0.0.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DesynthLens-0.1.0.0.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DesynthLens-0.1.0.0.zip",
+        "IconUrl":  "",
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "LastUpdate":  1792809505
     }
 ]
