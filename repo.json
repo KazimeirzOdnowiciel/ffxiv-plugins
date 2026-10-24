@@ -29,7 +29,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/SlotYield-0.2.0.2.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792814205
+        "LastUpdate":  1792815098
     },
     {
         "Author":  "Deepseek",
@@ -61,7 +61,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/RouletteBingo-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792814206
+        "LastUpdate":  1792815099
     },
     {
         "Author":  "Deepseek",
@@ -91,7 +91,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/CritSound-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792814207
+        "LastUpdate":  1792815100
     },
     {
         "Author":  "Deepseek",
@@ -121,7 +121,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/EnemyListCastBars-1.0.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792814208
+        "LastUpdate":  1792815101
     },
     {
         "Author":  "Deepseek",
@@ -151,6 +151,37 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DesynthLens-0.4.0.3.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792814209
+        "LastUpdate":  1792815102
+    },
+    {
+        "Author":  "Deepseek",
+        "Name":  "Mechanic Watch",
+        "InternalName":  "MechanicWatch",
+        "AssemblyVersion":  "0.1.0.0",
+        "Description":  "A party-wide grid of the statuses you choose to care about. Rows are watched statuses, columns are party members, and each cell shows the time left and stack count.\n\nThe watchlist is built by capture: press Capture during a mechanic and every status currently on the party is added, so there is no fight database to rot. Right-click a name to remove it.\n\nNo mechanic prediction and no timeline - this only shows what is on the party right now.",
+        "ApplicableVersion":  "any",
+        "RepoUrl":  "https://github.com/KazimeirzOdnowiciel/ffxiv-plugins",
+        "Tags":  [
+                     "party",
+                     "debuff",
+                     "status",
+                     "raid",
+                     "mechanic",
+                     "combat"
+                 ],
+        "DalamudApiLevel":  15,
+        "LoadRequiredState":  0,
+        "LoadSync":  false,
+        "CanUnloadAsync":  false,
+        "LoadPriority":  0,
+        "Punchline":  "One window for the debuffs that actually resolve a mechanic.",
+        "AcceptsFeedback":  true,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/MechanicWatch-0.1.0.0.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/MechanicWatch-0.1.0.0.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/MechanicWatch-0.1.0.0.zip",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/MechanicWatch-0.1.0.0.png",
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "LastUpdate":  1792815103
     }
 ]
