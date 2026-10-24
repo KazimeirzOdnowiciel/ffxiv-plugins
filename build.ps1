@@ -79,6 +79,33 @@ foreach ($plugin in $plugins)
         $iconUrl = "$BaseUrl/dist/icons/$($manifest.InternalName)-$tag.png"
     }
 
+    # The installed-plugin list reads the manifest inside the zip, not the repo entry, so the icon
+    # has to live in there too or it vanishes the moment the plugin is installed.
+    if ($iconUrl -ne "")
+    {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+        $staging = Join-Path ([System.IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString("N"))
+        New-Item -ItemType Directory -Path $staging | Out-Null
+        [System.IO.Compression.ZipFile]::ExtractToDirectory($target, $staging)
+
+        $innerManifest = Join-Path $staging "$($manifest.InternalName).json"
+
+        if (Test-Path $innerManifest)
+        {
+            $inner = Get-Content $innerManifest -Raw | ConvertFrom-Json
+            $inner | Add-Member -NotePropertyName IconUrl -NotePropertyValue $iconUrl -Force
+            $innerJson = ConvertTo-Json -InputObject $inner -Depth 6
+            [System.IO.File]::WriteAllText($innerManifest, $innerJson, (New-Object System.Text.UTF8Encoding($false)))
+
+            Remove-Item $target -Force
+            [System.IO.Compression.ZipFile]::CreateFromDirectory(
+                $staging, $target, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+        }
+
+        Remove-Item $staging -Recurse -Force
+    }
+
     $entries += [ordered]@{
         Author             = $manifest.Author
         Name               = $manifest.Name
