@@ -95,7 +95,7 @@ if ($entries.Count -eq 0)
 }
 
 $json = ConvertTo-Json -InputObject $entries -Depth 6
-Set-Content -Path (Join-Path $root "repo.json") -Value $json -Encoding utf8
+[System.IO.File]::WriteAllText((Join-Path $root "repo.json"), $json, (New-Object System.Text.UTF8Encoding($false)))
 
 Write-Host ""
 Write-Host "repo.json written with $($entries.Count) plugin(s), links pointing at $BaseUrl"

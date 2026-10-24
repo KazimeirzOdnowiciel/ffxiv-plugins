@@ -1,4 +1,4 @@
-﻿[
+[
     {
         "Author":  "Deepseek",
         "Name":  "Slot Yield",
@@ -29,7 +29,7 @@
         "IconUrl":  "",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792806944
+        "LastUpdate":  1792807291
     },
     {
         "Author":  "Deepseek",
@@ -61,7 +61,7 @@
         "IconUrl":  "",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792806945
+        "LastUpdate":  1792807291
     },
     {
         "Author":  "Deepseek",
@@ -91,6 +91,6 @@
         "IconUrl":  "",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792806946
+        "LastUpdate":  1792807291
     }
 ]
