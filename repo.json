@@ -29,7 +29,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/SlotYield-0.2.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792809501
+        "LastUpdate":  1792809511
     },
     {
         "Author":  "Deepseek",
@@ -61,7 +61,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/RouletteBingo-0.1.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792809502
+        "LastUpdate":  1792809511
     },
     {
         "Author":  "Deepseek",
@@ -91,7 +91,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/CritSound-0.1.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792809503
+        "LastUpdate":  1792809511
     },
     {
         "Author":  "Deepseek",
@@ -121,7 +121,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/EnemyListCastBars-1.0.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792809504
+        "LastUpdate":  1792809511
     },
     {
         "Author":  "Deepseek",
@@ -148,9 +148,9 @@
         "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DesynthLens-0.1.0.0.zip",
         "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DesynthLens-0.1.0.0.zip",
         "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DesynthLens-0.1.0.0.zip",
-        "IconUrl":  "",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DesynthLens-0.1.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792809505
+        "LastUpdate":  1792809511
     }
 ]
