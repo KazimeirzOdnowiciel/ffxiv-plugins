@@ -29,7 +29,7 @@
         "IconUrl":  "",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792807291
+        "LastUpdate":  1792807440
     },
     {
         "Author":  "Deepseek",
@@ -61,7 +61,7 @@
         "IconUrl":  "",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792807291
+        "LastUpdate":  1792807440
     },
     {
         "Author":  "Deepseek",
@@ -91,6 +91,36 @@
         "IconUrl":  "",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792807291
+        "LastUpdate":  1792807441
+    },
+    {
+        "Author":  "EnemyListCastBars",
+        "Name":  "Enemy List Cast Bars",
+        "InternalName":  "EnemyListCastBars",
+        "AssemblyVersion":  "1.0.0.0",
+        "Description":  "Draws a progress bar and the cast name directly onto each row of the game\u0027s enemy list, so you can see every enemy cast without targeting them. Interruptible casts are highlighted in a different colour.",
+        "ApplicableVersion":  "any",
+        "RepoUrl":  null,
+        "Tags":  [
+                     "enemy list",
+                     "castbar",
+                     "cast bar",
+                     "combat",
+                     "ui"
+                 ],
+        "DalamudApiLevel":  15,
+        "LoadRequiredState":  0,
+        "LoadSync":  false,
+        "CanUnloadAsync":  false,
+        "LoadPriority":  0,
+        "Punchline":  "Shows a cast bar for every enemy in the enemy list.",
+        "AcceptsFeedback":  true,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/EnemyListCastBars.zip",
+        "IconUrl":  "",
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "LastUpdate":  1792807442
     }
 ]

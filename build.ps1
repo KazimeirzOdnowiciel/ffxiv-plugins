@@ -16,7 +16,8 @@ New-Item -ItemType Directory -Force -Path $dist | Out-Null
 $plugins = @(
     @{ Folder = "SlotYield"; Project = "SlotYield.csproj" },
     @{ Folder = "RouletteBingo"; Project = "RouletteBingo.csproj" },
-    @{ Folder = "CritSound"; Project = "CritSound.csproj" }
+    @{ Folder = "CritSound"; Project = "CritSound.csproj" },
+    @{ Folder = "EnemyListCastBars"; Project = "EnemyListCastBars.csproj"; Root = "$env:LOCALAPPDATA\XIVLauncher\devPlugins\sdsd" }
 )
 
 $parent = Split-Path $root -Parent
@@ -24,7 +25,8 @@ $entries = @()
 
 foreach ($plugin in $plugins)
 {
-    $folder = Join-Path $parent $plugin.Folder
+    $base = if ($plugin.ContainsKey("Root")) { $plugin.Root } else { $parent }
+    $folder = Join-Path $base $plugin.Folder
     $project = Join-Path $folder $plugin.Project
     $name = [System.IO.Path]::GetFileNameWithoutExtension($plugin.Project)
 

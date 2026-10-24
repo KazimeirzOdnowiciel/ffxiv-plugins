@@ -7,6 +7,7 @@ A Dalamud custom plugin repository for these plugins:
 | **Slot Yield** | Market scan, retainer-slot portfolio optimisation, listing advice, alerts, craft planning, and opt-in repricing / listing automation. |
 | **Roulette Bingo** | A generated 5x5 bingo card for every duty, with shareable seeds. |
 | **Crit Sound** | Audio feedback for critical hits, direct hits, and crit directs. |
+| **Enemy List Cast Bars** | Draws a cast bar and cast name onto each enemy-list row; interruptible casts are highlighted. (MIT, built from the dev-plugin source in AppData.) |
 
 ## Install (in game)
 
@@ -44,6 +45,6 @@ the number has to increase or nothing will be offered.
 
 - `LastUpdate` is refreshed on every build, which is what the in-game plugin list sorts on.
 - The plugin sources live outside this folder; `build.ps1` expects them as siblings
-  (`..\SlotYield`, `..\RouletteBingo`, `..\CritSound`). Adjust the `$plugins` table if your layout differs.
+  (`..\SlotYield`, `..\RouletteBingo`, `..\CritSound`, plus `EnemyListCastBars` from its dev-plugin folder via the `Root` key in the `$plugins` table).
 - Local testing: Dalamud accepts `file:///` URLs for a repository in some builds, but plain
   `https` is the reliable path.
