@@ -7,6 +7,7 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using Lumina.Excel.Sheets;
 using SlotYield.Core;
 using SlotYield.Game;
 using SlotYield.Market;
@@ -141,8 +142,18 @@ public sealed class MainWindow : Window
 
         this.DrawHeader();
 
+        // Tab colours carry the brass accent; ImGui's defaults read as a debug tool.
+        ImGui.PushStyleColor(ImGuiCol.Tab, Theme.Panel);
+        ImGui.PushStyleColor(ImGuiCol.TabHovered, Theme.PanelHover);
+        ImGui.PushStyleColor(ImGuiCol.TabActive, Theme.WithAlpha(Theme.Accent, 0.20f));
+        ImGui.PushStyleColor(ImGuiCol.TabUnfocused, Theme.Panel);
+        ImGui.PushStyleColor(ImGuiCol.TabUnfocusedActive, Theme.WithAlpha(Theme.Accent, 0.10f));
+
         if (!ImGui.BeginTabBar("##slotyield-tabs"))
+        {
+            ImGui.PopStyleColor(5);
             return;
+        }
 
         if (ImGui.BeginTabItem("Opportunities"))
         {
@@ -181,6 +192,7 @@ public sealed class MainWindow : Window
         }
 
         ImGui.EndTabBar();
+        ImGui.PopStyleColor(5);
     }
 
     // ------------------------------------------------------------------ header ----
@@ -188,26 +200,23 @@ public sealed class MainWindow : Window
     private void DrawHeader()
     {
         var state = this.plugin.State;
-        var drawList = ImGui.GetWindowDrawList();
-        var pos = ImGui.GetCursorScreenPos();
-        var scale = 1f;
-
-        drawList.AddText(ImGui.GetFont(), 10f * scale, pos, Theme.WithAlpha(Theme.Accent, 0.9f), "S L O T   Y I E L D");
-        ImGui.Dummy(new Vector2(0f, 15f));
-
         var world = this.plugin.ResolveWorld();
         var scanned = this.Config.LastScanUtc?.ToLocalTime().ToString("MMM d HH:mm") ?? "never";
-        var subtitle = $"{world}  -  last scan {scanned}";
+
+        Theme.Colored(Theme.AccentBright, "Slot Yield");
+        ImGui.SameLine(0f, 10f);
+
+        var subtitle = $"{world}   -   last scan {scanned}";
 
         if (state.Result is { } result)
         {
             var live = result.Candidates.Count(c => !c.Score.IsDead && !c.Score.IsSuspect);
             var profitable = result.Candidates.Count(c => !c.Score.IsDead && !c.Score.IsSuspect && c.Score.ProfitPerDay > 0m);
-            subtitle += $"  -  {live} live / {profitable} profitable  -  " +
+            subtitle += $"   -   {live} live / {profitable} profitable   -   " +
                         $"{result.Stats.Requests} requests in {result.Stats.Duration.TotalSeconds:0}s";
         }
 
-        Theme.Dimmed(subtitle);
+        Theme.Colored(Theme.TextDim, subtitle);
 
         ImGui.SameLine();
         if (ImGui.SmallButton("Net worth"))
@@ -219,7 +228,7 @@ public sealed class MainWindow : Window
         if (state.IsScanning)
         {
             ImGui.SameLine();
-            Theme.Colored(Theme.Gold, $"  scanning... {state.Phase} {state.Done}/{state.Total}");
+            Theme.Colored(Theme.Gold, $"scanning {state.Phase} {state.Done}/{state.Total}");
         }
         else
         {
@@ -228,10 +237,31 @@ public sealed class MainWindow : Window
                 this.plugin.StartScan();
         }
 
+        // Retainer slot strip: the portfolio's shape at a glance, one cell per slot.
+        var stripOrigin = ImGui.GetCursorScreenPos() + new Vector2(0f, 8f);
+        var stripWidth = ImGui.GetContentRegionAvail().X;
+        var slots = Math.Clamp(this.Config.PortfolioSlots, 1, 40);
+        var filled = Math.Clamp(this.Config.Pinned.Count, 0, slots);
+
+        UiKit.SlotStrip(ImGui.GetWindowDrawList(), stripOrigin, stripWidth, 8f, slots, filled, out var hovered);
+        ImGui.Dummy(new Vector2(stripWidth, 10f));
+
+        if (hovered >= 0)
+            ImGui.SetTooltip(hovered < filled ? $"slot {hovered + 1}   pinned" : $"slot {hovered + 1}   free");
+
+        Theme.Faint($"{filled} pinned   -   {slots} slots   -   budget {Money.Gil(this.Config.PortfolioBudget)}");
+
+        if (state.IsScanning)
+        {
+            var progressOrigin = ImGui.GetCursorScreenPos();
+            UiKit.ProgressLine(ImGui.GetWindowDrawList(), progressOrigin, stripWidth, 3f, state.Fraction);
+            ImGui.Dummy(new Vector2(stripWidth, 3f));
+        }
+
         if (state.Error.Length > 0)
             Theme.Colored(Theme.Danger, state.Error);
 
-        ImGui.Separator();
+        UiKit.Rule();
     }
 
     // ----------------------------------------------------------- opportunities ----
@@ -325,7 +355,7 @@ public sealed class MainWindow : Window
         ImGui.TableSetupColumn("Share", ImGuiTableColumnFlags.WidthFixed, 48f, 8);
         ImGui.TableSetupColumn("Capital", ImGuiTableColumnFlags.WidthFixed, 72f, 9);
         ImGui.TableSetupColumn("Clear", ImGuiTableColumnFlags.WidthFixed, 52f, 10);
-        ImGui.TableSetupColumn("30d", ImGuiTableColumnFlags.WidthFixed, 80f, 11);
+        ImGui.TableSetupColumn("30d", ImGuiTableColumnFlags.WidthFixed, 96f, 11);
         ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 40f, 12);
 
         ImGui.TableSetupScrollFreeze(0, 1);
@@ -390,6 +420,9 @@ public sealed class MainWindow : Window
         ImGui.TableNextColumn();
 
         var nameColor = dim ? Theme.TextFaint : Theme.Text;
+        var iconId = (uint)Plugin.DataManager.GetExcelSheet<Item>().GetRow(candidate.ItemId).Icon;
+        UiKit.ItemIcon(iconId, candidate.Quality == Quality.Hq, 18f);
+        ImGui.SameLine(0f, 6f);
         Theme.Colored(nameColor, info.Name);
         var nameHovered = ImGui.IsItemHovered();
 
@@ -445,7 +478,8 @@ public sealed class MainWindow : Window
 
         ImGui.TableNextColumn();
         var profit = score.ProfitPerDay;
-        var profitColor = dim ? Theme.TextFaint : profit <= 0m ? Theme.Danger : profit > 20_000m ? Theme.Gold : Theme.Accent;
+        // Profit is the one figure that leads a row; every other number stays neutral.
+        var profitColor = dim ? Theme.TextFaint : profit <= 0m ? Theme.Danger : Theme.Profit;
         Theme.Colored(profitColor, dim ? "-" : Money.Gil(profit));
 
         ImGui.TableNextColumn();
@@ -455,19 +489,24 @@ public sealed class MainWindow : Window
         Theme.Colored(dim ? Theme.TextFaint : Theme.Text, candidate.Quote.DistinctSellers.ToString());
 
         ImGui.TableNextColumn();
+        var share = (float)score.ExpectedShare;
+        var shareOrigin = ImGui.GetCursorScreenPos() + new Vector2(0f, 4f);
+        UiKit.Bar(ImGui.GetWindowDrawList(), shareOrigin, new Vector2(22f, 6f), share, dim ? Theme.TextFaint : Theme.Accent);
+        ImGui.Dummy(new Vector2(26f, 14f));
+        ImGui.SameLine(0f, 3f);
         Theme.Colored(dim ? Theme.TextFaint : Theme.TextDim, Money.Percent(score.ExpectedShare));
 
         ImGui.TableNextColumn();
         Theme.Colored(dim ? Theme.TextFaint : Theme.TextDim, Money.Gil(score.CapitalPerSlot));
 
         ImGui.TableNextColumn();
-        var clearColor = dim ? Theme.Danger : score.DaysToClear <= 14 ? Theme.Accent : Theme.TextDim;
+        var clearColor = dim ? Theme.Danger : score.DaysToClear <= 14 ? Theme.Text : Theme.TextDim;
         Theme.Colored(clearColor, Money.Days(score.DaysToClear));
 
         ImGui.TableNextColumn();
         var series = candidate.Quote.PriceHistory;
         var sparkPosition = ImGui.GetCursorScreenPos();
-        var sparkSize = new Vector2(72f, 16f);
+        var sparkSize = new Vector2(88f, 20f);
         ImGui.Dummy(sparkSize);
 
         if (series.Length >= 2)

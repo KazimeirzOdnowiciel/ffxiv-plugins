@@ -4,20 +4,39 @@ using Dalamud.Bindings.ImGui;
 
 namespace SlotYield.UI;
 
+/// <summary>
+/// Slot Yield's palette: graphite panels, warm ledger text, brass as structure.
+/// Brass is the game's own market/gil colour, so the window reads as part of FFXIV rather
+/// than as a generic dark dashboard; green appears only on profit figures, never as chrome.
+/// </summary>
 public static class Theme
 {
-    public static readonly Vector4 Background = new(0.035f, 0.047f, 0.063f, 0.98f);
-    public static readonly Vector4 Panel = new(0.063f, 0.082f, 0.106f, 1f);
-    public static readonly Vector4 PanelHover = new(0.09f, 0.115f, 0.145f, 1f);
-    public static readonly Vector4 Border = new(1f, 1f, 1f, 0.07f);
-    public static readonly Vector4 Text = new(0.85f, 0.90f, 0.94f, 1f);
-    public static readonly Vector4 TextDim = new(0.56f, 0.62f, 0.68f, 1f);
-    public static readonly Vector4 TextFaint = new(0.38f, 0.43f, 0.49f, 1f);
-    public static readonly Vector4 Accent = new(0.36f, 0.85f, 0.67f, 1f);
-    public static readonly Vector4 Gold = new(0.89f, 0.73f, 0.38f, 1f);
-    public static readonly Vector4 Warn = new(0.92f, 0.67f, 0.30f, 1f);
-    public static readonly Vector4 Danger = new(0.89f, 0.39f, 0.43f, 1f);
-    public static readonly Vector4 Hq = new(0.55f, 0.74f, 0.96f, 1f);
+    public static readonly Vector4 Background = new(0.0549f, 0.0706f, 0.0863f, 0.97f);
+    public static readonly Vector4 Panel = new(0.0784f, 0.1020f, 0.1255f, 1f);
+    public static readonly Vector4 PanelHover = new(0.1020f, 0.1333f, 0.1686f, 1f);
+    public static readonly Vector4 PanelRaised = new(0.1216f, 0.1569f, 0.1922f, 1f);
+
+    public static readonly Vector4 Border = new(0.902f, 0.855f, 0.776f, 0.10f);
+    public static readonly Vector4 Hairline = new(0.902f, 0.855f, 0.776f, 0.06f);
+
+    public static readonly Vector4 Text = new(0.902f, 0.882f, 0.839f, 1f);
+    public static readonly Vector4 TextDim = new(0.604f, 0.580f, 0.525f, 1f);
+    public static readonly Vector4 TextFaint = new(0.420f, 0.404f, 0.369f, 1f);
+
+    /// <summary>Structural accent: brass, used for selection, focus and the slot strip.</summary>
+    public static readonly Vector4 Accent = new(0.788f, 0.635f, 0.153f, 1f);
+
+    /// <summary>Brighter brass for the one emphasised figure on a row.</summary>
+    public static readonly Vector4 AccentBright = new(0.890f, 0.780f, 0.400f, 1f);
+
+    public static readonly Vector4 Gold = new(0.878f, 0.745f, 0.353f, 1f);
+
+    /// <summary>Profit only. Never used for chrome.</summary>
+    public static readonly Vector4 Profit = new(0.498f, 0.690f, 0.412f, 1f);
+
+    public static readonly Vector4 Warn = new(0.851f, 0.635f, 0.294f, 1f);
+    public static readonly Vector4 Danger = new(0.706f, 0.333f, 0.306f, 1f);
+    public static readonly Vector4 Hq = new(0.561f, 0.663f, 0.851f, 1f);
 
     public static uint U32(Vector4 color) => ImGui.ColorConvertFloat4ToU32(color);
 

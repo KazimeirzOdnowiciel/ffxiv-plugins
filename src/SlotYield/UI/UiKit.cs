@@ -1,0 +1,111 @@
+using System;
+using System.Numerics;
+using Dalamud.Bindings.ImGui;
+
+namespace SlotYield.UI;
+
+/// <summary>
+/// Small drawing primitives that give Slot Yield its own look. Everything here is a few
+/// hundred vertices at most, so the window stays inside the plugin's draw budget.
+/// </summary>
+internal static class UiKit
+{
+    /// <summary>A hairline across the window, for separating the header from the content.</summary>
+    public static void Rule(float alpha = 0.06f)
+    {
+        var origin = ImGui.GetCursorScreenPos();
+        var width = ImGui.GetContentRegionAvail().X;
+        ImGui.Dummy(new Vector2(width, 1f));
+        ImGui.GetWindowDrawList().AddLine(origin, origin + new Vector2(width, 0f), Theme.WithAlpha(Theme.Text, alpha));
+    }
+
+    /// <summary>
+    /// The retainer slot strip: one cell per portfolio slot, filled ones brass-shaded.
+    /// This is the window's signature element — the product's model (N slots competing for
+    /// gil/day) made visible without opening a tab.
+    /// </summary>
+    public static void SlotStrip(ImDrawListPtr list, Vector2 origin, float width, float height, int total, int filled, out int hovered)
+    {
+        hovered = -1;
+        if (total <= 0 || width <= 0f)
+            return;
+
+        var gap = 3f;
+        var cell = (width - (gap * (total - 1))) / total;
+        var rounding = MathF.Min(2.5f, cell * 0.25f);
+        var mouse = ImGui.GetMousePos();
+        var filledCount = Math.Clamp(filled, 0, total);
+
+        for (var i = 0; i < total; i++)
+        {
+            var min = new Vector2(origin.X + (i * (cell + gap)), origin.Y);
+            var max = min + new Vector2(cell, height);
+            var over = mouse.X >= min.X && mouse.X <= max.X && mouse.Y >= min.Y && mouse.Y <= max.Y;
+
+            if (over)
+                hovered = i;
+
+            if (i < filledCount)
+            {
+                var tint = Theme.Lerp(Theme.Accent, Theme.AccentBright, total <= 1 ? 0f : i / (float)(total - 1));
+                list.AddRectFilled(min, max, Theme.U32(tint), rounding);
+            }
+            else
+            {
+                list.AddRectFilled(min, max, Theme.WithAlpha(Theme.PanelRaised, 0.85f), rounding);
+                list.AddRect(min, max, Theme.U32(Theme.Border), rounding);
+            }
+
+            if (over)
+            {
+                list.AddRect(min, max, Theme.U32(Theme.AccentBright), rounding, 1.2f);
+            }
+        }
+    }
+
+    /// <summary>A thin progress track, used for the scan line in the header.</summary>
+    public static void ProgressLine(ImDrawListPtr list, Vector2 origin, float width, float height, float fraction)
+    {
+        if (width <= 0f)
+            return;
+
+        var rounding = height * 0.5f;
+        var end = origin + new Vector2(width, height);
+        list.AddRectFilled(origin, end, Theme.WithAlpha(Theme.PanelRaised, 0.9f), rounding);
+
+        var clamped = Math.Clamp(fraction, 0f, 1f);
+        if (clamped <= 0f)
+            return;
+
+        var filledEnd = new Vector2(origin.X + MathF.Max(height, width * clamped), origin.Y + height);
+        list.AddRectFilled(origin, filledEnd, Theme.U32(Theme.Accent), rounding);
+    }
+
+    /// <summary>A 0..1 bar for expected share, drawn inline in a table cell.</summary>
+    public static void Bar(ImDrawListPtr list, Vector2 origin, Vector2 size, float fraction, Vector4 color)
+    {
+        if (size.X <= 0f || size.Y <= 0f)
+            return;
+
+        var rounding = size.Y * 0.5f;
+        list.AddRectFilled(origin, origin + size, Theme.WithAlpha(Theme.PanelRaised, 0.9f), rounding);
+
+        var clamped = Math.Clamp(fraction, 0f, 1f);
+        if (clamped > 0f)
+        {
+            list.AddRectFilled(origin, origin + new Vector2(MathF.Max(size.Y, size.X * clamped), size.Y), Theme.U32(color), rounding);
+        }
+    }
+
+    /// <summary>Item icon at text height, with a blank of the same width when the texture is not ready.</summary>
+    public static void ItemIcon(uint iconId, bool hq, float size)
+    {
+        if (IconCache.TryGet(iconId, hq, out var wrap) && wrap is not null)
+        {
+            ImGui.Image(wrap.Handle, new Vector2(size, size));
+            return;
+        }
+
+        ImGui.Dummy(new Vector2(size, size));
+    }
+}
