@@ -17,12 +17,12 @@ public sealed class MainWindow : Window
         : base("Duty Recap###DutyRecapMain")
     {
         this.plugin = plugin;
-        this.Size = new Vector2(560, 560);
+        this.Size = new Vector2(640, 660);
         this.SizeCondition = ImGuiCond.FirstUseEver;
         this.SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(380, 300),
-            MaximumSize = new Vector2(1200, 1600),
+            MinimumSize = new Vector2(420, 320),
+            MaximumSize = new Vector2(1400, 1800),
         };
     }
 
@@ -100,7 +100,6 @@ public sealed class MainWindow : Window
     private void DrawFinished(RunRecap run)
     {
         var elapsed = run.FinishedUtc - run.StartedUtc;
-        var status = run.Completed ? "cleared" : "left";
         var drawList = ImGui.GetWindowDrawList();
         var font = ImGui.GetFont();
 
@@ -117,9 +116,11 @@ public sealed class MainWindow : Window
             13f,
             metaPos,
             Theme.U32(Theme.TextDim),
-            $"{DescribeKind(run.Kind)}  -  {Detectors.FormatClock(elapsed)}  -  {status}");
+            $"{DescribeKind(run.Kind)}  -  {Detectors.FormatClock(elapsed)}");
 
         ImGui.Dummy(new Vector2(0f, 56f));
+
+        DrawStatusPill(run.Completed ? "cleared" : "left", run.Completed ? Theme.Green : Theme.TextDim);
 
         if (run.Snark.Length > 0)
             ColoredText(Theme.TextFaint, run.Snark);
@@ -136,7 +137,14 @@ public sealed class MainWindow : Window
 
         this.DrawBest(run);
 
-        ImGui.Spacing();
+        this.DrawHistory();
+
+        this.DrawFooterBar(run, elapsed);
+    }
+
+    private void DrawFooterBar(RunRecap run, TimeSpan elapsed)
+    {
+        DrawGoldRule();
 
         if (ImGui.Button("Copy recap"))
         {
@@ -144,11 +152,14 @@ public sealed class MainWindow : Window
             this.plugin.Print("Recap copied to the clipboard.");
         }
 
-        ImGui.SameLine();
+        ImGui.SameLine(0f, 8f);
         if (ImGui.SmallButton("settings"))
             this.plugin.OpenConfig();
 
-        this.DrawHistory();
+        ImGui.SameLine(0f, 16f);
+        ColoredText(
+            Theme.TextFaint,
+            $"{run.Wipes} wipe{(run.Wipes == 1 ? string.Empty : "s")}  -  {run.TotalDeaths} death{(run.TotalDeaths == 1 ? string.Empty : "s")}");
     }
 
     private void DrawPlayerTable(IReadOnlyList<PlayerStat> players)
@@ -162,33 +173,36 @@ public sealed class MainWindow : Window
         var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp |
                     ImGuiTableFlags.NoSavedSettings;
 
-        if (!ImGui.BeginTable("##players", 4, flags))
-            return;
-
-        ImGui.TableSetupColumn("Player", ImGuiTableColumnFlags.WidthStretch, 2f, 0);
-        ImGui.TableSetupColumn("Job", ImGuiTableColumnFlags.WidthFixed, 90f, 1);
-        ImGui.TableSetupColumn("Deaths", ImGuiTableColumnFlags.WidthFixed, 64f, 2);
-        ImGui.TableSetupColumn("Vuln", ImGuiTableColumnFlags.WidthFixed, 52f, 3);
-        ImGui.TableHeadersRow();
-
-        foreach (var player in players)
+        ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(8f, 7f));
+        if (ImGui.BeginTable("##players", 4, flags))
         {
-            ImGui.TableNextColumn();
-            var name = player.IsSelf ? player.Name + " (you)" : player.Name;
-            ColoredText(player.IsSelf ? Theme.Gold : Theme.Text, name);
+            ImGui.TableSetupColumn("Player", ImGuiTableColumnFlags.WidthStretch, 2f, 0);
+            ImGui.TableSetupColumn("Job", ImGuiTableColumnFlags.WidthFixed, 90f, 1);
+            ImGui.TableSetupColumn("Deaths", ImGuiTableColumnFlags.WidthFixed, 64f, 2);
+            ImGui.TableSetupColumn("Vuln", ImGuiTableColumnFlags.WidthFixed, 52f, 3);
+            ImGui.TableHeadersRow();
 
-            ImGui.TableNextColumn();
-            var job = string.IsNullOrEmpty(player.JobName) ? RoleLabel(player.JobId) : player.JobName;
-            ColoredText(Theme.RoleColor(player.JobId), job);
+            foreach (var player in players)
+            {
+                ImGui.TableNextColumn();
+                var name = player.IsSelf ? player.Name + " (you)" : player.Name;
+                ColoredText(player.IsSelf ? Theme.Gold : Theme.Text, name);
 
-            ImGui.TableNextColumn();
-            ColoredText(player.Deaths > 0 ? Theme.Danger : Theme.TextDim, player.Deaths.ToString());
+                ImGui.TableNextColumn();
+                var job = string.IsNullOrEmpty(player.JobName) ? RoleLabel(player.JobId) : player.JobName;
+                ColoredText(Theme.RoleColor(player.JobId), job);
 
-            ImGui.TableNextColumn();
-            ColoredText(player.PeakVuln >= 3 ? Theme.Danger : Theme.TextDim, player.PeakVuln.ToString());
+                ImGui.TableNextColumn();
+                ColoredText(player.Deaths > 0 ? Theme.Danger : Theme.TextDim, player.Deaths.ToString());
+
+                ImGui.TableNextColumn();
+                ColoredText(player.PeakVuln >= 3 ? Theme.Danger : Theme.TextDim, player.PeakVuln.ToString());
+            }
+
+            ImGui.EndTable();
         }
 
-        ImGui.EndTable();
+        ImGui.PopStyleVar();
     }
 
     private void DrawBest(RunRecap run)
@@ -300,6 +314,19 @@ public sealed class MainWindow : Window
         var pos = ImGui.GetCursorScreenPos() + new Vector2(0f, 4f);
         drawList.AddLine(pos, pos + new Vector2(width, 0f), Theme.WithAlpha(Theme.Gold, 0.22f), 1f);
         ImGui.Dummy(new Vector2(width, 9f));
+    }
+
+    private static void DrawStatusPill(string label, Vector4 color)
+    {
+        var drawList = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        var textSize = ImGui.CalcTextSize(label);
+        var size = new Vector2(textSize.X + 24f, 18f);
+
+        drawList.AddRectFilled(pos, pos + size, Theme.WithAlpha(color, 0.16f), size.Y / 2f);
+        drawList.AddCircleFilled(pos + new Vector2(9f, size.Y / 2f), 3f, Theme.U32(color));
+        drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), pos + new Vector2(16f, 2.5f), Theme.U32(color), label);
+        ImGui.Dummy(size);
     }
 
     // ------------------------------------------------------------------- misc ----

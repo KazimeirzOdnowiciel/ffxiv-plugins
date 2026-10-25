@@ -29,7 +29,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/SlotYield-0.3.0.3.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792945949
+        "LastUpdate":  1792946055
     },
     {
         "Author":  "Deepseek",
@@ -61,7 +61,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/RouletteBingo-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792945950
+        "LastUpdate":  1792946056
     },
     {
         "Author":  "Deepseek",
@@ -91,7 +91,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/CritSound-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792945951
+        "LastUpdate":  1792946057
     },
     {
         "Author":  "Deepseek",
@@ -121,7 +121,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/EnemyListCastBars-1.0.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792945952
+        "LastUpdate":  1792946058
     },
     {
         "Author":  "Deepseek",
@@ -151,7 +151,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DesynthLens-0.4.0.3.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792945953
+        "LastUpdate":  1792946059
     },
     {
         "Author":  "Deepseek",
@@ -182,7 +182,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/MechanicWatch-0.2.0.2.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792945954
+        "LastUpdate":  1792946060
     },
     {
         "Author":  "Deepseek",
@@ -213,7 +213,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/GilLedger-0.0.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792945955
+        "LastUpdate":  1792946061
     },
     {
         "Author":  "Deepseek",
@@ -245,6 +245,6 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DutyRecap-0.0.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1792945957
+        "LastUpdate":  1792946062
     }
 ]
