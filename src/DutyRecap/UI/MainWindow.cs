@@ -171,7 +171,7 @@ public sealed class MainWindow : Window
         }
 
         var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp |
-                    ImGuiTableFlags.NoSavedSettings;
+                    ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings;
 
         ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(8f, 7f));
         if (ImGui.BeginTable("##players", 4, flags))
