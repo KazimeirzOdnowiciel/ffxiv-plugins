@@ -25,6 +25,8 @@ public static class ChatParser
 
         if (text.Contains("sold", StringComparison.OrdinalIgnoreCase))
             kind = GilKind.Sale;
+        else if (text.Contains("no longer selling", StringComparison.OrdinalIgnoreCase))
+            kind = GilKind.Sale;
         else if (text.Contains("purchase", StringComparison.OrdinalIgnoreCase))
             kind = GilKind.Purchase;
         else if (text.Contains("tax", StringComparison.OrdinalIgnoreCase))
