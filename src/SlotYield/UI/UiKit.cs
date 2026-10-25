@@ -30,7 +30,7 @@ internal static class UiKit
         if (total <= 0 || width <= 0f)
             return;
 
-        var gap = 3f;
+        var gap = 2f;
         var cell = (width - (gap * (total - 1))) / total;
         var rounding = MathF.Min(2.5f, cell * 0.25f);
         var mouse = ImGui.GetMousePos();
@@ -98,9 +98,29 @@ internal static class UiKit
     }
 
     /// <summary>
-    /// Icon id for an item row, or 0 when the sheet has no such row. Market results can
-    /// outlive an item's existence, and a throw inside the draw loop would take the window down.
+    /// A filter toggle that reads as a chip instead of a bare ImGui checkbox: tinted when on,
+    /// outlined when off. Same interaction, far less "debug window".
     /// </summary>
+    public static bool ToggleChip(string label, ref bool value)
+    {
+        ImGui.PushStyleColor(ImGuiCol.Button, value ? Theme.WithAlpha(Theme.Accent, 0.25f) : Theme.U32(Theme.Panel));
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, value ? Theme.WithAlpha(Theme.Accent, 0.38f) : Theme.U32(Theme.PanelHover));
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.WithAlpha(Theme.Accent, 0.50f));
+        ImGui.PushStyleColor(ImGuiCol.Text, value ? Theme.Text : Theme.TextDim);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3f);
+        var clicked = ImGui.Button(label);
+        ImGui.PopStyleVar();
+        ImGui.PopStyleColor(4);
+
+        if (clicked)
+        {
+            value = !value;
+        }
+
+        return clicked;
+    }
+
+    /// <summary>Icon id for an item row, or 0 when the sheet has no such row.</summary>
     public static uint IconIdForItem(uint itemId)
     {
         try

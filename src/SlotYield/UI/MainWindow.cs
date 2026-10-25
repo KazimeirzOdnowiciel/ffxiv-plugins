@@ -7,7 +7,6 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Client.Game;
-using Lumina.Excel.Sheets;
 using SlotYield.Core;
 using SlotYield.Game;
 using SlotYield.Market;
@@ -126,6 +125,45 @@ public sealed class MainWindow : Window
             this.plugin.WriteDiagnostics();
     }
 
+    /// <summary>
+    /// ImGui's stock frame/checkbox/combo colours are what made the window read as a debug
+    /// tool. Scoped to this window only, so other plugins keep their own look.
+    /// </summary>
+    private void PushControlStyle()
+    {
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.Panel);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Theme.PanelHover);
+        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.PanelHover);
+        ImGui.PushStyleColor(ImGuiCol.CheckMark, Theme.Accent);
+        ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Panel);
+        ImGui.PushStyleColor(ImGuiCol.Header, Theme.PanelHover);
+        ImGui.PushStyleColor(ImGuiCol.HeaderHovered, Theme.WithAlpha(Theme.Accent, 0.18f));
+        ImGui.PushStyleColor(ImGuiCol.HeaderActive, Theme.WithAlpha(Theme.Accent, 0.28f));
+        ImGui.PushStyleColor(ImGuiCol.Button, Theme.Panel);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.PanelHover);
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.WithAlpha(Theme.Accent, 0.25f));
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, Theme.WithAlpha(Theme.Background, 0.35f));
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, Theme.WithAlpha(Theme.Text, 0.18f));
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, Theme.WithAlpha(Theme.Text, 0.30f));
+        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, Theme.WithAlpha(Theme.Accent, 0.55f));
+        ImGui.PushStyleColor(ImGuiCol.Separator, Theme.Hairline);
+        ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, Theme.Panel);
+        ImGui.PushStyleColor(ImGuiCol.TableBorderLight, Theme.Hairline);
+        ImGui.PushStyleColor(ImGuiCol.TableBorderStrong, Theme.Border);
+
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3f);
+        ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, 3f);
+        ImGui.PushStyleVar(ImGuiStyleVar.PopupRounding, 4f);
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 6f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 0f);
+    }
+
+    private void PopControlStyle()
+    {
+        ImGui.PopStyleVar(5);
+        ImGui.PopStyleColor(19);
+    }
+
     private void DrawCore()
     {
         if (!this.Config.Enabled)
@@ -140,6 +178,19 @@ public sealed class MainWindow : Window
             return;
         }
 
+        this.PushControlStyle();
+        try
+        {
+            this.DrawContent();
+        }
+        finally
+        {
+            this.PopControlStyle();
+        }
+    }
+
+    private void DrawContent()
+    {
         this.DrawHeader();
 
         // Tab colours carry the brass accent; ImGui's defaults read as a debug tool.
@@ -203,10 +254,9 @@ public sealed class MainWindow : Window
         var world = this.plugin.ResolveWorld();
         var scanned = this.Config.LastScanUtc?.ToLocalTime().ToString("MMM d HH:mm") ?? "never";
 
-        Theme.Colored(Theme.AccentBright, "Slot Yield");
-        ImGui.SameLine(0f, 10f);
+        Theme.Colored(Theme.Text, world);
 
-        var subtitle = $"{world}   -   last scan {scanned}";
+        var subtitle = $"   last scan {scanned}";
 
         if (state.Result is { } result)
         {
@@ -216,9 +266,18 @@ public sealed class MainWindow : Window
                         $"{result.Stats.Requests} requests in {result.Stats.Duration.TotalSeconds:0}s";
         }
 
-        Theme.Colored(Theme.TextDim, subtitle);
-
         ImGui.SameLine();
+        Theme.Colored(Theme.TextFaint, subtitle);
+
+        // Actions sit on the right edge so the left side stays a status line.
+        ImGui.SameLine();
+        var style = ImGui.GetStyle();
+        var actionsWidth = ImGui.CalcTextSize("Net worth").X + ImGui.CalcTextSize("Rescan").X +
+                           (style.FramePadding.X * 4f) + (style.ItemSpacing.X * 2f) + 6f;
+        var rightEdge = ImGui.GetWindowContentRegionMax().X - actionsWidth;
+        if (ImGui.GetCursorPosX() < rightEdge)
+            ImGui.SetCursorPosX(rightEdge);
+
         if (ImGui.SmallButton("Net worth"))
             this.plugin.ToggleWorth();
 
@@ -228,7 +287,7 @@ public sealed class MainWindow : Window
         if (state.IsScanning)
         {
             ImGui.SameLine();
-            Theme.Colored(Theme.Gold, $"scanning {state.Phase} {state.Done}/{state.Total}");
+            Theme.Colored(Theme.Gold, $"{state.Phase} {state.Done}/{state.Total}");
         }
         else
         {
@@ -239,13 +298,13 @@ public sealed class MainWindow : Window
 
         // Retainer slot strip: the portfolio's shape at a glance, one cell per slot.
         ImGui.NewLine();
-        var stripOrigin = ImGui.GetCursorScreenPos() + new Vector2(0f, 8f);
+        var stripOrigin = ImGui.GetCursorScreenPos() + new Vector2(0f, 9f);
         var stripWidth = ImGui.GetContentRegionAvail().X;
         var slots = Math.Clamp(this.Config.PortfolioSlots, 1, 40);
         var filled = Math.Clamp(this.Config.Pinned.Count, 0, slots);
 
-        UiKit.SlotStrip(ImGui.GetWindowDrawList(), stripOrigin, stripWidth, 8f, slots, filled, out var hovered);
-        ImGui.Dummy(new Vector2(stripWidth, 10f));
+        UiKit.SlotStrip(ImGui.GetWindowDrawList(), stripOrigin, stripWidth, 14f, slots, filled, out var hovered);
+        ImGui.Dummy(new Vector2(stripWidth, 16f));
 
         if (hovered >= 0)
             ImGui.SetTooltip(hovered < filled ? $"slot {hovered + 1}   pinned" : $"slot {hovered + 1}   free");
@@ -311,13 +370,13 @@ public sealed class MainWindow : Window
         }
 
         ImGui.SameLine();
-        ImGui.Checkbox("pinned", ref this.pinnedOnly);
+        UiKit.ToggleChip("pinned", ref this.pinnedOnly);
         ImGui.SameLine();
-        ImGui.Checkbox("dead", ref this.showDead);
+        UiKit.ToggleChip("dead", ref this.showDead);
         ImGui.SameLine();
-        ImGui.Checkbox("affordable", ref this.affordableOnly);
+        UiKit.ToggleChip("affordable", ref this.affordableOnly);
         ImGui.SameLine();
-        ImGui.Checkbox("fresh only", ref this.hideStale);
+        UiKit.ToggleChip("fresh only", ref this.hideStale);
 
         var rows = this.Filter(result.Candidates);
         this.Sort(rows);
@@ -663,6 +722,8 @@ public sealed class MainWindow : Window
                 Theme.Faint(rank++ + ".");
 
                 ImGui.TableNextColumn();
+                UiKit.ItemIcon(UiKit.IconIdForItem(pick.ItemId), pick.Quality == Quality.Hq, 16f);
+                ImGui.SameLine(0f, 6f);
                 Theme.Colored(Theme.Text, this.plugin.Catalog.Name(pick.ItemId));
 
                 ImGui.TableNextColumn();
