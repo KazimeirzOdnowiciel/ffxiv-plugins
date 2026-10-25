@@ -238,6 +238,7 @@ public sealed class MainWindow : Window
         }
 
         // Retainer slot strip: the portfolio's shape at a glance, one cell per slot.
+        ImGui.NewLine();
         var stripOrigin = ImGui.GetCursorScreenPos() + new Vector2(0f, 8f);
         var stripWidth = ImGui.GetContentRegionAvail().X;
         var slots = Math.Clamp(this.Config.PortfolioSlots, 1, 40);
@@ -420,8 +421,7 @@ public sealed class MainWindow : Window
         ImGui.TableNextColumn();
 
         var nameColor = dim ? Theme.TextFaint : Theme.Text;
-        var iconId = (uint)Plugin.DataManager.GetExcelSheet<Item>().GetRow(candidate.ItemId).Icon;
-        UiKit.ItemIcon(iconId, candidate.Quality == Quality.Hq, 18f);
+        UiKit.ItemIcon(UiKit.IconIdForItem(candidate.ItemId), candidate.Quality == Quality.Hq, 18f);
         ImGui.SameLine(0f, 6f);
         Theme.Colored(nameColor, info.Name);
         var nameHovered = ImGui.IsItemHovered();
@@ -491,8 +491,8 @@ public sealed class MainWindow : Window
         ImGui.TableNextColumn();
         var share = (float)score.ExpectedShare;
         var shareOrigin = ImGui.GetCursorScreenPos() + new Vector2(0f, 4f);
-        UiKit.Bar(ImGui.GetWindowDrawList(), shareOrigin, new Vector2(22f, 6f), share, dim ? Theme.TextFaint : Theme.Accent);
-        ImGui.Dummy(new Vector2(26f, 14f));
+        UiKit.Bar(ImGui.GetWindowDrawList(), shareOrigin, new Vector2(18f, 6f), share, dim ? Theme.TextFaint : Theme.Accent);
+        ImGui.Dummy(new Vector2(20f, 14f));
         ImGui.SameLine(0f, 3f);
         Theme.Colored(dim ? Theme.TextFaint : Theme.TextDim, Money.Percent(score.ExpectedShare));
 

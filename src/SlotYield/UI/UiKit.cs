@@ -97,6 +97,22 @@ internal static class UiKit
         }
     }
 
+    /// <summary>
+    /// Icon id for an item row, or 0 when the sheet has no such row. Market results can
+    /// outlive an item's existence, and a throw inside the draw loop would take the window down.
+    /// </summary>
+    public static uint IconIdForItem(uint itemId)
+    {
+        try
+        {
+            return Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Item>().GetRow(itemId).Icon;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     /// <summary>Item icon at text height, with a blank of the same width when the texture is not ready.</summary>
     public static void ItemIcon(uint iconId, bool hq, float size)
     {
