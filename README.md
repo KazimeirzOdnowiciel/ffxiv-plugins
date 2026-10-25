@@ -22,8 +22,10 @@ version does not show up right away.
 |---|---|---|
 | **Slot Yield** | 0.2.0.2 | Treats your retainer slots as a portfolio: scans the market board via Universalis, models how much of each item's daily sales you can actually capture, and picks the items that earn the most gil per slot per day. Also tracks your own listings, alerts on undercuts, plans crafts from your bags, and can reprice or list for you on request. |
 | **Roulette Bingo** | 0.1.0.1 | A generated 5×5 bingo card for every duty you enter, filled with the small disasters and rituals of party content. Auto-detects deaths, wipes, vuln stacks and the chat classics; every card is seeded so a code reproduces the same board. |
+| **Duty Recap** | 0.0.0.1 | A post-duty scorecard: who died and how often, wipes, chat chatter and peak vuln stacks, graded and compared against your personal best for that duty. |
 | **Crit Sound** | 0.1.0.1 | Audio feedback for combat: separate sounds for critical hits, direct hits and crit directs, so you can hear your damage without watching floating text. |
 | **Desynth Lens** | 0.4.0.3 | Records what each desynthesis actually returns and what those materials are worth, so you can tell a profitable salvage from a waste of gil. |
+| **Gil Ledger** | 0.0.0.1 | A running ledger of your pocket gil: parses market purchases, sales, repairs and venture fees from system chat, and reconciles every balance change the game never explains, with a daily profit-and-loss summary. |
 | **Mechanic Watch** | 0.2.0.2 | A party-wide grid of the statuses you choose to care about, so you can see at a glance who has what during a fight. |
 | **Enemy List Cast Bars** | 1.0.0.1 | Draws a cast bar and the cast name onto each enemy-list row, highlighting interruptible casts. — *third party, MIT, see [credits](#credits)* |
 
