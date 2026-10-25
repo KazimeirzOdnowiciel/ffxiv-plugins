@@ -51,6 +51,27 @@ public static class Detectors
         }
     }
 
+    /// <summary>Resolves a ClassJob id to its display name ("Bard", "White Mage", ...).</summary>
+    public static string JobName(IDataManager data, uint jobId)
+    {
+        try
+        {
+            var sheet = data.GetExcelSheet<Lumina.Excel.Sheets.ClassJob>();
+            if (sheet is not null && sheet.TryGetRow(jobId, out var row))
+            {
+                var name = row.Name.ToString();
+                if (!string.IsNullOrWhiteSpace(name))
+                    return name;
+            }
+        }
+        catch
+        {
+            // fall through to the numeric fallback
+        }
+
+        return $"Job {jobId}";
+    }
+
     public static string FormatClock(TimeSpan span)
     {
         if (span < TimeSpan.Zero)

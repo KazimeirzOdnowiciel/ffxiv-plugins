@@ -21,6 +21,8 @@ public sealed class PlayerStat
 
     public uint JobId { get; set; }
 
+    public string JobName { get; set; } = string.Empty;
+
     public int Deaths { get; set; }
 
     public int PeakVuln { get; set; }

@@ -242,10 +242,12 @@ public sealed class RecapSession : IDisposable
         if (this.players.TryGetValue(id, out var player))
             return player;
 
+        var jobId = member.ClassJob.RowId;
         player = new PlayerStat
         {
             Name = member.Name.TextValue,
-            JobId = member.ClassJob.RowId,
+            JobId = jobId,
+            JobName = Detectors.JobName(Plugin.DataManager, jobId),
             IsSelf = member.ContentId != 0 && member.ContentId == Plugin.PlayerState.ContentId,
         };
 

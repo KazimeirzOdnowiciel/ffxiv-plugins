@@ -158,7 +158,7 @@ public sealed class MainWindow : Window
             return;
 
         ImGui.TableSetupColumn("Player", ImGuiTableColumnFlags.WidthStretch, 2f, 0);
-        ImGui.TableSetupColumn("Role", ImGuiTableColumnFlags.WidthFixed, 56f, 1);
+        ImGui.TableSetupColumn("Job", ImGuiTableColumnFlags.WidthFixed, 90f, 1);
         ImGui.TableSetupColumn("Deaths", ImGuiTableColumnFlags.WidthFixed, 64f, 2);
         ImGui.TableSetupColumn("Vuln", ImGuiTableColumnFlags.WidthFixed, 52f, 3);
         ImGui.TableHeadersRow();
@@ -170,7 +170,8 @@ public sealed class MainWindow : Window
             ColoredText(player.IsSelf ? Theme.Gold : Theme.Text, name);
 
             ImGui.TableNextColumn();
-            ColoredText(Theme.RoleColor(player.JobId), RoleLabel(player.JobId));
+            var job = string.IsNullOrEmpty(player.JobName) ? RoleLabel(player.JobId) : player.JobName;
+            ColoredText(Theme.RoleColor(player.JobId), job);
 
             ImGui.TableNextColumn();
             ColoredText(player.Deaths > 0 ? Theme.Danger : Theme.TextDim, player.Deaths.ToString());
