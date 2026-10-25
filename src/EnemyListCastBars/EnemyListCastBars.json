@@ -1,0 +1,23 @@
+{
+  "Author": "Deepseek",
+  "Name": "Enemy List Cast Bars",
+  "Punchline": "Shows a cast bar for every enemy in the enemy list.",
+  "Description": "Draws a progress bar and the cast name directly onto each row of the game's enemy list, so you can see every enemy cast without targeting them. Interruptible casts are highlighted in a different colour.",
+  "InternalName": "EnemyListCastBars",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "enemy list",
+    "castbar",
+    "cast bar",
+    "combat",
+    "ui"
+  ],
+  "CategoryTags": [
+    "UI"
+  ],
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0
+}
