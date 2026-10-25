@@ -40,6 +40,21 @@ public sealed class ConfigWindow : Window
             v => this.Config.DetectVulnStacks = v);
         changed |= this.Checkbox("Party chat chatter", () => this.Config.DetectChat, v => this.Config.DetectChat = v);
 
+        ImGui.Spacing();
+        ImGui.TextUnformatted("Storage");
+        changed |= this.Checkbox(
+            "Store party chat lines to read later",
+            () => this.Config.StoreChatLog,
+            v => this.Config.StoreChatLog = v);
+
+        var limit = this.Config.ChatLineLimit;
+        ImGui.SetNextItemWidth(160f);
+        if (ImGui.SliderInt("Lines per run", ref limit, 5, 120))
+        {
+            this.Config.ChatLineLimit = limit;
+            changed = true;
+        }
+
         if (changed)
         {
             this.Config.Normalize();

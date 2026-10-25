@@ -13,16 +13,18 @@ public sealed class MainWindow : Window
 {
     private readonly Plugin plugin;
 
+    private RunRecap? selectedRun;
+
     public MainWindow(Plugin plugin)
         : base("Duty Recap###DutyRecapMain")
     {
         this.plugin = plugin;
-        this.Size = new Vector2(640, 660);
+        this.Size = new Vector2(680, 700);
         this.SizeCondition = ImGuiCond.FirstUseEver;
         this.SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(420, 320),
-            MaximumSize = new Vector2(1400, 1800),
+            MinimumSize = new Vector2(460, 360),
+            MaximumSize = new Vector2(1500, 1800),
         };
     }
 
@@ -53,6 +55,34 @@ public sealed class MainWindow : Window
             return;
         }
 
+        if (!ImGui.BeginTabBar("##dutyrecap-tabs"))
+            return;
+
+        if (ImGui.BeginTabItem("This run"))
+        {
+            this.DrawThisRunTab();
+            ImGui.EndTabItem();
+        }
+
+        if (ImGui.BeginTabItem("History"))
+        {
+            this.DrawHistoryTab();
+            ImGui.EndTabItem();
+        }
+
+        if (ImGui.BeginTabItem("Records"))
+        {
+            this.DrawRecordsTab();
+            ImGui.EndTabItem();
+        }
+
+        ImGui.EndTabBar();
+    }
+
+    // ---------------------------------------------------------------- this run ----
+
+    private void DrawThisRunTab()
+    {
         if (this.Session.Current is { } live)
         {
             this.DrawLive(live);
@@ -69,8 +99,6 @@ public sealed class MainWindow : Window
         this.DrawFinished(last);
     }
 
-    // ------------------------------------------------------------------- live ----
-
     private void DrawLive(RunRecap run)
     {
         var drawList = ImGui.GetWindowDrawList();
@@ -83,7 +111,7 @@ public sealed class MainWindow : Window
 
         ColoredText(
             Theme.TextDim,
-            $"{DescribeKind(run.Kind)}  -  {Detectors.FormatClock(DateTime.UtcNow - run.StartedUtc)}  -  in progress");
+            $"{ContentLabel(run)}  -  {Detectors.FormatClock(DateTime.UtcNow - run.StartedUtc)}  -  in progress");
         ColoredText(Theme.TextDim, $"deaths so far {this.Session.LiveDeaths}  -  wipes {this.Session.LiveWipes}");
 
         DrawGoldRule();
@@ -95,14 +123,11 @@ public sealed class MainWindow : Window
             this.plugin.OpenConfig();
     }
 
-    // ---------------------------------------------------------------- finished ----
-
     private void DrawFinished(RunRecap run)
     {
         var elapsed = run.FinishedUtc - run.StartedUtc;
         var drawList = ImGui.GetWindowDrawList();
         var font = ImGui.GetFont();
-
         var p = ImGui.GetCursorScreenPos();
 
         DrawStamp(drawList, p, 52f, run.Grade, Theme.GradeColor(run.Grade));
@@ -116,7 +141,7 @@ public sealed class MainWindow : Window
             13f,
             metaPos,
             Theme.U32(Theme.TextDim),
-            $"{DescribeKind(run.Kind)}  -  {Detectors.FormatClock(elapsed)}");
+            $"{ContentLabel(run)}  -  {Detectors.FormatClock(elapsed)}");
 
         ImGui.Dummy(new Vector2(0f, 56f));
 
@@ -137,7 +162,7 @@ public sealed class MainWindow : Window
 
         this.DrawBest(run);
 
-        this.DrawHistory();
+        this.DrawChatSection(run);
 
         this.DrawFooterBar(run, elapsed);
     }
@@ -161,6 +186,189 @@ public sealed class MainWindow : Window
             Theme.TextFaint,
             $"{run.Wipes} wipe{(run.Wipes == 1 ? string.Empty : "s")}  -  {run.TotalDeaths} death{(run.TotalDeaths == 1 ? string.Empty : "s")}");
     }
+
+    // ---------------------------------------------------------------- history ----
+
+    private void DrawHistoryTab()
+    {
+        var history = this.Config.History;
+        if (history.Count == 0)
+        {
+            ColoredText(Theme.TextFaint, "No runs stored yet. Queue for something and come back.");
+            return;
+        }
+
+        var listHeight = Math.Max(140f, ImGui.GetContentRegionAvail().Y * 0.5f);
+        ImGui.BeginChild("##historylist", new Vector2(0f, listHeight));
+        for (var index = 0; index < history.Count; index++)
+        {
+            var run = history[index];
+            var label =
+                $"{run.FinishedUtc.ToLocalTime():MM-dd HH:mm}  {Truncate(run.DutyName, 24),-24}  {Truncate(ContentShort(run), 16),-16}  {Detectors.FormatClock(run.FinishedUtc - run.StartedUtc)}  {run.Wipes}w {run.TotalDeaths}d  {run.Grade}";
+
+            if (ImGui.Selectable(label, ReferenceEquals(this.selectedRun, run)))
+                this.selectedRun = run;
+        }
+        ImGui.EndChild();
+
+        var selected = this.selectedRun ?? history[0];
+        DrawGoldRule();
+        ImGui.TextUnformatted(Truncate(selected.DutyName, 48));
+        ColoredText(
+            Theme.TextDim,
+            $"{ContentLabel(selected)}  -  {(selected.Completed ? "cleared" : "left")}  -  {Detectors.FormatClock(selected.FinishedUtc - selected.StartedUtc)}  -  {selected.Wipes} wipes  -  {selected.TotalDeaths} deaths");
+
+        this.DrawChatSection(selected);
+    }
+
+    // ---------------------------------------------------------------- records ----
+
+    private void DrawRecordsTab()
+    {
+        var history = this.Config.History;
+        if (history.Count == 0)
+        {
+            ColoredText(Theme.TextFaint, "No runs stored yet.");
+            return;
+        }
+
+        var groups = new Dictionary<string, List<RunRecap>>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < history.Count; index++)
+        {
+            var run = history[index];
+            if (!groups.TryGetValue(run.DutyName, out var list))
+            {
+                list = new List<RunRecap>();
+                groups[run.DutyName] = list;
+            }
+
+            list.Add(run);
+        }
+
+        var names = new List<string>(groups.Keys);
+        names.Sort(StringComparer.OrdinalIgnoreCase);
+
+        var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp |
+                    ImGuiTableFlags.NoSavedSettings;
+
+        ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(8f, 6f));
+        if (ImGui.BeginTable("##records", 6, flags))
+        {
+            ImGui.TableSetupColumn("Duty", ImGuiTableColumnFlags.WidthStretch, 2.2f, 0);
+            ImGui.TableSetupColumn("Runs", ImGuiTableColumnFlags.WidthFixed, 44f, 1);
+            ImGui.TableSetupColumn("Fastest", ImGuiTableColumnFlags.WidthFixed, 64f, 2);
+            ImGui.TableSetupColumn("Avg", ImGuiTableColumnFlags.WidthFixed, 64f, 3);
+            ImGui.TableSetupColumn("Best deaths", ImGuiTableColumnFlags.WidthFixed, 80f, 4);
+            ImGui.TableSetupColumn("Last", ImGuiTableColumnFlags.WidthFixed, 76f, 5);
+            ImGui.TableHeadersRow();
+
+            for (var index = 0; index < names.Count; index++)
+            {
+                var runs = groups[names[index]];
+                var stats = ComputeStats(runs);
+
+                ImGui.TableNextColumn();
+                ColoredText(Theme.Text, Truncate(names[index], 34));
+
+                ImGui.TableNextColumn();
+                ColoredText(Theme.TextDim, runs.Count.ToString());
+
+                ImGui.TableNextColumn();
+                ColoredText(Theme.TextDim, stats.FastestSeconds > 0 ? Detectors.FormatClock(TimeSpan.FromSeconds(stats.FastestSeconds)) : "-");
+
+                ImGui.TableNextColumn();
+                ColoredText(Theme.TextDim, stats.AverageSeconds > 0 ? Detectors.FormatClock(TimeSpan.FromSeconds(stats.AverageSeconds)) : "-");
+
+                ImGui.TableNextColumn();
+                ColoredText(stats.BestDeaths > 0 ? Theme.Danger : Theme.TextDim, stats.BestDeaths.ToString());
+
+                ImGui.TableNextColumn();
+                ColoredText(Theme.TextFaint, stats.Last.ToLocalTime().ToString("MMM d HH:mm"));
+            }
+
+            ImGui.EndTable();
+        }
+
+        ImGui.PopStyleVar();
+    }
+
+    private readonly struct DutyStats
+    {
+        public DutyStats(double fastestSeconds, double averageSeconds, int bestDeaths, DateTime last)
+        {
+            this.FastestSeconds = fastestSeconds;
+            this.AverageSeconds = averageSeconds;
+            this.BestDeaths = bestDeaths;
+            this.Last = last;
+        }
+
+        public double FastestSeconds { get; }
+
+        public double AverageSeconds { get; }
+
+        public int BestDeaths { get; }
+
+        public DateTime Last { get; }
+    }
+
+    private static DutyStats ComputeStats(List<RunRecap> runs)
+    {
+        var fastest = double.MaxValue;
+        var sum = 0.0;
+        var timed = 0;
+        var bestDeaths = int.MaxValue;
+        var last = DateTime.MinValue;
+
+        for (var index = 0; index < runs.Count; index++)
+        {
+            var run = runs[index];
+            var seconds = (run.FinishedUtc - run.StartedUtc).TotalSeconds;
+
+            if (run.Completed)
+            {
+                if (seconds < fastest)
+                    fastest = seconds;
+                sum += seconds;
+                timed++;
+            }
+
+            if (run.TotalDeaths < bestDeaths)
+                bestDeaths = run.TotalDeaths;
+            if (run.FinishedUtc > last)
+                last = run.FinishedUtc;
+        }
+
+        return new DutyStats(
+            fastest == double.MaxValue ? 0 : fastest,
+            timed == 0 ? 0 : sum / timed,
+            bestDeaths == int.MaxValue ? 0 : bestDeaths,
+            last == DateTime.MinValue ? DateTime.UtcNow : last);
+    }
+
+    // ------------------------------------------------------------------- chat ----
+
+    private void DrawChatSection(RunRecap run)
+    {
+        var chat = run.Chat;
+        if (chat is null || chat.Count == 0)
+            return;
+
+        DrawGoldRule();
+        ImGui.TextUnformatted($"Chat ({chat.Count})");
+
+        ImGui.BeginChild("##chatlines", new Vector2(0f, 140f));
+        for (var index = 0; index < chat.Count; index++)
+        {
+            var line = chat[index];
+            ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextDim);
+            ImGui.TextWrapped($"[{line.Utc.ToLocalTime():HH:mm:ss}] {line.Channel}  {line.Sender}: {line.Text}");
+            ImGui.PopStyleColor();
+        }
+
+        ImGui.EndChild();
+    }
+
+    // ------------------------------------------------------------------ table ----
 
     private void DrawPlayerTable(IReadOnlyList<PlayerStat> players)
     {
@@ -230,28 +438,6 @@ public sealed class MainWindow : Window
         ColoredText(
             Theme.TextDim,
             $"Personal best: {Detectors.FormatClock(TimeSpan.FromSeconds(bestTime))}  -  fewest deaths: {bestDeaths}");
-    }
-
-    private void DrawHistory()
-    {
-        var history = this.Config.History;
-        if (history.Count <= 1)
-            return;
-
-        ImGui.Spacing();
-        DrawGoldRule();
-        ImGui.TextUnformatted("Recent runs");
-
-        var limit = Math.Min(history.Count, 6);
-        for (var index = 1; index < limit; index++)
-        {
-            var run = history[index];
-            var when = run.FinishedUtc.ToLocalTime().ToString("MMM d HH:mm");
-            var result = run.Completed ? "cleared" : "left";
-            ColoredText(
-                Theme.TextDim,
-                $"{when}  {Truncate(run.DutyName, 24),-24}  {run.Wipes} wipe  {run.TotalDeaths} death  {result}  {run.Grade}");
-        }
     }
 
     private void DrawEmptyState()
@@ -334,6 +520,22 @@ public sealed class MainWindow : Window
     private static string BuildRecapLine(RunRecap run, TimeSpan elapsed) =>
         $"{run.DutyName}, {Detectors.FormatClock(elapsed)}, {run.Wipes} wipe{(run.Wipes == 1 ? string.Empty : "s")}, " +
         $"{run.TotalDeaths} death{(run.TotalDeaths == 1 ? string.Empty : "s")}. Grade {run.Grade}.";
+
+    private static string ContentLabel(RunRecap run)
+    {
+        var label = string.IsNullOrEmpty(run.ContentType) ? DescribeKind(run.Kind) : run.ContentType;
+
+        if (!string.IsNullOrEmpty(run.Difficulty) && run.Difficulty != "Normal")
+            label += "  -  " + run.Difficulty;
+
+        if (!string.IsNullOrEmpty(run.Expansion))
+            label += "  -  " + run.Expansion;
+
+        return label;
+    }
+
+    private static string ContentShort(RunRecap run) =>
+        string.IsNullOrEmpty(run.ContentType) ? DescribeKind(run.Kind) : run.ContentType;
 
     private static string DescribeKind(RecapKind kind) => kind switch
     {

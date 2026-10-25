@@ -33,6 +33,8 @@ public sealed class RecapSession : IDisposable
     private readonly List<PlayerStat> sortedPlayers = new();
     private bool sortedDirty = true;
     private readonly List<uint> staleIds = new();
+    private readonly List<ChatLine> chatLines = new();
+    private readonly List<DateTime> wipeTimes = new();
 
     public RecapSession(Plugin plugin)
     {
@@ -101,6 +103,8 @@ public sealed class RecapSession : IDisposable
             StartedUtc = DateTime.UtcNow,
         };
 
+        this.ApplyContentInfo(this.Current, args);
+
         this.players.Clear();
         this.lastAlive.Clear();
         this.seededAliveState = false;
@@ -112,6 +116,8 @@ public sealed class RecapSession : IDisposable
         this.sortedPlayers.Clear();
         this.sortedDirty = true;
         this.staleIds.Clear();
+        this.chatLines.Clear();
+        this.wipeTimes.Clear();
 
         Plugin.Log.Information("[DutyRecap] Started {Duty}.", this.Current.DutyName);
     }
@@ -122,6 +128,7 @@ public sealed class RecapSession : IDisposable
             return;
 
         this.wipes++;
+        this.wipeTimes.Add(DateTime.UtcNow);
     }
 
     private void OnDutyCompleted(IDutyStateEventArgs args)
@@ -296,6 +303,18 @@ public sealed class RecapSession : IDisposable
             return;
 
         this.partyChatMessages++;
+
+        var config = Plugin.PluginConfig;
+        if (config.StoreChatLog && this.chatLines.Count < config.ChatLineLimit)
+        {
+            this.chatLines.Add(new ChatLine
+            {
+                Utc = DateTime.UtcNow,
+                Sender = message.Sender.TextValue,
+                Text = message.Message.TextValue,
+                Channel = message.LogKind.ToString(),
+            });
+        }
     }
 
     // ------------------------------------------------------------------ finish ----
@@ -313,6 +332,8 @@ public sealed class RecapSession : IDisposable
         run.TotalDeaths = this.deaths;
         run.FirstBloodName = this.firstBlood ? this.firstBloodName : string.Empty;
         run.Players = new List<PlayerStat>(this.LivePlayers);
+        run.Chat = new List<ChatLine>(this.chatLines);
+        run.WipeTimes = new List<DateTime>(this.wipeTimes);
         run.Grade = Grade.Compute(run);
         run.Snark = Grade.SnarkFor(run);
 
@@ -343,6 +364,8 @@ public sealed class RecapSession : IDisposable
         this.sortedPlayers.Clear();
         this.sortedDirty = true;
         this.deaths = 0;
+        this.chatLines.Clear();
+        this.wipeTimes.Clear();
     }
 
     // ------------------------------------------------------------------ helpers ----
@@ -382,6 +405,46 @@ public sealed class RecapSession : IDisposable
 
         return name.Trim();
     }
+
+    private void ApplyContentInfo(RunRecap run, IDutyStateEventArgs? args)
+    {
+        try
+        {
+            var rowRef = args?.ContentFinderCondition ?? Plugin.DutyState.ContentFinderCondition;
+            if (rowRef.ValueNullable is not { } cfc)
+                return;
+
+            if (cfc.ContentType.ValueNullable is { } contentType)
+                run.ContentType = contentType.Name.ToString();
+
+            if (cfc.RequiredExVersion.ValueNullable is { } expansion)
+                run.Expansion = expansion.Name.ToString();
+
+            run.Difficulty = ResolveDifficulty(run.DutyName, cfc.HighEndDuty);
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Debug(ex, "[DutyRecap] Could not read the content type.");
+        }
+    }
+
+    private static string ResolveDifficulty(string dutyName, bool highEnd)
+    {
+        if (Contains(dutyName, "(Ultimate)"))
+            return "Ultimate";
+        if (Contains(dutyName, "(Savage)"))
+            return "Savage";
+        if (Contains(dutyName, "(Extreme)"))
+            return "Extreme";
+        if (Contains(dutyName, "(Unreal)"))
+            return "Unreal";
+        if (Contains(dutyName, "(Criterion)"))
+            return "Criterion";
+        return highEnd ? "High-end" : "Normal";
+    }
+
+    private static bool Contains(string value, string token) =>
+        value.Contains(token, StringComparison.OrdinalIgnoreCase);
 
     private RecapKind DetectKind()
     {
