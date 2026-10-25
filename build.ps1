@@ -1,5 +1,5 @@
 param(
-    [string] $BaseUrl = "https://raw.githubusercontent.com/YOURNAME/ffxiv-plugins/main",
+    [string] $BaseUrl = "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main",
     [switch] $NoBuild
 )
 
