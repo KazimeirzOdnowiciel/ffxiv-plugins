@@ -19,12 +19,12 @@ public sealed class MainWindow : Window
         : base("Gil Ledger###GilLedgerMain")
     {
         this.plugin = plugin;
-        this.Size = new Vector2(720, 520);
+        this.Size = new Vector2(880, 620);
         this.SizeCondition = ImGuiCond.FirstUseEver;
         this.SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(460, 300),
-            MaximumSize = new Vector2(1400, 1400),
+            MinimumSize = new Vector2(560, 340),
+            MaximumSize = new Vector2(1600, 1400),
         };
     }
 
@@ -91,6 +91,8 @@ public sealed class MainWindow : Window
 
         var entries = this.Config.Entries;
         var net = Pnl.Net(entries);
+        DrawStatusPill();
+        ImGui.SameLine(0f, 14f);
         ColoredText(Theme.TextFaint, "pocket balance");
         ImGui.SameLine(0f, 16f);
         ColoredText(net >= 0 ? Theme.Green : Theme.Danger, $"session {Money.Signed(net)}");
@@ -111,75 +113,90 @@ public sealed class MainWindow : Window
     {
         var entries = this.Config.Entries;
 
-        ImGui.SetNextItemWidth(160f);
-        ImGui.SliderInt("rows", ref this.showCount, 25, 1000, "%d");
-        ImGui.SameLine();
+        if (entries.Count == 0)
+        {
+            ImGui.Spacing();
+            ColoredText(Theme.TextFaint, "Nothing recorded yet. Buy or sell something and it shows up here.");
+            this.DrawFooterBar(entries);
+            return;
+        }
 
+        var tableHeight = Math.Max(80f, ImGui.GetContentRegionAvail().Y - 42f);
+
+        var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY |
+                    ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings;
+
+        ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(8f, 8f));
+        if (ImGui.BeginTable("##entries", 5, flags, new Vector2(0f, tableHeight)))
+        {
+            ImGui.TableSetupColumn("Time", ImGuiTableColumnFlags.WidthFixed, 92f, 0);
+            ImGui.TableSetupColumn("Kind", ImGuiTableColumnFlags.WidthFixed, 100f, 1);
+            ImGui.TableSetupColumn("Amount", ImGuiTableColumnFlags.WidthFixed, 96f, 2);
+            ImGui.TableSetupColumn("Balance", ImGuiTableColumnFlags.WidthFixed, 100f, 3);
+            ImGui.TableSetupColumn("Note", ImGuiTableColumnFlags.WidthStretch, 3f, 4);
+            ImGui.TableSetupScrollFreeze(0, 1);
+            ImGui.TableHeadersRow();
+
+            var limit = Math.Min(entries.Count, this.showCount);
+            for (var index = 0; index < limit; index++)
+            {
+                var entry = entries[index];
+                ImGui.TableNextColumn();
+                ColoredText(Theme.TextFaint, entry.Utc.ToLocalTime().ToString("MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
+
+                ImGui.TableNextColumn();
+                DrawChip(KindLabel(entry.Kind), Theme.KindColor(entry.Kind));
+
+                ImGui.TableNextColumn();
+                ColoredText(entry.Amount >= 0 ? Theme.Green : Theme.Danger, Money.Signed(entry.Amount));
+
+                ImGui.TableNextColumn();
+                ColoredText(Theme.TextDim, Money.Exact(entry.BalanceAfter));
+
+                ImGui.TableNextColumn();
+                ColoredText(Theme.TextDim, Truncate(entry.Note, 120));
+                if (ImGui.IsItemHovered() && entry.Note.Length > 120)
+                {
+                    ImGui.BeginTooltip();
+                    ImGui.TextUnformatted(entry.Note);
+                    ImGui.EndTooltip();
+                }
+            }
+
+            ImGui.EndTable();
+        }
+
+        ImGui.PopStyleVar();
+
+        this.DrawFooterBar(entries);
+    }
+
+    private void DrawFooterBar(IReadOnlyList<GilEntry> entries)
+    {
+        DrawGoldRule();
+
+        ImGui.SetNextItemWidth(140f);
+        ImGui.SliderInt("rows", ref this.showCount, 25, 1000, "%d");
+        ImGui.SameLine(0f, 12f);
         if (ImGui.SmallButton("copy CSV"))
         {
             ImGui.SetClipboardText(this.BuildCsv(entries));
             this.plugin.Print("Copied the ledger as CSV.");
         }
 
-        ImGui.SameLine();
+        ImGui.SameLine(0f, 8f);
         if (ImGui.SmallButton("clear"))
         {
-            entries.Clear();
+            this.Config.Entries.Clear();
             this.plugin.SaveConfig();
         }
 
-        ImGui.SameLine();
+        ImGui.SameLine(0f, 8f);
         if (ImGui.SmallButton("settings"))
             this.plugin.OpenConfig();
 
-        if (entries.Count == 0)
-        {
-            ImGui.Spacing();
-            ColoredText(Theme.TextFaint, "Nothing recorded yet. Buy or sell something and it shows up here.");
-            return;
-        }
-
-        var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY |
-                    ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings;
-
-        if (!ImGui.BeginTable("##entries", 5, flags, new Vector2(0f, -1f)))
-            return;
-
-        ImGui.TableSetupColumn("Time", ImGuiTableColumnFlags.WidthFixed, 96f, 0);
-        ImGui.TableSetupColumn("Kind", ImGuiTableColumnFlags.WidthFixed, 92f, 1);
-        ImGui.TableSetupColumn("Amount", ImGuiTableColumnFlags.WidthFixed, 92f, 2);
-        ImGui.TableSetupColumn("Balance", ImGuiTableColumnFlags.WidthFixed, 92f, 3);
-        ImGui.TableSetupColumn("Note", ImGuiTableColumnFlags.WidthStretch, 2f, 4);
-        ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableHeadersRow();
-
-        var limit = Math.Min(entries.Count, this.showCount);
-        for (var index = 0; index < limit; index++)
-        {
-            var entry = entries[index];
-            ImGui.TableNextColumn();
-            ColoredText(Theme.TextFaint, entry.Utc.ToLocalTime().ToString("MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
-
-            ImGui.TableNextColumn();
-            DrawChip(KindLabel(entry.Kind), Theme.KindColor(entry.Kind));
-
-            ImGui.TableNextColumn();
-            ColoredText(entry.Amount >= 0 ? Theme.Green : Theme.Danger, Money.Signed(entry.Amount));
-
-            ImGui.TableNextColumn();
-            ColoredText(Theme.TextDim, Money.Exact(entry.BalanceAfter));
-
-            ImGui.TableNextColumn();
-            ColoredText(Theme.TextDim, Truncate(entry.Note, 90));
-            if (ImGui.IsItemHovered() && entry.Note.Length > 90)
-            {
-                ImGui.BeginTooltip();
-                ImGui.TextUnformatted(entry.Note);
-                ImGui.EndTooltip();
-            }
-        }
-
-        ImGui.EndTable();
+        ImGui.SameLine(0f, 16f);
+        ColoredText(Theme.TextFaint, $"{entries.Count} entries");
     }
 
     // ----------------------------------------------------------------- summary ----
@@ -281,12 +298,27 @@ public sealed class MainWindow : Window
         var drawList = ImGui.GetWindowDrawList();
         var pos = ImGui.GetCursorScreenPos();
         var textSize = ImGui.CalcTextSize(label);
-        const float padX = 7f;
-        const float padY = 2.5f;
+        const float padX = 8f;
+        const float padY = 3f;
         var size = new Vector2(textSize.X + (padX * 2f), textSize.Y + (padY * 2f));
 
-        drawList.AddRectFilled(pos, pos + size, Theme.WithAlpha(color, 0.15f), size.Y / 2f);
+        drawList.AddRectFilled(pos, pos + size, Theme.WithAlpha(color, 0.16f), size.Y / 2f);
         drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), pos + new Vector2(padX, padY), Theme.U32(color), label);
+        ImGui.Dummy(size);
+    }
+
+    private static void DrawStatusPill()
+    {
+        var color = Theme.Green;
+        var drawList = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        const string label = "recording";
+        var textSize = ImGui.CalcTextSize(label);
+        var size = new Vector2(textSize.X + 26f, 18f);
+
+        drawList.AddRectFilled(pos, pos + size, Theme.WithAlpha(color, 0.14f), size.Y / 2f);
+        drawList.AddCircleFilled(pos + new Vector2(9f, size.Y / 2f), 3f, Theme.U32(color));
+        drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), pos + new Vector2(16f, 2.5f), Theme.U32(color), label);
         ImGui.Dummy(size);
     }
 
