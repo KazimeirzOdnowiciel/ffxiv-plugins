@@ -357,8 +357,13 @@ public sealed class MainWindow : Window
         ImGui.SetNextItemWidth(220f);
         ImGui.InputTextWithHint("##search", "filter by item name...", ref this.search, 64);
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(120f);
-        ImGui.SliderInt("##min", ref this.minGilPerDay, 0, 200_000, "min %d profit/day");
+        // 0 means "no minimum" and is deliberate: unprofitable rows stay visible so a losing
+        // slot can be spotted. Say that instead of printing "min 0", which read as ">= 0".
+        ImGui.SetNextItemWidth(150f);
+        var minFormat = this.minGilPerDay <= 0 ? "no minimum" : "min %d profit/day";
+        ImGui.SliderInt("##min", ref this.minGilPerDay, 0, 200_000, minFormat);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("0 shows every row, including ones that would lose gil. Raise it to hide them.");
         ImGui.SameLine();
 
         var quality = this.qualityFilter;
@@ -1641,6 +1646,8 @@ public sealed class MainWindow : Window
         if (this.hideStale)
             rows = rows.Where(c => !c.Score.IsStale);
 
+        // 0 is "no minimum" by design (the slider labels it that way): unprofitable rows stay
+        // visible so a slot that loses gil can be found and unpinned.
         if (this.minGilPerDay > 0)
             rows = rows.Where(c => c.Score.ProfitPerDay >= this.minGilPerDay);
 
@@ -1670,7 +1677,10 @@ public sealed class MainWindow : Window
         };
 
         rows.Sort(comparison);
-        if (this.sortAscending)
+
+        // The comparators above are ascending, so a descending request has to reverse them.
+        // This was inverted: "v" (descending) used to show the ascending list.
+        if (!this.sortAscending)
             rows.Reverse();
     }
 
