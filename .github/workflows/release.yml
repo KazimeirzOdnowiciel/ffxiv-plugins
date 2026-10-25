@@ -1,0 +1,86 @@
+name: Release plugins
+
+# Builds every plugin and commits the release artifacts (dist/ + repo.json) only
+# when a plugin's AssemblyVersion actually changed. Building without a version
+# bump is a no-op for the repository, so users never get silently replaced
+# binaries for an unchanged version.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "build.ps1"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Provide Dalamud assemblies
+        shell: pwsh
+        run: |
+          # Dalamud.NET.Sdk resolves Dalamud.dll from DALAMUD_HOME (or a local
+          # install). A fresh runner has neither, so unpack the public build.
+          $zip = Join-Path $env:RUNNER_TEMP "dalamud.zip"
+          $dest = Join-Path $env:RUNNER_TEMP "dalamud"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Invoke-WebRequest -Uri "https://goatcorp.github.io/dalamud-distrib/latest.zip" -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $dest -Force
+          if (-not (Test-Path (Join-Path $dest "Dalamud.dll"))) {
+            throw "Dalamud.dll missing after unpacking the distribution"
+          }
+          "DALAMUD_HOME=$dest" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+          Write-Host "DALAMUD_HOME=$dest"
+
+      - name: Build and package
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Commit artifacts only on a version bump
+        shell: pwsh
+        run: |
+          $before = (git show HEAD:repo.json | Out-String) | ConvertFrom-Json
+          $after  = Get-Content -Raw repo.json | ConvertFrom-Json
+
+          $beforeVersions = @{}
+          foreach ($plugin in $before) { $beforeVersions[$plugin.InternalName] = $plugin.AssemblyVersion }
+
+          $bumped = @()
+          foreach ($plugin in $after) {
+            $previous = $beforeVersions[$plugin.InternalName]
+            if ($previous -ne $plugin.AssemblyVersion) {
+              $bumped += "$($plugin.InternalName) $previous -> $($plugin.AssemblyVersion)"
+            }
+          }
+
+          if ($bumped.Count -eq 0) {
+            Write-Host "No AssemblyVersion change; discarding the regenerated artifacts."
+            git checkout -- dist repo.json
+            exit 0
+          }
+
+          Write-Host "Releasing: $($bumped -join '; ')"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist repo.json
+          git commit -m "Release: $($bumped -join '; ') [skip ci]"
+          git push
