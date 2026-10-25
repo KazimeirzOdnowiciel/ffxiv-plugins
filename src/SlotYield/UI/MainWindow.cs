@@ -131,7 +131,7 @@ public sealed class MainWindow : Window
     /// </summary>
     private void PushControlStyle()
     {
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.Panel);
+        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.PanelRaised);
         ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Theme.PanelHover);
         ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.PanelHover);
         ImGui.PushStyleColor(ImGuiCol.CheckMark, Theme.Accent);
@@ -139,9 +139,9 @@ public sealed class MainWindow : Window
         ImGui.PushStyleColor(ImGuiCol.Header, Theme.PanelHover);
         ImGui.PushStyleColor(ImGuiCol.HeaderHovered, Theme.WithAlpha(Theme.Accent, 0.18f));
         ImGui.PushStyleColor(ImGuiCol.HeaderActive, Theme.WithAlpha(Theme.Accent, 0.28f));
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.Panel);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.PanelHover);
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.WithAlpha(Theme.Accent, 0.25f));
+        ImGui.PushStyleColor(ImGuiCol.Button, Theme.PanelRaised);
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.Lerp(Theme.PanelRaised, Theme.Accent, 0.22f));
+        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.Lerp(Theme.PanelRaised, Theme.Accent, 0.42f));
         ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, Theme.WithAlpha(Theme.Background, 0.35f));
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, Theme.WithAlpha(Theme.Text, 0.18f));
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, Theme.WithAlpha(Theme.Text, 0.30f));
@@ -150,6 +150,8 @@ public sealed class MainWindow : Window
         ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, Theme.Panel);
         ImGui.PushStyleColor(ImGuiCol.TableBorderLight, Theme.Hairline);
         ImGui.PushStyleColor(ImGuiCol.TableBorderStrong, Theme.Border);
+        ImGui.PushStyleColor(ImGuiCol.TableRowBg, Theme.WithAlpha(Theme.Background, 0f));
+        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, Theme.WithAlpha(Theme.Text, 0.030f));
 
         ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3f);
         ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, 3f);
@@ -161,8 +163,11 @@ public sealed class MainWindow : Window
     private void PopControlStyle()
     {
         ImGui.PopStyleVar(5);
-        ImGui.PopStyleColor(19);
+        ImGui.PopStyleColor(21);
     }
+
+    /// <summary>Table height that fills the window instead of stranding empty space below.</summary>
+    private static float TableHeight() => MathF.Max(220f, ImGui.GetContentRegionAvail().Y - 4f);
 
     private void DrawCore()
     {
@@ -401,7 +406,7 @@ public sealed class MainWindow : Window
         var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY |
                     ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings;
 
-        if (!ImGui.BeginTable("##slots", 13, flags, new Vector2(0f, 470f)))
+        if (!ImGui.BeginTable("##slots", 13, flags, new Vector2(0f, TableHeight())))
             return;
 
         ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2.4f, 0);
@@ -697,18 +702,24 @@ public sealed class MainWindow : Window
 
         ImGui.Spacing();
 
-        if (ImGui.BeginTable("##plan", 5, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH |
+        var planQuotes = chosen
+            .GroupBy(c => (c.ItemId, c.Quality))
+            .ToDictionary(g => g.Key, g => g.First().Quote);
+
+        if (ImGui.BeginTable("##plan", 7, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH |
                                           ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings,
-                new Vector2(0f, 260f)))
+                new Vector2(0f, TableHeight())))
         {
             ImGui.TableSetupColumn("#", ImGuiTableColumnFlags.WidthFixed, 28f, 0);
-            ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2f, 1);
+            ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2.4f, 1);
             ImGui.TableSetupColumn("Q", ImGuiTableColumnFlags.WidthFixed, 26f, 2);
-            ImGui.TableSetupColumn("Profit/day", ImGuiTableColumnFlags.WidthFixed, 90f, 3);
-            ImGui.TableSetupColumn("Capital", ImGuiTableColumnFlags.WidthFixed, 84f, 4);
+            ImGui.TableSetupColumn("Sales/d", ImGuiTableColumnFlags.WidthFixed, 58f, 3);
+            ImGui.TableSetupColumn("Sellers", ImGuiTableColumnFlags.WidthFixed, 52f, 4);
+            ImGui.TableSetupColumn("Profit/day", ImGuiTableColumnFlags.WidthFixed, 90f, 5);
+            ImGui.TableSetupColumn("Capital", ImGuiTableColumnFlags.WidthFixed, 84f, 6);
 
             ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
-            foreach (var label in new[] { "#", "Item", "Q", "Profit/day", "Capital" })
+            foreach (var label in new[] { "#", "Item", "Q", "Sales/d", "Sellers", "Profit/day", "Capital" })
             {
                 ImGui.TableNextColumn();
                 Theme.Faint(label);
@@ -729,8 +740,15 @@ public sealed class MainWindow : Window
                 ImGui.TableNextColumn();
                 Theme.Colored(pick.Quality == Quality.Hq ? Theme.Hq : Theme.TextDim, pick.Quality == Quality.Hq ? "HQ" : "NQ");
 
+                var quote = planQuotes.GetValueOrDefault((pick.ItemId, pick.Quality));
                 ImGui.TableNextColumn();
-                Theme.Colored(Theme.Accent, Money.Gil(pick.GilPerDay));
+                Theme.Colored(Theme.TextDim, quote is null ? "-" : quote.DailyVelocity.ToString("0.0"));
+
+                ImGui.TableNextColumn();
+                Theme.Colored(Theme.TextDim, quote is null ? "-" : quote.DistinctSellers.ToString());
+
+                ImGui.TableNextColumn();
+                Theme.Colored(Theme.Profit, Money.Gil(pick.GilPerDay));
 
                 ImGui.TableNextColumn();
                 Theme.Dimmed(Money.Gil(pick.CapitalPerSlot));
@@ -853,7 +871,7 @@ public sealed class MainWindow : Window
                 10,
                 ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY |
                 ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings,
-                new Vector2(0f, 460f)))
+                new Vector2(0f, TableHeight())))
         {
             return;
         }
@@ -1125,7 +1143,7 @@ public sealed class MainWindow : Window
                 10,
                 ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY |
                 ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings,
-                new Vector2(0f, 430f)))
+                new Vector2(0f, TableHeight())))
         {
             return;
         }
@@ -1183,6 +1201,8 @@ public sealed class MainWindow : Window
             ImGui.TableNextRow();
 
             ImGui.TableNextColumn();
+            UiKit.ItemIcon(UiKit.IconIdForItem(listing.ItemId), listing.Hq, 16f);
+            ImGui.SameLine(0f, 6f);
             Theme.Colored(Theme.Text, this.plugin.Catalog.Name(listing.ItemId));
 
             ImGui.TableNextColumn();

@@ -103,8 +103,8 @@ internal static class UiKit
     /// </summary>
     public static bool ToggleChip(string label, ref bool value)
     {
-        ImGui.PushStyleColor(ImGuiCol.Button, value ? Theme.WithAlpha(Theme.Accent, 0.25f) : Theme.U32(Theme.Panel));
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, value ? Theme.WithAlpha(Theme.Accent, 0.38f) : Theme.U32(Theme.PanelHover));
+        ImGui.PushStyleColor(ImGuiCol.Button, value ? Theme.WithAlpha(Theme.Accent, 0.30f) : Theme.U32(Theme.PanelRaised));
+        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, value ? Theme.WithAlpha(Theme.Accent, 0.42f) : Theme.U32(Theme.PanelHover));
         ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.WithAlpha(Theme.Accent, 0.50f));
         ImGui.PushStyleColor(ImGuiCol.Text, value ? Theme.Text : Theme.TextDim);
         ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3f);
