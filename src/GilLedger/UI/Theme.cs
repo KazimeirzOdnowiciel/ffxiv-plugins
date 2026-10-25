@@ -12,12 +12,15 @@ public static class Theme
     public static readonly Vector4 Text = new(0.88f, 0.90f, 0.94f, 1f);
     public static readonly Vector4 TextDim = new(0.55f, 0.59f, 0.66f, 1f);
     public static readonly Vector4 TextFaint = new(0.38f, 0.41f, 0.47f, 1f);
-    public static readonly Vector4 Gold = new(0.87f, 0.72f, 0.35f, 1f);
+
+    // Accent family: fixed saturation 0.58 and value 0.84, hue varies, so the set reads as one family.
+    public static readonly Vector4 Gold = new(0.84f, 0.718f, 0.353f, 1f);
+    public static readonly Vector4 Green = new(0.353f, 0.84f, 0.515f, 1f);
+    public static readonly Vector4 Blue = new(0.353f, 0.596f, 0.84f, 1f);
+    public static readonly Vector4 Danger = new(0.84f, 0.353f, 0.393f, 1f);
+
     public static readonly Vector4 CoinGold = new(0.93f, 0.80f, 0.46f, 1f);
     public static readonly Vector4 CoinDark = new(0.58f, 0.44f, 0.16f, 1f);
-    public static readonly Vector4 Green = new(0.42f, 0.78f, 0.50f, 1f);
-    public static readonly Vector4 Danger = new(0.90f, 0.35f, 0.40f, 1f);
-    public static readonly Vector4 Blue = new(0.42f, 0.66f, 0.94f, 1f);
 
     public static uint U32(Vector4 color) => ImGui.ColorConvertFloat4ToU32(color);
 

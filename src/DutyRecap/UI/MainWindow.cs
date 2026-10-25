@@ -193,15 +193,24 @@ public sealed class MainWindow : Window
 
     private void DrawBest(RunRecap run)
     {
-        var peers = this.Config.History
-            .Where(r => r.DutyName == run.DutyName && r.Completed && r != run)
-            .ToList();
+        var bestTime = double.MaxValue;
+        var bestDeaths = int.MaxValue;
 
-        if (peers.Count == 0)
+        foreach (var peer in this.Config.History)
+        {
+            if (peer.DutyName != run.DutyName || !peer.Completed || ReferenceEquals(peer, run))
+                continue;
+
+            var seconds = (peer.FinishedUtc - peer.StartedUtc).TotalSeconds;
+            if (seconds < bestTime)
+                bestTime = seconds;
+
+            if (peer.TotalDeaths < bestDeaths)
+                bestDeaths = peer.TotalDeaths;
+        }
+
+        if (bestTime == double.MaxValue)
             return;
-
-        var bestTime = peers.Min(r => (r.FinishedUtc - r.StartedUtc).TotalSeconds);
-        var bestDeaths = peers.Min(r => r.TotalDeaths);
 
         ImGui.Spacing();
         ColoredText(
@@ -219,8 +228,10 @@ public sealed class MainWindow : Window
         DrawGoldRule();
         ImGui.TextUnformatted("Recent runs");
 
-        foreach (var run in history.Skip(1).Take(5))
+        var limit = Math.Min(history.Count, 6);
+        for (var index = 1; index < limit; index++)
         {
+            var run = history[index];
             var when = run.FinishedUtc.ToLocalTime().ToString("MMM d HH:mm");
             var result = run.Completed ? "cleared" : "left";
             ColoredText(
@@ -294,7 +305,7 @@ public sealed class MainWindow : Window
     // ------------------------------------------------------------------- misc ----
 
     private static string BuildRecapLine(RunRecap run, TimeSpan elapsed) =>
-        $"{run.DutyName} — {Detectors.FormatClock(elapsed)}, {run.Wipes} wipe{(run.Wipes == 1 ? string.Empty : "s")}, " +
+        $"{run.DutyName}, {Detectors.FormatClock(elapsed)}, {run.Wipes} wipe{(run.Wipes == 1 ? string.Empty : "s")}, " +
         $"{run.TotalDeaths} death{(run.TotalDeaths == 1 ? string.Empty : "s")}. Grade {run.Grade}.";
 
     private static string DescribeKind(RecapKind kind) => kind switch

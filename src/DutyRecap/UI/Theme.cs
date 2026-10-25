@@ -13,13 +13,13 @@ public static class Theme
     public static readonly Vector4 Text = new(0.88f, 0.90f, 0.94f, 1f);
     public static readonly Vector4 TextDim = new(0.55f, 0.59f, 0.66f, 1f);
     public static readonly Vector4 TextFaint = new(0.38f, 0.41f, 0.47f, 1f);
-    public static readonly Vector4 Gold = new(0.87f, 0.72f, 0.35f, 1f);
-    public static readonly Vector4 Green = new(0.42f, 0.78f, 0.50f, 1f);
-    public static readonly Vector4 Danger = new(0.90f, 0.35f, 0.40f, 1f);
 
-    public static readonly Vector4 Tank = new(0.38f, 0.58f, 0.85f, 1f);
-    public static readonly Vector4 Healer = new(0.36f, 0.76f, 0.55f, 1f);
-    public static readonly Vector4 Dps = new(0.86f, 0.42f, 0.42f, 1f);
+    // Accent family: fixed saturation 0.58 and value 0.84, hue varies, so the set reads as one family.
+    public static readonly Vector4 Gold = new(0.84f, 0.718f, 0.353f, 1f);
+    public static readonly Vector4 Green = new(0.353f, 0.84f, 0.515f, 1f);
+    public static readonly Vector4 Blue = new(0.353f, 0.596f, 0.84f, 1f);
+    public static readonly Vector4 Orange = new(0.84f, 0.58f, 0.353f, 1f);
+    public static readonly Vector4 Danger = new(0.84f, 0.353f, 0.393f, 1f);
 
     public static uint U32(Vector4 color) => ImGui.ColorConvertFloat4ToU32(color);
 
@@ -27,15 +27,15 @@ public static class Theme
         ImGui.ColorConvertFloat4ToU32(new Vector4(color.X, color.Y, color.Z, color.W * alpha));
 
     public static Vector4 RoleColor(uint jobId) =>
-        Detectors.IsTankJob(jobId) ? Tank :
-        Detectors.IsHealerJob(jobId) ? Healer : Dps;
+        Detectors.IsTankJob(jobId) ? Blue :
+        Detectors.IsHealerJob(jobId) ? Green : Danger;
 
     public static Vector4 GradeColor(string grade) => grade switch
     {
         "S" => Gold,
         "A" => Green,
-        "B" => new Vector4(0.42f, 0.66f, 0.94f, 1f),
-        "C" => new Vector4(0.88f, 0.52f, 0.26f, 1f),
+        "B" => Blue,
+        "C" => Orange,
         _ => Danger,
     };
 }

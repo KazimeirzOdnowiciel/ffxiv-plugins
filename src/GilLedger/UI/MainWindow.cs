@@ -95,11 +95,11 @@ public sealed class MainWindow : Window
         ImGui.SameLine(0f, 16f);
         ColoredText(net >= 0 ? Theme.Green : Theme.Danger, $"session {Money.Signed(net)}");
 
-        var today = Pnl.ByDay(entries, 1).FirstOrDefault();
-        if (today is not null)
+        var todayNet = Pnl.TodayNet(entries);
+        if (todayNet != 0)
         {
             ImGui.SameLine(0f, 16f);
-            ColoredText(today.Net >= 0 ? Theme.Green : Theme.Danger, $"today {Money.Signed(today.Net)}");
+            ColoredText(todayNet >= 0 ? Theme.Green : Theme.Danger, $"today {Money.Signed(todayNet)}");
         }
 
         DrawGoldRule();
@@ -153,9 +153,10 @@ public sealed class MainWindow : Window
         ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableHeadersRow();
 
-        var shown = entries.Take(this.showCount).ToList();
-        foreach (var entry in shown)
+        var limit = Math.Min(entries.Count, this.showCount);
+        for (var index = 0; index < limit; index++)
         {
+            var entry = entries[index];
             ImGui.TableNextColumn();
             ColoredText(Theme.TextFaint, entry.Utc.ToLocalTime().ToString("MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
 
@@ -192,7 +193,11 @@ public sealed class MainWindow : Window
             return;
         }
 
-        var recent = entries.Take(90).Reverse().Select(e => e.BalanceAfter).ToList();
+        var recentCount = Math.Min(entries.Count, 90);
+        var recent = new List<long>(recentCount);
+        for (var index = recentCount - 1; index >= 0; index--)
+            recent.Add(entries[index].BalanceAfter);
+
         if (recent.Count >= 2)
         {
             var drawList = ImGui.GetWindowDrawList();

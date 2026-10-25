@@ -122,7 +122,7 @@ public sealed class Plugin : IDalamudPlugin
                 }
 
                 var elapsed = last.FinishedUtc - last.StartedUtc;
-                var line = $"{last.DutyName} — {Detection.Detectors.FormatClock(elapsed)}, {last.Wipes} wipe{(last.Wipes == 1 ? string.Empty : "s")}, " +
+                var line = $"{last.DutyName}, {Detection.Detectors.FormatClock(elapsed)}, {last.Wipes} wipe{(last.Wipes == 1 ? string.Empty : "s")}, " +
                            $"{last.TotalDeaths} death{(last.TotalDeaths == 1 ? string.Empty : "s")}. Grade {last.Grade}.";
                 Dalamud.Bindings.ImGui.ImGui.SetClipboardText(line);
                 this.Print("Last recap copied to the clipboard.");

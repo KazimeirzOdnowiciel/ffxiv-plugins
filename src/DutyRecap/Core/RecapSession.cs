@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Dalamud.Game.Chat;
 using Dalamud.Game.ClientState.Party;
 using Dalamud.Game.DutyState;
@@ -30,6 +29,10 @@ public sealed class RecapSession : IDisposable
     private int partyChatMessages;
     private bool firstBlood;
     private string firstBloodName = string.Empty;
+    private int deaths;
+    private readonly List<PlayerStat> sortedPlayers = new();
+    private bool sortedDirty = true;
+    private readonly List<uint> staleIds = new();
 
     public RecapSession(Plugin plugin)
     {
@@ -40,12 +43,27 @@ public sealed class RecapSession : IDisposable
 
     public int LiveWipes => this.wipes;
 
-    public int LiveDeaths => this.players.Values.Sum(p => p.Deaths);
+    public int LiveDeaths => this.deaths;
 
-    public IReadOnlyList<PlayerStat> LivePlayers => this.players.Values
-        .OrderByDescending(p => p.Deaths)
-        .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
-        .ToList();
+    public IReadOnlyList<PlayerStat> LivePlayers
+    {
+        get
+        {
+            if (this.sortedDirty)
+            {
+                this.sortedPlayers.Clear();
+                this.sortedPlayers.AddRange(this.players.Values);
+                this.sortedPlayers.Sort((a, b) =>
+                {
+                    var byDeaths = b.Deaths.CompareTo(a.Deaths);
+                    return byDeaths != 0 ? byDeaths : string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
+                });
+                this.sortedDirty = false;
+            }
+
+            return this.sortedPlayers;
+        }
+    }
 
     public event Action<RunRecap>? Completed;
 
@@ -90,6 +108,10 @@ public sealed class RecapSession : IDisposable
         this.partyChatMessages = 0;
         this.firstBlood = false;
         this.firstBloodName = string.Empty;
+        this.deaths = 0;
+        this.sortedPlayers.Clear();
+        this.sortedDirty = true;
+        this.staleIds.Clear();
 
         Plugin.Log.Information("[DutyRecap] Started {Duty}.", this.Current.DutyName);
     }
@@ -177,6 +199,8 @@ public sealed class RecapSession : IDisposable
                 if (wasAlive && dead && this.seededAliveState)
                 {
                     player.Deaths++;
+                    this.deaths++;
+                    this.sortedDirty = true;
 
                     if (!this.firstBlood)
                     {
@@ -189,8 +213,15 @@ public sealed class RecapSession : IDisposable
             this.lastAlive[id] = !dead;
         }
 
-        foreach (var stale in this.lastAlive.Keys.Where(k => !seen.Contains(k)).ToList())
-            this.lastAlive.Remove(stale);
+        this.staleIds.Clear();
+        foreach (var key in this.lastAlive.Keys)
+        {
+            if (!seen.Contains(key))
+                this.staleIds.Add(key);
+        }
+
+        foreach (var id in this.staleIds)
+            this.lastAlive.Remove(id);
 
         this.seededAliveState = true;
     }
@@ -252,6 +283,7 @@ public sealed class RecapSession : IDisposable
         };
 
         this.players[id] = player;
+        this.sortedDirty = true;
         return player;
     }
 
@@ -278,12 +310,9 @@ public sealed class RecapSession : IDisposable
         run.Completed = completed;
         run.Wipes = this.wipes;
         run.PartyChatMessages = this.partyChatMessages;
-        run.TotalDeaths = this.players.Values.Sum(p => p.Deaths);
+        run.TotalDeaths = this.deaths;
         run.FirstBloodName = this.firstBlood ? this.firstBloodName : string.Empty;
-        run.Players = this.players.Values
-            .OrderByDescending(p => p.Deaths)
-            .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        run.Players = new List<PlayerStat>(this.LivePlayers);
         run.Grade = Grade.Compute(run);
         run.Snark = Grade.SnarkFor(run);
 
@@ -311,6 +340,9 @@ public sealed class RecapSession : IDisposable
         this.players.Clear();
         this.lastAlive.Clear();
         this.seededAliveState = false;
+        this.sortedPlayers.Clear();
+        this.sortedDirty = true;
+        this.deaths = 0;
     }
 
     // ------------------------------------------------------------------ helpers ----
