@@ -23,6 +23,9 @@ public static class Theme
 
     public static uint U32(Vector4 color) => ImGui.ColorConvertFloat4ToU32(color);
 
+    public static uint WithAlpha(Vector4 color, float alpha) =>
+        ImGui.ColorConvertFloat4ToU32(new Vector4(color.X, color.Y, color.Z, color.W * alpha));
+
     public static Vector4 RoleColor(uint jobId) =>
         Detectors.IsTankJob(jobId) ? Tank :
         Detectors.IsHealerJob(jobId) ? Healer : Dps;

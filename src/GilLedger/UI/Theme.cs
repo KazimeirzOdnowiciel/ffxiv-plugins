@@ -13,11 +13,24 @@ public static class Theme
     public static readonly Vector4 TextDim = new(0.55f, 0.59f, 0.66f, 1f);
     public static readonly Vector4 TextFaint = new(0.38f, 0.41f, 0.47f, 1f);
     public static readonly Vector4 Gold = new(0.87f, 0.72f, 0.35f, 1f);
+    public static readonly Vector4 CoinGold = new(0.93f, 0.80f, 0.46f, 1f);
+    public static readonly Vector4 CoinDark = new(0.58f, 0.44f, 0.16f, 1f);
     public static readonly Vector4 Green = new(0.42f, 0.78f, 0.50f, 1f);
     public static readonly Vector4 Danger = new(0.90f, 0.35f, 0.40f, 1f);
+    public static readonly Vector4 Blue = new(0.42f, 0.66f, 0.94f, 1f);
 
     public static uint U32(Vector4 color) => ImGui.ColorConvertFloat4ToU32(color);
 
     public static uint WithAlpha(Vector4 color, float alpha) =>
         ImGui.ColorConvertFloat4ToU32(new Vector4(color.X, color.Y, color.Z, color.W * alpha));
+
+    public static Vector4 KindColor(GilKind kind) => kind switch
+    {
+        GilKind.Sale => Green,
+        GilKind.VendorSell => Green,
+        GilKind.Purchase => Danger,
+        GilKind.Retainer => Blue,
+        GilKind.Unattributed => TextFaint,
+        _ => TextDim,
+    };
 }

@@ -73,27 +73,39 @@ public sealed class MainWindow : Window
         ImGui.EndTabBar();
     }
 
+    // ------------------------------------------------------------------ header ----
+
     private void DrawHeader()
     {
-        var entries = this.Config.Entries;
-
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.Gold);
-        ImGui.TextUnformatted("G I L   L E D G E R");
-        ImGui.PopStyleColor();
-
+        var drawList = ImGui.GetWindowDrawList();
+        var font = ImGui.GetFont();
         var balance = this.plugin.Ledger.LastGil;
-        ImGui.TextUnformatted($"Pocket balance: {Money.Exact(balance)} gil");
 
+        var p = ImGui.GetCursorScreenPos();
+        const float coinRadius = 14f;
+        DrawCoin(drawList, p + new Vector2(coinRadius, coinRadius + 2f), coinRadius);
+
+        var numPos = p + new Vector2((coinRadius * 2f) + 12f, 1f);
+        drawList.AddText(font, 22f, numPos, Theme.U32(Theme.Gold), Money.Exact(balance));
+        ImGui.Dummy(new Vector2(0f, 32f));
+
+        var entries = this.Config.Entries;
         var net = Pnl.Net(entries);
-        ColoredText(net >= 0 ? Theme.Green : Theme.Danger, $"Net this session: {Money.Signed(net)} gil");
+        ColoredText(Theme.TextFaint, "pocket balance");
+        ImGui.SameLine(0f, 16f);
+        ColoredText(net >= 0 ? Theme.Green : Theme.Danger, $"session {Money.Signed(net)}");
 
         var today = Pnl.ByDay(entries, 1).FirstOrDefault();
         if (today is not null)
-            ColoredText(today.Net >= 0 ? Theme.Green : Theme.Danger, $"Today: {Money.Signed(today.Net)} gil");
+        {
+            ImGui.SameLine(0f, 16f);
+            ColoredText(today.Net >= 0 ? Theme.Green : Theme.Danger, $"today {Money.Signed(today.Net)}");
+        }
 
-        ImGui.Spacing();
-        ImGui.Separator();
+        DrawGoldRule();
     }
+
+    // ------------------------------------------------------------------ ledger ----
 
     private void DrawLedgerTab()
     {
@@ -148,7 +160,7 @@ public sealed class MainWindow : Window
             ColoredText(Theme.TextFaint, entry.Utc.ToLocalTime().ToString("MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
 
             ImGui.TableNextColumn();
-            ImGui.TextUnformatted(KindLabel(entry.Kind));
+            DrawChip(KindLabel(entry.Kind), Theme.KindColor(entry.Kind));
 
             ImGui.TableNextColumn();
             ColoredText(entry.Amount >= 0 ? Theme.Green : Theme.Danger, Money.Signed(entry.Amount));
@@ -169,6 +181,8 @@ public sealed class MainWindow : Window
         ImGui.EndTable();
     }
 
+    // ----------------------------------------------------------------- summary ----
+
     private void DrawSummaryTab()
     {
         var entries = this.Config.Entries;
@@ -176,6 +190,18 @@ public sealed class MainWindow : Window
         {
             ColoredText(Theme.TextFaint, "Nothing to summarise yet.");
             return;
+        }
+
+        var recent = entries.Take(90).Reverse().Select(e => e.BalanceAfter).ToList();
+        if (recent.Count >= 2)
+        {
+            var drawList = ImGui.GetWindowDrawList();
+            var pos = ImGui.GetCursorScreenPos();
+            var size = new Vector2(ImGui.GetContentRegionAvail().X, 40f);
+            DrawSparkline(drawList, pos, size, recent, Theme.WithAlpha(Theme.Gold, 0.85f));
+            ImGui.Dummy(size);
+            ColoredText(Theme.TextFaint, "pocket balance, last 90 entries");
+            ImGui.Spacing();
         }
 
         ColoredText(Theme.Text, "By category (this session)");
@@ -186,7 +212,7 @@ public sealed class MainWindow : Window
                 $"{KindLabel(row.Kind),-12} {Money.Signed(row.Total)} gil");
 
         ImGui.Spacing();
-        ImGui.Separator();
+        DrawGoldRule();
 
         ColoredText(Theme.Text, "By day");
         var days = Pnl.ByDay(entries, 14);
@@ -220,6 +246,94 @@ public sealed class MainWindow : Window
 
         ImGui.EndTable();
     }
+
+    // ---------------------------------------------------------------- drawing ----
+
+    private static void DrawCoin(ImDrawListPtr drawList, Vector2 center, float radius)
+    {
+        var outer = new Vector2[6];
+        var inner = new Vector2[6];
+
+        for (var i = 0; i < 6; i++)
+        {
+            var angle = (float)(((60.0 * i) - 30.0) * Math.PI / 180.0);
+            outer[i] = new Vector2(
+                center.X + (radius * (float)Math.Cos(angle)),
+                center.Y + (radius * (float)Math.Sin(angle)));
+
+            var ir = radius * 0.58f;
+            inner[i] = new Vector2(
+                center.X + (ir * (float)Math.Cos(angle)),
+                center.Y + (ir * (float)Math.Sin(angle)));
+        }
+
+        drawList.AddConvexPolyFilled(ref outer[0], 6, Theme.U32(Theme.CoinGold));
+        drawList.AddConvexPolyFilled(ref inner[0], 6, Theme.U32(Theme.CoinDark));
+    }
+
+    private static void DrawChip(string label, Vector4 color)
+    {
+        var drawList = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        var textSize = ImGui.CalcTextSize(label);
+        const float padX = 7f;
+        const float padY = 2.5f;
+        var size = new Vector2(textSize.X + (padX * 2f), textSize.Y + (padY * 2f));
+
+        drawList.AddRectFilled(pos, pos + size, Theme.WithAlpha(color, 0.15f), size.Y / 2f);
+        drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), pos + new Vector2(padX, padY), Theme.U32(color), label);
+        ImGui.Dummy(size);
+    }
+
+    private static void DrawSparkline(ImDrawListPtr drawList, Vector2 pos, Vector2 size, IReadOnlyList<long> series, uint color)
+    {
+        var middle = pos.Y + (size.Y / 2f);
+
+        if (series.Count < 2)
+        {
+            drawList.AddLine(new Vector2(pos.X, middle), new Vector2(pos.X + size.X, middle), color, 1.2f);
+            return;
+        }
+
+        long min = long.MaxValue;
+        long max = long.MinValue;
+        foreach (var value in series)
+        {
+            if (value < min) min = value;
+            if (value > max) max = value;
+        }
+
+        if (max <= min)
+        {
+            drawList.AddLine(new Vector2(pos.X, middle), new Vector2(pos.X + size.X, middle), color, 1.2f);
+            return;
+        }
+
+        var span = max - min;
+        var step = size.X / (series.Count - 1);
+        var previous = new Vector2(pos.X, pos.Y + size.Y - ((float)((series[0] - min) / (double)span) * size.Y));
+
+        for (var i = 1; i < series.Count; i++)
+        {
+            var point = new Vector2(
+                pos.X + (step * i),
+                pos.Y + size.Y - ((float)((series[i] - min) / (double)span) * size.Y));
+
+            drawList.AddLine(previous, point, color, 1.2f);
+            previous = point;
+        }
+    }
+
+    private static void DrawGoldRule()
+    {
+        var drawList = ImGui.GetWindowDrawList();
+        var width = ImGui.GetContentRegionAvail().X;
+        var pos = ImGui.GetCursorScreenPos() + new Vector2(0f, 4f);
+        drawList.AddLine(pos, pos + new Vector2(width, 0f), Theme.WithAlpha(Theme.Gold, 0.22f), 1f);
+        ImGui.Dummy(new Vector2(width, 9f));
+    }
+
+    // ------------------------------------------------------------------- misc ----
 
     private string BuildCsv(IEnumerable<GilEntry> entries)
     {

@@ -73,19 +73,24 @@ public sealed class MainWindow : Window
 
     private void DrawLive(RunRecap run)
     {
-        this.DrawTitle("D U T Y   R E C A P", run.DutyName);
+        var drawList = ImGui.GetWindowDrawList();
+        var font = ImGui.GetFont();
+        var p = ImGui.GetCursorScreenPos();
 
-        ColoredText(Theme.Gold, "in progress");
-        ColoredText(Theme.TextDim, DescribeKind(run.Kind));
-        ColoredText(Theme.Text, $"Elapsed: {Detectors.FormatClock(DateTime.UtcNow - run.StartedUtc)}");
-        ColoredText(Theme.TextDim, $"Deaths so far: {this.Session.LiveDeaths}   -   Wipes: {this.Session.LiveWipes}");
+        drawList.AddCircleFilled(p + new Vector2(5f, 7f), 4f, Theme.U32(Theme.Gold));
+        drawList.AddText(font, 18f, p + new Vector2(16f, 0f), Theme.U32(Theme.Text), Truncate(run.DutyName, 42));
+        ImGui.Dummy(new Vector2(0f, 24f));
 
-        ImGui.Spacing();
-        ImGui.Separator();
+        ColoredText(
+            Theme.TextDim,
+            $"{DescribeKind(run.Kind)}  -  {Detectors.FormatClock(DateTime.UtcNow - run.StartedUtc)}  -  in progress");
+        ColoredText(Theme.TextDim, $"deaths so far {this.Session.LiveDeaths}  -  wipes {this.Session.LiveWipes}");
+
+        DrawGoldRule();
 
         this.DrawPlayerTable(this.Session.LivePlayers);
 
-        ImGui.Separator();
+        ImGui.Spacing();
         if (ImGui.SmallButton("settings"))
             this.plugin.OpenConfig();
     }
@@ -96,39 +101,42 @@ public sealed class MainWindow : Window
     {
         var elapsed = run.FinishedUtc - run.StartedUtc;
         var status = run.Completed ? "cleared" : "left";
+        var drawList = ImGui.GetWindowDrawList();
+        var font = ImGui.GetFont();
 
-        this.DrawTitle("D U T Y   R E C A P", run.DutyName);
+        var p = ImGui.GetCursorScreenPos();
 
-        ColoredText(Theme.TextDim, DescribeKind(run.Kind));
-        ColoredText(Theme.Text, $"{Detectors.FormatClock(elapsed)}  -  {status}");
-        ColoredText(Theme.TextDim, $"{run.Wipes} wipe{(run.Wipes == 1 ? string.Empty : "s")}  -  {run.TotalDeaths} death{(run.TotalDeaths == 1 ? string.Empty : "s")}");
+        DrawStamp(drawList, p, 52f, run.Grade, Theme.GradeColor(run.Grade));
 
-        if (run.PartyChatMessages > 0)
-            ColoredText(Theme.TextFaint, $"{run.PartyChatMessages} party chat message{(run.PartyChatMessages == 1 ? string.Empty : "s")}");
+        var namePos = p + new Vector2(66f, 2f);
+        drawList.AddText(font, 18f, namePos, Theme.U32(Theme.Text), Truncate(run.DutyName, 40));
 
-        ImGui.Spacing();
+        var metaPos = p + new Vector2(66f, 26f);
+        drawList.AddText(
+            font,
+            13f,
+            metaPos,
+            Theme.U32(Theme.TextDim),
+            $"{DescribeKind(run.Kind)}  -  {Detectors.FormatClock(elapsed)}  -  {status}");
 
-        ImGui.TextUnformatted("Grade: ");
-        ImGui.SameLine();
-        ColoredText(Theme.GradeColor(run.Grade), run.Grade);
+        ImGui.Dummy(new Vector2(0f, 56f));
 
         if (run.Snark.Length > 0)
-        {
-            ImGui.SameLine();
             ColoredText(Theme.TextFaint, run.Snark);
-        }
 
         if (!string.IsNullOrWhiteSpace(run.FirstBloodName))
-            ColoredText(Theme.TextFaint, $"First blood: {run.FirstBloodName}");
+            ColoredText(Theme.TextFaint, $"first blood  {run.FirstBloodName}");
 
         ImGui.Spacing();
-        ImGui.Separator();
+        DrawStatRow(run.Wipes, run.TotalDeaths, run.PartyChatMessages);
+
+        DrawGoldRule();
 
         this.DrawPlayerTable(run.Players);
 
         this.DrawBest(run);
 
-        ImGui.Separator();
+        ImGui.Spacing();
 
         if (ImGui.Button("Copy recap"))
         {
@@ -208,7 +216,7 @@ public sealed class MainWindow : Window
             return;
 
         ImGui.Spacing();
-        ImGui.Separator();
+        DrawGoldRule();
         ImGui.TextUnformatted("Recent runs");
 
         foreach (var run in history.Skip(1).Take(5))
@@ -223,8 +231,7 @@ public sealed class MainWindow : Window
 
     private void DrawEmptyState()
     {
-        this.DrawTitle("D U T Y   R E C A P", "No duty yet");
-
+        ColoredText(Theme.Text, "No duty yet");
         ImGui.TextWrapped(
             "A scorecard is recorded automatically when a duty starts and lands here when it ends. " +
             "Queue for something you will regret and come back.");
@@ -234,19 +241,57 @@ public sealed class MainWindow : Window
             this.plugin.OpenConfig();
     }
 
-    private void DrawTitle(string eyebrow, string title)
+    // ---------------------------------------------------------------- drawing ----
+
+    private static void DrawStamp(ImDrawListPtr drawList, Vector2 pos, float size, string grade, Vector4 color)
+    {
+        var min = pos;
+        var max = pos + new Vector2(size, size);
+
+        drawList.AddRectFilled(min, max, Theme.U32(color), size * 0.18f);
+
+        var inset = size * 0.10f;
+        drawList.AddRectFilled(min + new Vector2(inset, inset), max - new Vector2(inset, inset), Theme.U32(Theme.Panel), size * 0.12f);
+
+        var font = ImGui.GetFont();
+        var textSize = ImGui.CalcTextSize(grade);
+        var scale = 24f / ImGui.GetFontSize();
+        var w = textSize.X * scale;
+        var h = textSize.Y * scale;
+        var center = pos + new Vector2(size / 2f, size / 2f);
+        drawList.AddText(font, 24f, center - new Vector2(w / 2f, h / 2f), Theme.U32(color), grade);
+    }
+
+    private static void DrawStatRow(int wipes, int deaths, int chat)
+    {
+        ColoredText(Theme.TextFaint, "wipes");
+        ImGui.SameLine(0f, 6f);
+        ColoredText(wipes > 0 ? Theme.Danger : Theme.TextDim, wipes.ToString());
+
+        ImGui.SameLine(0f, 16f);
+        ColoredText(Theme.TextFaint, "deaths");
+        ImGui.SameLine(0f, 6f);
+        ColoredText(deaths > 0 ? Theme.Danger : Theme.TextDim, deaths.ToString());
+
+        if (chat > 0)
+        {
+            ImGui.SameLine(0f, 16f);
+            ColoredText(Theme.TextFaint, "chat");
+            ImGui.SameLine(0f, 6f);
+            ColoredText(Theme.TextDim, chat.ToString());
+        }
+    }
+
+    private static void DrawGoldRule()
     {
         var drawList = ImGui.GetWindowDrawList();
-        var font = ImGui.GetFont();
-
-        var labelPos = ImGui.GetCursorScreenPos();
-        drawList.AddText(font, 11f, labelPos, Theme.U32(Theme.Gold), eyebrow);
-        ImGui.Dummy(new Vector2(0f, 16f));
-
-        var titlePos = ImGui.GetCursorScreenPos();
-        drawList.AddText(font, 20f, titlePos, Theme.U32(Theme.Text), title);
-        ImGui.Dummy(new Vector2(0f, 28f));
+        var width = ImGui.GetContentRegionAvail().X;
+        var pos = ImGui.GetCursorScreenPos() + new Vector2(0f, 4f);
+        drawList.AddLine(pos, pos + new Vector2(width, 0f), Theme.WithAlpha(Theme.Gold, 0.22f), 1f);
+        ImGui.Dummy(new Vector2(width, 9f));
     }
+
+    // ------------------------------------------------------------------- misc ----
 
     private static string BuildRecapLine(RunRecap run, TimeSpan elapsed) =>
         $"{run.DutyName} — {Detectors.FormatClock(elapsed)}, {run.Wipes} wipe{(run.Wipes == 1 ? string.Empty : "s")}, " +
