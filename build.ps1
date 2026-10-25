@@ -19,7 +19,9 @@ $plugins = @(
     @{ Folder = "CritSound"; Project = "CritSound.csproj" },
     @{ Folder = "EnemyListCastBars"; Project = "EnemyListCastBars.csproj" },
     @{ Folder = "DesynthLens"; Project = "DesynthLens.csproj" },
-    @{ Folder = "MechanicWatch"; Project = "MechanicWatch.csproj" }
+    @{ Folder = "MechanicWatch"; Project = "MechanicWatch.csproj" },
+    @{ Folder = "GilLedger"; Project = "GilLedger.csproj" },
+    @{ Folder = "DutyRecap"; Project = "DutyRecap.csproj" }
 )
 
 # Plugin sources live inside this repository under src/ so the repo is

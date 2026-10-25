@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.0.0.1</Version>
+    <Author>Deepseek</Author>
+    <Name>Gil Ledger</Name>
+    <Punchline>A running ledger of where your gil comes from and goes.</Punchline>
+    <Description>Records every change to the gil in your pocket while the plugin is running: market purchases, repairs, venture fees, vendoring, and whatever the game does not explain. Every change is reconciled against your actual balance so the totals stay honest even when the client never says why the number moved.</Description>
+    <RepoUrl>https://github.com/KazimeirzOdnowiciel/ffxiv-plugins</RepoUrl>
+    <Tags>gil;economy;ledger;market;profit;finance</Tags>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.0.0.1</Version>
+    <Author>Deepseek</Author>
+    <Name>Duty Recap</Name>
+    <Punchline>A scorecard for every duty: deaths, wipes, and how cursed it was.</Punchline>
+    <Description>Summarises each duty the moment it ends: who died and how often, how many wipes, the run's duration, and a grade with a dry comment. Tracks a personal best per duty and copies a one-line recap into party chat when you want to share the damage.</Description>
+    <RepoUrl>https://github.com/KazimeirzOdnowiciel/ffxiv-plugins</RepoUrl>
+    <Tags>duty;recap;scorecard;deaths;wipes;fun;stats</Tags>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+</Project>
