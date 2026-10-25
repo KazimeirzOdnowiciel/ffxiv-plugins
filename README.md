@@ -1,50 +1,88 @@
-# FFXIV plugin repository
+# FFXIV plugins
 
-A Dalamud custom plugin repository for these plugins:
-
-| Plugin | What it does |
-|---|---|
-| **Slot Yield** | Market scan, retainer-slot portfolio optimisation, listing advice, alerts, craft planning, and opt-in repricing / listing automation. |
-| **Roulette Bingo** | A generated 5x5 bingo card for every duty, with shareable seeds. |
-| **Crit Sound** | Audio feedback for critical hits, direct hits, and crit directs. |
-| **Enemy List Cast Bars** | Draws a cast bar and cast name onto each enemy-list row; interruptible casts are highlighted. (MIT, built from the dev-plugin source in AppData.) |
+A [Dalamud](https://dalamud.dev) custom plugin repository for my Final Fantasy XIV plugins.
 
 ## Install (in game)
 
-1. `/xlplugins` → **Settings** → **Experimental** → **Custom Plugin Repositories**.
-2. Add this repository's `repo.json` URL, for example:
-   `https://raw.githubusercontent.com/YOURNAME/ffxiv-plugins/main/repo.json`
-3. Enable it, then install any of the plugins from the normal plugin list.
+1. Open `/xlplugins` → **Settings** → **Experimental** → **Custom Plugin Repositories**.
+2. Add this URL:
 
-## Publishing your own copy
-
-The repository does not need the plugin sources - Dalamud only needs `repo.json` and the zips it points at.
-
-1. Create a GitHub repository and push this folder.
-2. Decide how the zips are served. Two options:
-   - **raw.githubusercontent.com** (simplest): commit `dist/*.zip` and point `BaseUrl` at
-     `https://raw.githubusercontent.com/<user>/<repo>/main`.
-   - **GitHub Releases** (nicer for versioned downloads): upload `dist/*.zip` as release assets and
-     point `BaseUrl` at `https://github.com/<user>/<repo>/releases/download/<tag>`.
-3. Regenerate `repo.json` with your URL:
-
-   ```powershell
-   .\build.ps1 -BaseUrl "https://raw.githubusercontent.com/<user>/<repo>/main"
+   ```
+   https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/repo.json
    ```
 
-   Add `-NoBuild` to skip rebuilding and only repackage what is already built.
-4. Commit `repo.json` and `dist/`.
+3. Save, enable the repository, then install any plugin from the normal plugin list.
 
-## Updating a plugin
+Dalamud refreshes `repo.json` on its own schedule; use **Settings → Check for updates** if a new
+version does not show up right away.
 
-Bump `AssemblyVersion` and `RepoUrl` in that plugin's `.csproj` (they feed its generated manifest),
-then run `build.ps1` again. Dalamud compares `AssemblyVersion` to decide whether an update exists, so
-the number has to increase or nothing will be offered.
+## Plugins
 
-## Notes
+| Plugin | Version | What it does |
+|---|---|---|
+| **Slot Yield** | 0.2.0.2 | Treats your retainer slots as a portfolio: scans the market board via Universalis, models how much of each item's daily sales you can actually capture, and picks the items that earn the most gil per slot per day. Also tracks your own listings, alerts on undercuts, plans crafts from your bags, and can reprice or list for you on request. |
+| **Roulette Bingo** | 0.1.0.1 | A generated 5×5 bingo card for every duty you enter, filled with the small disasters and rituals of party content. Auto-detects deaths, wipes, vuln stacks and the chat classics; every card is seeded so a code reproduces the same board. |
+| **Crit Sound** | 0.1.0.1 | Audio feedback for combat: separate sounds for critical hits, direct hits and crit directs, so you can hear your damage without watching floating text. |
+| **Desynth Lens** | 0.4.0.3 | Records what each desynthesis actually returns and what those materials are worth, so you can tell a profitable salvage from a waste of gil. |
+| **Mechanic Watch** | 0.2.0.2 | A party-wide grid of the statuses you choose to care about, so you can see at a glance who has what during a fight. |
+| **Enemy List Cast Bars** | 1.0.0.1 | Draws a cast bar and the cast name onto each enemy-list row, highlighting interruptible casts. — *third party, MIT, see [credits](#credits)* |
 
-- `LastUpdate` is refreshed on every build, which is what the in-game plugin list sorts on.
-- The plugin sources live outside this folder; `build.ps1` expects them as siblings
-  (`..\SlotYield`, `..\RouletteBingo`, `..\CritSound`, plus `EnemyListCastBars` from its dev-plugin folder via the `Root` key in the `$plugins` table).
-- Local testing: Dalamud accepts `file:///` URLs for a repository in some builds, but plain
-  `https` is the reliable path.
+## Repository layout
+
+```
+.
+├── src/<Plugin>/      plugin sources, one folder per plugin
+├── dist/              release zips + dist/icons/ (this is what Dalamud downloads)
+├── icons/             source icons referenced by repo.json
+├── repo.json          the repository manifest
+└── build.ps1          builds every plugin, packages it, rewrites repo.json
+```
+
+A fresh clone is self-contained: every plugin builds from `src/`, with no folders outside the repo.
+
+## Building
+
+Requires the .NET SDK and a Dalamud installation (API level 15). `Enemy List Cast Bars` declares
+.NET 10; the first-party plugins take their target framework from `Dalamud.NET.Sdk`.
+
+```powershell
+# build, package and rewrite repo.json
+.\build.ps1
+
+# re-package already-built binaries without compiling
+.\build.ps1 -NoBuild
+
+# build against a different download root (e.g. the release-asset layout)
+.\build.ps1 -BaseUrl "https://github.com/KazimeirzOdnowiciel/ffxiv-plugins/releases/download/latest"
+```
+
+A single plugin can be compiled directly:
+
+```powershell
+dotnet build src/SlotYield/SlotYield.csproj
+```
+
+If Windows refuses the script with *"AuthorizationManager check failed"*, run it in a child process
+with an explicit policy instead of changing your machine policy:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
+```
+
+## Releasing
+
+1. Bump `AssemblyVersion` in the plugin's `.csproj` — Dalamud compares this number to decide whether
+   an update exists, so an unchanged version is never offered.
+2. Run `.\build.ps1`.
+3. Commit `dist/` and `repo.json` together with the version bump.
+
+`repo.json`'s `LastUpdate` field and CRLF line endings in descriptions change on every build. That
+is expected; commit the artifacts when the version changes, not on every local build.
+
+## Credits
+
+`Enemy List Cast Bars` is third-party code (MIT), vendored unmodified so the repository stays
+self-contained. Provenance and the import path are recorded in
+[`src/EnemyListCastBars/NOTICE.md`](src/EnemyListCastBars/NOTICE.md).
+
+The first-party plugins currently carry no license file; treat them as all rights reserved.
