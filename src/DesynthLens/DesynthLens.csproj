@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.4.0.3</Version>
+    <Author>Deepseek</Author>
+    <Name>Desynth Lens</Name>
+    <Punchline>Tracks what your desynths actually yield and what it is worth.</Punchline>
+    <Description>Records what each desynthesis actually gives you and what those items are worth.
+
+The desynthesis window shows the real result, so the plugin reads it from the game rather than guessing from a datamined table - those tables do not exist in a reliable form. Each item then keeps a small ledger: how often you desynthesised it, the average and best value of the yield, and the last result.</Description>
+    <RepoUrl>https://github.com/KazimeirzOdnowiciel/ffxiv-plugins</RepoUrl>
+    <Tags>desynth;market;gil;universalis;ledger</Tags>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+</Project>

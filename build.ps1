@@ -22,7 +22,10 @@ $plugins = @(
     @{ Folder = "MechanicWatch"; Project = "MechanicWatch.csproj" }
 )
 
-$parent = Split-Path $root -Parent
+# Plugin sources live inside this repository under src/ so the repo is
+# self-contained; EnemyListCastBars still builds from the Dalamud dev-plugin
+# folder via its explicit Root.
+$parent = Join-Path $root "src"
 $entries = @()
 
 foreach ($plugin in $plugins)

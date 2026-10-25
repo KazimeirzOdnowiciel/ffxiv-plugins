@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.2.0.2</Version>
+    <Author>Deepseek</Author>
+    <Name>Slot Yield</Name>
+    <Punchline>Tells you what your retainer slots should actually be selling.</Punchline>
+    <Description>Your retainer slots are a portfolio, not a shelf. Slot Yield scans the market board through Universalis, models how much of each item's daily sales you can actually capture given the competition, and then solves the assignment problem: which N items, within your capital budget, earn the most gil per slot per day.
+
+Every number is explainable - velocity, sellers at your price, expected share, days to clear a stack, tax. It also keeps your own listings in view, alerts when you are undercut, plans crafts from your bags, and can reprice or list for you when you ask it to.</Description>
+    <RepoUrl>https://github.com/KazimeirzOdnowiciel/ffxiv-plugins</RepoUrl>
+    <Tags>market;gil;retainer;economy;universalis;profit;slots</Tags>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="tests\**" />
+    <None Remove="tests\**" />
+    <EmbeddedResource Remove="tests\**" />
+  </ItemGroup>
+</Project>

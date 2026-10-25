@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.2.0.2</Version>
+    <Author>Deepseek</Author>
+    <Name>Mechanic Watch</Name>
+    <Punchline>One window for the debuffs that actually resolve a mechanic.</Punchline>
+    <Description>A party-wide grid of the statuses you choose to care about. Rows are watched statuses, columns are party members, and each cell shows the time left and stack count.
+
+The watchlist is built by capture: press Capture during a mechanic and every status currently on the party is added, so there is no fight database to rot. Right-click a name to remove it.
+
+No mechanic prediction and no timeline - this only shows what is on the party right now.</Description>
+    <RepoUrl>https://github.com/KazimeirzOdnowiciel/ffxiv-plugins</RepoUrl>
+    <Tags>party;debuff;status;raid;mechanic;combat</Tags>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+</Project>

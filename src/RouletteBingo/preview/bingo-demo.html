@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roulette Bingo - a card for whatever the queue throws at you</title>
+<style>
+  :root {
+    --bg: #080a0e;
+    --panel: #12161f;
+    --panel-2: #1a2030;
+    --text: #e3e7f0;
+    --dim: #8b93a5;
+    --faint: #5c6474;
+    --gold: #dcb35c;
+    --border: rgba(255, 255, 255, .07);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1100px 520px at 50% -8%, #1b2436 0%, rgba(10, 12, 16, 0) 62%),
+      radial-gradient(800px 400px at 85% 110%, #171b26 0%, rgba(10, 12, 16, 0) 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 40px 22px 70px; }
+
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: .34em;
+    text-transform: uppercase;
+    color: var(--gold);
+    opacity: .9;
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    margin: 0 0 10px;
+    font-size: clamp(24px, 3.6vw, 38px);
+    line-height: 1.15;
+    font-weight: 650;
+    letter-spacing: -.02em;
+  }
+
+  h1 span { color: var(--gold); }
+
+  .sub {
+    margin: 0;
+    max-width: 620px;
+    color: var(--dim);
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin: 26px 0 22px;
+  }
+
+  button, select, input {
+    font: inherit;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 13px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, transform .06s;
+  }
+
+  button:hover, select:hover { background: var(--panel-2); border-color: rgba(255, 255, 255, .16); }
+  button:active { transform: translateY(1px); }
+
+  button.primary {
+    background: linear-gradient(180deg, rgba(220, 179, 92, .22), rgba(220, 179, 92, .1));
+    border-color: rgba(220, 179, 92, .5);
+    color: #f2ddaa;
+  }
+
+  button.primary:hover { background: linear-gradient(180deg, rgba(220, 179, 92, .32), rgba(220, 179, 92, .16)); }
+
+  input { min-width: 260px; cursor: text; }
+  input::placeholder { color: var(--faint); }
+
+  .spacer { flex: 1 1 auto; }
+
+  .toggle { display: inline-flex; gap: 8px; align-items: center; color: var(--dim); font-size: 13px; cursor: pointer; }
+  .toggle input { min-width: 0; width: auto; cursor: pointer; accent-color: var(--gold); }
+
+  .board {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 20px 18px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .018), rgba(255, 255, 255, 0));
+    box-shadow: 0 30px 80px -40px rgba(0, 0, 0, .9);
+  }
+
+  .board-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+  .board-head h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+  .board-head .meta { color: var(--faint); font-size: 12.5px; }
+  .board-head .seed { margin-left: auto; color: var(--faint); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+  .progress-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 14px 0 16px; }
+  .count { font-size: 13px; color: var(--gold); font-variant-numeric: tabular-nums; }
+
+  .bar-track { flex: 1 1 200px; height: 7px; border-radius: 99px; background: rgba(255, 255, 255, .09); overflow: hidden; }
+  .bar-fill { height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #b98f3e, var(--gold)); transition: width .35s ease; }
+
+  .lines { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #f3e2b6;
+    background: rgba(220, 179, 92, .13);
+    border: 1px solid rgba(220, 179, 92, .4);
+    border-radius: 999px;
+    padding: 3px 9px;
+  }
+  .muted { color: var(--faint); font-size: 12px; }
+
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .cell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 124px;
+    padding: 12px 12px 10px;
+    border-radius: 11px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    transition: transform .07s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+
+  .cell:hover { transform: translateY(-2px); background: var(--panel-2); }
+  .cell:active { transform: translateY(0); }
+
+  .cell.bingo {
+    box-shadow: 0 0 0 2px rgba(220, 179, 92, .75), 0 0 34px -8px rgba(220, 179, 92, .5);
+    border-color: transparent;
+  }
+
+  .cell-head { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
+  .cat { font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700; opacity: .95; }
+
+  .txt { font-size: 13px; line-height: 1.38; letter-spacing: -.005em; }
+  .cell.marked .txt { color: #98a0b2; }
+  .cell.marked .cat { opacity: .55; }
+
+  .cell-foot { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; }
+  .pips { display: flex; gap: 3px; }
+  .pips i { width: 4px; height: 4px; border-radius: 50%; display: block; }
+
+  .check {
+    font-size: 14px;
+    line-height: 1;
+    color: var(--cat);
+    filter: drop-shadow(0 0 6px var(--cat));
+    animation: pop .22s ease-out;
+  }
+
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: #cfd6e4;
+    background: rgba(255, 255, 255, .04);
+    border: 1px dashed rgba(255, 255, 255, .14);
+    border-radius: 8px;
+    padding: 7px 11px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .note { margin-top: 26px; color: var(--faint); font-size: 12.5px; line-height: 1.7; }
+  .note b { color: var(--dim); font-weight: 600; }
+
+  #toast {
+    position: fixed;
+    left: 50%;
+    bottom: 34px;
+    transform: translate(-50%, 20px);
+    background: rgba(18, 22, 31, .96);
+    border: 1px solid rgba(220, 179, 92, .45);
+    color: #f4e4bb;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    letter-spacing: .02em;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+    box-shadow: 0 18px 50px -20px rgba(0, 0, 0, .9);
+  }
+
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 760px) {
+    .cell { min-height: 112px; padding: 10px; }
+    .txt { font-size: 12px; }
+    input { min-width: 0; flex: 1 1 200px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Roulette Bingo</div>
+  <h1>A card for whatever <span>the queue</span> throws at you.</h1>
+  <p class="sub">
+    Twenty-four small disasters, one free square, and the honour system. This is the plugin's actual board
+    generator running in your browser - same seed, same square pool, same deterministic nonsense.
+  </p>
+
+  <div class="bar">
+    <button id="new-card" class="primary">New card</button>
+    <select id="kind" aria-label="Duty kind">
+      <option value="Dungeon" selected>4-player dungeon</option>
+      <option value="EightMan">8-player raid / trial</option>
+      <option value="Alliance">24-player alliance raid</option>
+      <option value="Pvp">PvP</option>
+    </select>
+    <label class="toggle"><input type="checkbox" id="cursed"> Cursed mode</label>
+    <span class="spacer"></span>
+    <input id="load-input" placeholder="Paste a card code (RB1....)">
+    <button id="load">Load</button>
+  </div>
+
+  <div class="board">
+    <div class="board-head">
+      <h2 id="duty-name">&nbsp;</h2>
+      <span class="meta" id="duty-meta"></span>
+      <span class="seed" id="seed"></span>
+    </div>
+
+    <div class="progress-row">
+      <span class="count" id="progress">0/25</span>
+      <div class="bar-track"><div class="bar-fill" id="bar"></div></div>
+      <div class="lines" id="lines"></div>
+    </div>
+
+    <div id="grid"></div>
+
+    <div class="foot">
+      <code class="code" id="code" title="Click to copy"></code>
+      <button id="copy-code">Copy code</button>
+      <button id="copy-report">Copy report</button>
+      <span class="spacer"></span>
+      <span class="muted"><span id="pool-size">0</span> squares in the pool</span>
+    </div>
+  </div>
+
+  <p class="note">
+    <b>How the real thing works:</b> the plugin rolls a card when a duty starts, auto-detects a handful of squares
+    (deaths, wipes, three vuln stacks, and the chat classics), and leaves the rest to you. Card codes are
+    <b>RB1.</b> plus a seed and a bitmask, so they replay the exact same board on someone else's screen.
+    This preview is generated from the same <b>squares.json</b> the plugin embeds.
+  </p>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const POOL = [{"id":"tank-no-mit","text":"Tank pulls wall-to-wall without a single cooldown","cat":"Tank","rarity":"Common","tags":["dungeon"]},{"id":"tank-stance","text":"Tank forgot tank stance and nobody said anything","cat":"Tank","rarity":"Common","tags":[]},{"id":"tank-provoke","text":"Tank Provokes the mob that is already hitting them","cat":"Tank","rarity":"Uncommon","tags":[]},{"id":"tank-lb","text":"Tank uses Limit Break on one trash pull","cat":"Tank","rarity":"Uncommon","tags":["dungeon"]},{"id":"tank-invuln","text":"Tank invulns the pull, then dies to the next auto","cat":"Tank","rarity":"Uncommon","tags":[]},{"id":"tank-drk","text":"The Dark Knight has already used Living Dead twice","cat":"Tank","rarity":"Uncommon","tags":[]},{"id":"tank-outdps","text":"Tank out-damages both DPS","cat":"Tank","rarity":"Common","tags":[]},{"id":"tank-gnb","text":"Gunbreaker Superbolides at 12% for no reason","cat":"Tank","rarity":"Rare","tags":[]},{"id":"tank-cover","text":"Paladin Covers the healer at full HP","cat":"Tank","rarity":"Rare","tags":[]},{"id":"tank-solo","text":"Warrior solos the last 30% after everyone dies","cat":"Tank","rarity":"Rare","tags":[]},{"id":"tank-wrongway","text":"Tank runs the opposite direction of the marker","cat":"Tank","rarity":"Uncommon","tags":[]},{"id":"tank-aoe","text":"Tank stands in the AoE and calls it mitigation","cat":"Tank","rarity":"Uncommon","tags":[]},{"id":"tank-shirk","text":"Tank Shirks the healer as a joke","cat":"Tank","rarity":"Rare","tags":[]},{"id":"tank-barcode","text":"Tank's HP bar is a barcode for most of the fight","cat":"Tank","rarity":"Rare","tags":[]},{"id":"tank-ranged","text":"Tank runs into the pack instead of pulling with ranged","cat":"Tank","rarity":"Common","tags":["dungeon"]},{"id":"tank-two","text":"Two tanks, neither willing to main tank","cat":"Tank","rarity":"Uncommon","tags":["eightman","alliance"]},{"id":"tank-glam","text":"Tank in level 1 glamour, current-tier gear","cat":"Tank","rarity":"Rare","tags":[]},{"id":"tank-reprisal","text":"Tank uses Reprisal on cooldown and nothing else","cat":"Tank","rarity":"Uncommon","tags":[]},{"id":"tank-stack","text":"Tank takes the stack marker. Alone.","cat":"Tank","rarity":"Uncommon","tags":[]},{"id":"tank-boss-cs","text":"Tank pulls the boss while someone is in a cutscene","cat":"Tank","rarity":"Uncommon","tags":["dungeon"]},{"id":"tank-dies","text":"The tank dies first","cat":"Tank","rarity":"Uncommon","tags":[]},{"id":"heal-rescue","text":"Healer uses Rescue. It does not help.","cat":"Healer","rarity":"Uncommon","tags":[]},{"id":"heal-zero","text":"Healer does zero damage the entire run","cat":"Healer","rarity":"Common","tags":[]},{"id":"heal-outdps","text":"Healer out-damages a DPS","cat":"Healer","rarity":"Uncommon","tags":[]},{"id":"heal-lb3","text":"Healer LB3 during a wipe","cat":"Healer","rarity":"Uncommon","tags":[]},{"id":"heal-lb1","text":"Healer uses LB1 at 90% party HP","cat":"Healer","rarity":"Rare","tags":[]},{"id":"heal-mp","text":"Healer runs out of MP and blames the tank","cat":"Healer","rarity":"Uncommon","tags":[]},{"id":"heal-swift","text":"Healer swiftcast-raises the person who caused the wipe","cat":"Healer","rarity":"Rare","tags":[]},{"id":"heal-dies","text":"Healer dies; the party follows within four seconds","cat":"Healer","rarity":"Common","tags":[]},{"id":"heal-kardia","text":"The Sage's Kardia has not moved all fight","cat":"Healer","rarity":"Rare","tags":[]},{"id":"heal-ogcd","text":"Healer's oGCD heals never touch the floor","cat":"Healer","rarity":"Uncommon","tags":[]},{"id":"heal-raise-tank","text":"Healer LBs the tank back instead of the DPS","cat":"Healer","rarity":"Rare","tags":[]},{"id":"heal-macro","text":"Healer has a macro that says 'oops' after every death","cat":"Healer","rarity":"Rare","tags":[]},{"id":"heal-esuna","text":"Healer casts Esuna on nothing","cat":"Healer","rarity":"Uncommon","tags":[]},{"id":"heal-medica","text":"Healer casts a big heal, then stands perfectly still","cat":"Healer","rarity":"Uncommon","tags":[]},{"id":"heal-tunnel","text":"Healer's entire screen is the tank's HP bar","cat":"Healer","rarity":"Common","tags":[]},{"id":"heal-bene","text":"Benediction happens one GCD too late","cat":"Healer","rarity":"Uncommon","tags":[]},{"id":"heal-cards","text":"Every Astrologian card goes to the tank","cat":"Healer","rarity":"Uncommon","tags":[]},{"id":"heal-fairy","text":"The Scholar's fairy is healing a wall","cat":"Healer","rarity":"Rare","tags":[]},{"id":"heal-sge","text":"Sage lasers heal nobody and damage everything","cat":"Healer","rarity":"Uncommon","tags":[]},{"id":"heal-both","text":"Both healers heal one raidwide, then both have nothing","cat":"Healer","rarity":"Uncommon","tags":["eightman","alliance"]},{"id":"dps-drg-floor","text":"Dragoon visits the floor at least once","cat":"Damage","rarity":"Common","tags":[]},{"id":"dps-drg-jump","text":"Dragoon dies mid-jump. Again.","cat":"Damage","rarity":"Uncommon","tags":[]},{"id":"dps-blm-ley","text":"Black Mage will not leave the Ley Lines","cat":"Damage","rarity":"Common","tags":[]},{"id":"dps-blm-fire4","text":"Black Mage is mid-Fire IV when the boss moves","cat":"Damage","rarity":"Uncommon","tags":[]},{"id":"dps-ranged-range","text":"Ranged DPS at max range, outside every heal","cat":"Damage","rarity":"Common","tags":[]},{"id":"dps-ranged-low","text":"Ranged DPS does less damage than the tank","cat":"Damage","rarity":"Common","tags":[]},{"id":"dps-lb1","text":"DPS uses LB1 on the boss at 2%","cat":"Damage","rarity":"Rare","tags":[]},{"id":"dps-stack","text":"Melee DPS runs away from the stack marker","cat":"Damage","rarity":"Uncommon","tags":[]},{"id":"dps-sam","text":"Samurai has three stickers and no Higanbana","cat":"Damage","rarity":"Rare","tags":[]},{"id":"dps-rpr","text":"Reaper's avatar is bigger than the boss","cat":"Damage","rarity":"Uncommon","tags":[]},{"id":"dps-nin","text":"Trick Attack lands after the burst window","cat":"Damage","rarity":"Uncommon","tags":[]},{"id":"dps-mnk","text":"Monk is still comboing a mob that died two GCDs ago","cat":"Damage","rarity":"Uncommon","tags":[]},{"id":"dps-brd","text":"Bard's songs are all wrong and nobody will say it","cat":"Damage","rarity":"Rare","tags":[]},{"id":"dps-mch","text":"Machinist's robot out-damages the Machinist","cat":"Damage","rarity":"Uncommon","tags":[]},{"id":"dps-dnc","text":"Dancer's Standard Finish lands on nobody","cat":"Damage","rarity":"Uncommon","tags":[]},{"id":"dps-vpr","text":"Viper presses every button and still loses to the tank","cat":"Damage","rarity":"Rare","tags":[]},{"id":"dps-pct","text":"Pictomancer's paint is on cooldown when it matters","cat":"Damage","rarity":"Uncommon","tags":[]},{"id":"dps-rdm","text":"Red Mage melees at 40% HP and dies for it","cat":"Damage","rarity":"Uncommon","tags":[]},{"id":"dps-smn","text":"Summoner's Bahamut lands after the boss dies","cat":"Damage","rarity":"Rare","tags":[]},{"id":"dps-same","text":"Two DPS, same job, wildly different results","cat":"Damage","rarity":"Rare","tags":[]},{"id":"dps-aoe","text":"DPS stands in the AoE and lives. Tank main.","cat":"Damage","rarity":"Uncommon","tags":[]},{"id":"dps-dot","text":"Someone's DoT is out-damaging someone's rotation","cat":"Damage","rarity":"Rare","tags":[]},{"id":"dps-you-die","text":"You die","cat":"Damage","rarity":"Common","tags":[]},{"id":"soc-owave","text":"Someone opens with 'o/'","cat":"Social","rarity":"Common","tags":[]},{"id":"soc-first","text":"Someone says 'first time' after the first wipe","cat":"Social","rarity":"Common","tags":[]},{"id":"soc-gg-early","text":"Someone says 'gg' before the final boss is dead","cat":"Social","rarity":"Common","tags":[]},{"id":"soc-gg","text":"Someone says 'gg'","cat":"Social","rarity":"Common","tags":[]},{"id":"soc-where","text":"Someone asks 'where we going' while following the tank","cat":"Social","rarity":"Common","tags":[]},{"id":"soc-mb","text":"Someone says 'mb' with no context whatsoever","cat":"Social","rarity":"Common","tags":[]},{"id":"soc-sorry","text":"Someone apologizes for something nobody saw","cat":"Social","rarity":"Uncommon","tags":[]},{"id":"soc-silent","text":"Nobody says anything for the entire duty","cat":"Social","rarity":"Common","tags":[]},{"id":"soc-ty","text":"Exactly one person says 'ty' at the end","cat":"Social","rarity":"Uncommon","tags":[]},{"id":"soc-explain","text":"Someone explains a mechanic nobody asked about","cat":"Social","rarity":"Common","tags":[]},{"id":"soc-walls","text":"The explanation is longer than the mechanic","cat":"Social","rarity":"Rare","tags":[]},{"id":"soc-dad","text":"Someone calls the tank 'dad'","cat":"Social","rarity":"Rare","tags":[]},{"id":"soc-speed","text":"Someone asks if we can speed this up","cat":"Social","rarity":"Uncommon","tags":[]},{"id":"soc-leave","text":"Someone leaves after the first wipe","cat":"Social","rarity":"Uncommon","tags":[]},{"id":"soc-replaced","text":"Someone leaves silently and is replaced in two seconds","cat":"Social","rarity":"Uncommon","tags":[]},{"id":"soc-dance","text":"Someone is doing the Manderville mambo during the boss","cat":"Social","rarity":"Uncommon","tags":[]},{"id":"soc-emote","text":"Someone emotes at the boss before the pull","cat":"Social","rarity":"Common","tags":[]},{"id":"soc-newbtw","text":"Someone says 'new btw' and then tops the damage","cat":"Social","rarity":"Rare","tags":[]},{"id":"soc-caps","text":"Someone types in ALL CAPS","cat":"Social","rarity":"Uncommon","tags":[]},{"id":"soc-title","text":"A party member's title spoils an expansion ending","cat":"Social","rarity":"Rare","tags":[]},{"id":"soc-couple","text":"Tank and healer are a couple; one of them is bad","cat":"Social","rarity":"Rare","tags":[]},{"id":"soc-question","text":"Someone asks a question nobody answers","cat":"Social","rarity":"Uncommon","tags":[]},{"id":"soc-lag","text":"Someone blames lag","cat":"Social","rarity":"Common","tags":[]},{"id":"soc-joke","text":"Someone makes a joke and exactly one person laughs","cat":"Social","rarity":"Uncommon","tags":[]},{"id":"soc-afk","text":"Someone goes AFK at the exact wrong moment","cat":"Social","rarity":"Uncommon","tags":[]},{"id":"soc-ready","text":"Someone is 'ready' before the healer has loaded in","cat":"Social","rarity":"Rare","tags":[]},{"id":"loot-minion","text":"A minion drops and all eight click Need","cat":"Loot","rarity":"Common","tags":[]},{"id":"loot-rot","text":"Everyone passes and the loot rots","cat":"Loot","rarity":"Uncommon","tags":[]},{"id":"loot-mount","text":"You lose the mount roll to a 12","cat":"Loot","rarity":"Rare","tags":[]},{"id":"loot-greed","text":"Someone greeds gear they cannot equip","cat":"Loot","rarity":"Uncommon","tags":[]},{"id":"loot-glam","text":"Someone needs on glamour and says 'sorry, glam'","cat":"Loot","rarity":"Common","tags":[]},{"id":"loot-orch","text":"An orchestrion roll drops and nobody rolls","cat":"Loot","rarity":"Common","tags":[]},{"id":"loot-sprout","text":"A sprout needs literally everything","cat":"Loot","rarity":"Uncommon","tags":[]},{"id":"loot-ask","text":"Someone asks for the minion, then rolls Need","cat":"Loot","rarity":"Rare","tags":[]},{"id":"loot-card","text":"The same Triple Triad card drops for the fourth time","cat":"Loot","rarity":"Rare","tags":[]},{"id":"loot-prisms","text":"The final chest contains glamour prisms","cat":"Loot","rarity":"Uncommon","tags":["dungeon"]},{"id":"loot-coffer","text":"Someone wins the coffer and immediately leaves","cat":"Loot","rarity":"Rare","tags":[]},{"id":"loot-hats","text":"The entire loot list is hats","cat":"Loot","rarity":"Uncommon","tags":[]},{"id":"sprout-enmity","text":"Sprout asks what 'enmity' means","cat":"Sprout","rarity":"Rare","tags":[]},{"id":"sprout-cs","text":"Sprout watches a cutscene everyone else skipped","cat":"Sprout","rarity":"Common","tags":[]},{"id":"sprout-gear","text":"Sprout is in Augmented Ironworks at level 88","cat":"Sprout","rarity":"Rare","tags":[]},{"id":"sprout-crown","text":"A Mentor crown asks the sprout for advice","cat":"Sprout","rarity":"Rare","tags":[]},{"id":"sprout-pulls","text":"Sprout runs ahead of the tank and pulls","cat":"Sprout","rarity":"Common","tags":["dungeon"]},{"id":"sprout-aoe","text":"Sprout stands in the very first AoE of the very first dungeon","cat":"Sprout","rarity":"Common","tags":["dungeon"]},{"id":"sprout-returner","text":"A returner has absolutely no idea what is happening","cat":"Sprout","rarity":"Uncommon","tags":[]},{"id":"sprout-carry","text":"The sprout is the only competent player in the party","cat":"Sprout","rarity":"Rare","tags":[]},{"id":"sprout-mentor","text":"A Mentor says nothing and leaves the instance","cat":"Sprout","rarity":"Uncommon","tags":[]},{"id":"sprout-hard","text":"Sprout asks 'is this game hard' in Sastasha","cat":"Sprout","rarity":"Rare","tags":[]},{"id":"sprout-quest","text":"Someone is doing the quest, not the dungeon","cat":"Sprout","rarity":"Uncommon","tags":[]},{"id":"sprout-warning","text":"Someone's gear has a warning triangle on it","cat":"Sprout","rarity":"Uncommon","tags":[]},{"id":"cur-silent12","text":"Twelve minutes in, the healer has said only 'o/'","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-perfect","text":"Nobody dies, nobody speaks, and it feels wrong","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-url","text":"Someone's character name is a URL","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-firstperson","text":"Someone is playing in first person","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-jump","text":"The whole party jumps in unison, unprompted","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-glam4","text":"One glamour, four different expansions","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-lala","text":"The Lalafell is the tallest presence in the party","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-hat","text":"Someone is naked except for a hat","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-vuln3","text":"Someone has three vuln stacks and is still alive","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-boss-dot","text":"The boss dies to a DoT after the party is dead","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-lb-full","text":"The LB bar fills exactly as the boss dies","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-invuln-both","text":"Tank and healer use their invulns at the same time","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-3comms","text":"You get three comms and have no idea why","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-fake-new","text":"Someone says 'I'm new' and then plays perfectly","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-wipe-trash","text":"The party wipes on the first trash pull","cat":"Cursed","rarity":"Cursed","tags":["dungeon"]},{"id":"cur-fc","text":"An FC mate you do not remember joins the party","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-minion","text":"Someone's minion is bigger than the boss","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-5hp","text":"The clear happens with everyone under 5% HP","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-skip","text":"The cutscene skip is a collective, unspoken decision","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-name-food","text":"A player is named after a food item","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-drk90","text":"A level 90 tank is taking real damage in a level 50 dungeon","cat":"Cursed","rarity":"Cursed","tags":["dungeon"]},{"id":"cur-hunt","text":"A hunt train is happening next door and half the party knows","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-echo","text":"Someone's echo macro is about the weather","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-lucky","text":"You win the loot and feel nothing","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-repeat","text":"This is the third time today you have gotten this duty","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-wall","text":"Someone is standing inside the wall","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-tp","text":"Someone asks what TP is","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-cleric","text":"Someone mentions Cleric Stance and the veterans go quiet","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-bard","text":"A bard is performing in the corner of the arena during the boss","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-chair","text":"Someone's mount is a chair","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"cur-wipe","text":"The party wipes and everyone silently runs back","cat":"Cursed","rarity":"Cursed","tags":[]},{"id":"pvp-ice","text":"The winning alliance is the one that shows up to the ice","cat":"Pvp","rarity":"Rare","tags":["pvp"]},{"id":"pvp-target","text":"Someone calls a target and four people hit someone else","cat":"Pvp","rarity":"Common","tags":["pvp"]},{"id":"pvp-drk","text":"A Dark Knight pulls you into the entire enemy team","cat":"Pvp","rarity":"Uncommon","tags":["pvp"]},{"id":"pvp-range","text":"You die to a Machinist standing forty yalms away","cat":"Pvp","rarity":"Uncommon","tags":["pvp"]},{"id":"pvp-respawn","text":"You respawn directly into the enemy alliance","cat":"Pvp","rarity":"Rare","tags":["pvp"]},{"id":"pvp-bh","text":"Someone has Battle High and no idea what to do with it","cat":"Pvp","rarity":"Uncommon","tags":["pvp"]},{"id":"pvp-mount","text":"Someone is on a mount in the middle of the fight","cat":"Pvp","rarity":"Common","tags":["pvp"]},{"id":"pvp-orders","text":"Alliance chat orders that nobody reads","cat":"Pvp","rarity":"Common","tags":["pvp"]},{"id":"pvp-lb","text":"A Dragoon Limit Breaks into an empty field","cat":"Pvp","rarity":"Rare","tags":["pvp"]},{"id":"pvp-points","text":"Your team is winning on points and still loses","cat":"Pvp","rarity":"Rare","tags":["pvp"]},{"id":"all-nobody","text":"Nobody in the other two alliances knows the mechanic","cat":"Alliance","rarity":"Common","tags":["alliance"]},{"id":"all-lb","text":"Someone uses the alliance LB on trash before the boss","cat":"Alliance","rarity":"Uncommon","tags":["alliance"]},{"id":"all-raise","text":"A healer from another alliance raises you and is never thanked","cat":"Alliance","rarity":"Uncommon","tags":["alliance"]},{"id":"all-tanks","text":"All three tanks fight for aggro on the same add","cat":"Alliance","rarity":"Rare","tags":["alliance"]},{"id":"all-waymarks","text":"The waymarks are from a completely different fight","cat":"Alliance","rarity":"Rare","tags":["alliance"]},{"id":"all-dc","text":"Someone disconnects at the transition and everyone waits","cat":"Alliance","rarity":"Uncommon","tags":["alliance"]},{"id":"raid-countdown","text":"Someone starts a countdown and someone else pulls early","cat":"Social","rarity":"Common","tags":["eightman"]},{"id":"raid-food","text":"Someone asks for food and nobody has any","cat":"Social","rarity":"Uncommon","tags":["eightman"]},{"id":"raid-markers","text":"The markers are wrong and everyone knows it","cat":"Social","rarity":"Uncommon","tags":["eightman"]},{"id":"raid-first","text":"Someone's first pull is also their first clear","cat":"Social","rarity":"Rare","tags":["eightman"]},{"id":"raid-echo","text":"Someone leaves a 'good luck' echo message","cat":"Social","rarity":"Common","tags":["eightman"]},{"id":"raid-music","text":"The trial ends before the music gets good","cat":"Social","rarity":"Rare","tags":["eightman"]}];
+</script>
+<script>
+// Pure card logic, shared by the browser preview and the node parity check.
+// It mirrors Core/CardGenerator.cs exactly: same PRNG, same weights, same pick order.
+// Keep the two in sync; tools/check_demo.mjs verifies it against C# fixtures.
+
+const MASK64 = (1n << 64n) - 1n;
+
+class SplitMix64 {
+  constructor(seed) {
+    this.state = BigInt(seed) & MASK64;
+  }
+
+  next() {
+    this.state = (this.state + 0x9E3779B97F4A7C15n) & MASK64;
+    let z = this.state;
+    z = ((z ^ (z >> 30n)) * 0xBF58476D1CE4E5B9n) & MASK64;
+    z = ((z ^ (z >> 27n)) * 0x94D049BB133111EBn) & MASK64;
+    return (z ^ (z >> 31n)) & MASK64;
+  }
+
+  nextInt(max) {
+    return Number(this.next() % BigInt(max));
+  }
+
+  nextDouble() {
+    return Number(this.next() >> 11n) / 9007199254740992;
+  }
+
+  shuffle(items) {
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = this.nextInt(i + 1);
+      const swap = items[i];
+      items[i] = items[j];
+      items[j] = swap;
+    }
+  }
+}
+
+const FREE_SPACES = [
+  'The duty popped at all',
+  'You are, in fact, inside a duty',
+  'The queue timer lied to you',
+  'Someone is here against their will',
+  'This is a duty. Congratulations.',
+  'You could be doing literally anything else',
+];
+
+const TAGS = {
+  Dungeon: 'dungeon',
+  EightMan: 'eightman',
+  Alliance: 'alliance',
+  Pvp: 'pvp',
+};
+
+function fitsDuty(square, kind) {
+  if (!square.tags || square.tags.length === 0) return true;
+  const tag = TAGS[kind] || '';
+  return tag !== '' && square.tags.some((t) => t.toLowerCase() === tag);
+}
+
+function quotas(kind, cursed) {
+  if (cursed) {
+    return [
+      ['Cursed', 12],
+      ['Damage', 4],
+      ['Social', 4],
+      ['Tank', 2],
+      ['Healer', 2],
+    ];
+  }
+
+  if (kind === 'Alliance') {
+    return [
+      ['Alliance', 5],
+      ['Tank', 4],
+      ['Healer', 4],
+      ['Damage', 4],
+      ['Social', 5],
+      ['Cursed', 2],
+    ];
+  }
+
+  if (kind === 'Pvp') {
+    return [
+      ['Pvp', 6],
+      ['Social', 6],
+      ['Damage', 5],
+      ['Healer', 3],
+      ['Tank', 2],
+      ['Cursed', 2],
+    ];
+  }
+
+  return [
+    ['Tank', 4],
+    ['Healer', 4],
+    ['Damage', 5],
+    ['Social', 6],
+    ['Loot', 2],
+    ['Sprout', 2],
+    ['Cursed', 1],
+  ];
+}
+
+function weight(rarity) {
+  if (rarity === 'Common') return 10.0;
+  if (rarity === 'Uncommon') return 6.0;
+  if (rarity === 'Rare') return 3.0;
+  return 1.5;
+}
+
+function weightedPick(candidates, rng) {
+  let total = 0;
+  for (const candidate of candidates) total += weight(candidate.rarity);
+
+  let roll = rng.nextDouble() * total;
+  for (const candidate of candidates) {
+    roll -= weight(candidate.rarity);
+    if (roll <= 0) return candidate;
+  }
+
+  return candidates[candidates.length - 1];
+}
+
+function generate(seed, kind, pool, cursed = false) {
+  const rng = new SplitMix64(seed);
+  const chosen = [];
+  const used = new Set();
+
+  for (const [category, count] of quotas(kind, cursed)) {
+    let candidates = pool.filter((s) => s.cat === category && fitsDuty(s, kind) && !used.has(s.id));
+    for (let i = 0; i < count && candidates.length > 0; i++) {
+      const pick = weightedPick(candidates, rng);
+      candidates = candidates.filter((c) => c !== pick);
+      used.add(pick.id);
+      chosen.push(pick);
+    }
+  }
+
+  if (chosen.length < 24) {
+    const spare = pool.filter((s) => !used.has(s.id) && fitsDuty(s, kind));
+    rng.shuffle(spare);
+    for (const square of spare) {
+      if (chosen.length >= 24) break;
+      used.add(square.id);
+      chosen.push(square);
+    }
+  }
+
+  if (chosen.length < 24) {
+    const spare = pool.filter((s) => !used.has(s.id));
+    rng.shuffle(spare);
+    for (const square of spare) {
+      if (chosen.length >= 24) break;
+      used.add(square.id);
+      chosen.push(square);
+    }
+  }
+
+  if (chosen.length !== 24) throw new Error('pool too small');
+
+  rng.shuffle(chosen);
+
+  const free = {
+    id: 'free',
+    text: FREE_SPACES[rng.nextInt(FREE_SPACES.length)],
+    cat: 'Free',
+    rarity: 'Common',
+    tags: [],
+  };
+
+  const cells = [];
+  let cursor = 0;
+  for (let i = 0; i < 25; i++) cells.push(i === 12 ? free : chosen[cursor++]);
+  return cells;
+}
+
+const LINES = (() => {
+  const result = [];
+  for (let row = 0; row < 5; row++) {
+    result.push({ label: `Row ${row + 1}`, cells: [0, 1, 2, 3, 4].map((c) => row * 5 + c) });
+  }
+  for (let col = 0; col < 5; col++) {
+    result.push({ label: `Column ${col + 1}`, cells: [0, 1, 2, 3, 4].map((r) => r * 5 + col) });
+  }
+  result.push({ label: 'Diagonal', cells: [0, 6, 12, 18, 24] });
+  result.push({ label: 'Anti-diagonal', cells: [4, 8, 12, 16, 20] });
+  return result;
+})();
+
+function completedLines(mask) {
+  return LINES.filter((line) => line.cells.every((index) => (mask & (1 << index)) !== 0));
+}
+
+// ------------------------------------------------------------------ share code
+
+const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+
+function encodeBase64Url(bytes) {
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b0 = bytes[i];
+    const b1 = i + 1 < bytes.length ? bytes[i + 1] : 0;
+    const b2 = i + 2 < bytes.length ? bytes[i + 2] : 0;
+    const triple = (b0 << 16) | (b1 << 8) | b2;
+    out += B64[(triple >> 18) & 63];
+    out += B64[(triple >> 12) & 63];
+    if (i + 1 < bytes.length) out += B64[(triple >> 6) & 63];
+    if (i + 2 < bytes.length) out += B64[triple & 63];
+  }
+  return out;
+}
+
+function decodeBase64Url(text) {
+  const clean = text.replace(/[^A-Za-z0-9_-]/g, '');
+  const bytes = [];
+  for (let i = 0; i < clean.length; i += 4) {
+    const chunk = [];
+    for (let j = 0; j < 4 && i + j < clean.length; j++) chunk.push(B64.indexOf(clean[i + j]));
+    const triple = (chunk[0] << 18) | ((chunk[1] || 0) << 12) | ((chunk[2] || 0) << 6) | (chunk[3] || 0);
+    bytes.push((triple >> 16) & 255);
+    if (chunk.length > 2) bytes.push((triple >> 8) & 255);
+    if (chunk.length > 3) bytes.push(triple & 255);
+  }
+  return bytes;
+}
+
+function encodeCode(seed, mask, kind) {
+  const kindIndex = ['Other', 'Dungeon', 'EightMan', 'Alliance', 'Pvp'].indexOf(kind);
+  const bytes = new Uint8Array(14);
+  bytes[0] = 1;
+  let value = BigInt(seed) & MASK64;
+  for (let i = 0; i < 8; i++) {
+    bytes[1 + i] = Number(value & 255n);
+    value >>= 8n;
+  }
+  bytes[9] = mask & 255;
+  bytes[10] = (mask >> 8) & 255;
+  bytes[11] = (mask >> 16) & 255;
+  bytes[12] = (mask >> 24) & 255;
+  bytes[13] = kindIndex < 0 ? 0 : kindIndex;
+  return 'RB1.' + encodeBase64Url(bytes);
+}
+
+function decodeCode(text) {
+  if (!text || !/^RB1\./i.test(text.trim())) return null;
+  const bytes = decodeBase64Url(text.trim().slice(4));
+  if (bytes.length !== 14 || bytes[0] !== 1) return null;
+
+  let seed = 0n;
+  for (let i = 7; i >= 0; i--) seed = (seed << 8n) | BigInt(bytes[1 + i]);
+
+  const mask = bytes[9] | (bytes[10] << 8) | (bytes[11] << 16) | (bytes[12] << 24);
+  const kind = ['Other', 'Dungeon', 'EightMan', 'Alliance', 'Pvp'][bytes[13]] || 'Other';
+  return { seed, mask: mask >>> 0, kind };
+}
+
+function report(cells, mask, seed, kind, dutyName) {
+  const lines = completedLines(mask);
+  const marked = cells.filter((_, i) => mask & (1 << i)).length;
+  const grid = [];
+  for (let row = 0; row < 5; row++) {
+    let line = '';
+    for (let col = 0; col < 5; col++) {
+      line += mask & (1 << (row * 5 + col)) ? '[X]' : '[ ]';
+    }
+    grid.push(line);
+  }
+
+  const body = cells
+    .map((cell, i) => (i === 12 ? null : `[${mask & (1 << i) ? 'X' : ' '}] ${cell.text}`))
+    .filter(Boolean)
+    .join('\n');
+
+  return [
+    `ROULETTE BINGO - ${dutyName}`,
+    `${kindLabel(kind)} | ${marked}/25 squares | ${lines.length ? lines.map((l) => l.label).join(', ') : 'no bingo yet'}`,
+    '',
+    ...grid,
+    '',
+    body,
+    '',
+    `Card code: ${encodeCode(seed, mask, kind)}`,
+  ].join('\n');
+}
+
+function kindLabel(kind) {
+  return (
+    {
+      Dungeon: '4-player dungeon',
+      EightMan: '8-player duty',
+      Alliance: '24-player alliance raid',
+      Pvp: 'PvP',
+    }[kind] || 'duty'
+  );
+}
+
+globalThis.BingoCore = {
+  SplitMix64,
+  FREE_SPACES,
+  generate,
+  completedLines,
+  encodeCode,
+  decodeCode,
+  report,
+  kindLabel,
+  LINES,
+};
+
+</script>
+<script>
+/* global POOL, BingoCore */
+
+const core = globalThis.BingoCore;
+
+const COLORS = {
+  Free: '#dcb35c',
+  Tank: '#6194d9',
+  Healer: '#5cc28c',
+  Damage: '#db6b6b',
+  Social: '#a885e0',
+  Loot: '#e6ae4d',
+  Sprout: '#9ed161',
+  Cursed: '#e6518c',
+  Pvp: '#e08543',
+  Alliance: '#4db8b8',
+};
+
+const CAT_NAMES = {
+  Free: 'Free',
+  Tank: 'Tank',
+  Healer: 'Healer',
+  Damage: 'Damage',
+  Social: 'Party',
+  Loot: 'Loot',
+  Sprout: 'Sprout',
+  Cursed: 'Cursed',
+  Pvp: 'PvP',
+  Alliance: 'Alliance',
+};
+
+const RARITY_PIPS = { Common: 1, Uncommon: 2, Rare: 3, Cursed: 4 };
+const RARITY_NAMES = { Common: 'Common', Uncommon: 'Uncommon', Rare: 'Rare', Cursed: 'Cursed' };
+
+const DUTY_NAMES = {
+  Dungeon: ['The Tam-Tara Deepcroft', 'Sastasha', 'The Dusk Vigil', 'The Vault', 'Alzadaal\'s Legacy'],
+  EightMan: ['The Weapon\'s Refrain', 'The Minstrel\'s Ballad: Shinryu', 'A Trial, Probably', 'The Navel (Hard)'],
+  Alliance: ['The Syrcus Tower', 'The Weeping City of Mhach', 'The Orbonne Monastery', 'The Tower at Paradigm\'s Breach'],
+  Pvp: ['Frontline: Onsal Hakair', 'Frontline: Seal Rock', 'Frontline: The Fields of Glory', 'Crystalline Conflict'],
+};
+
+const state = {
+  seed: 0n,
+  kind: 'Dungeon',
+  cursed: false,
+  mask: 1 << 12,
+  cells: [],
+  dutyName: '',
+  autoFlash: 0,
+};
+
+function randomSeed() {
+  const values = new Uint32Array(2);
+  crypto.getRandomValues(values);
+  return (BigInt(values[0]) << 32n) | BigInt(values[1]);
+}
+
+function pickDutyName(kind) {
+  const names = DUTY_NAMES[kind] || ['A duty'];
+  const index = Number(state.seed % BigInt(names.length));
+  return names[index];
+}
+
+function roll(seed, kind, cursed) {
+  state.seed = seed;
+  state.kind = kind;
+  state.cursed = cursed;
+  state.cells = core.generate(seed, kind, POOL, cursed);
+  state.dutyName = pickDutyName(kind);
+  state.mask = 1 << 12;
+  render();
+  renderCode();
+}
+
+function rgba(hex, alpha) {
+  const value = parseInt(hex.slice(1), 16);
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function render() {
+  const grid = document.getElementById('grid');
+  const lines = core.completedLines(state.mask);
+  const inLine = new Set(lines.flatMap((line) => line.cells));
+
+  document.getElementById('duty-name').textContent = state.dutyName;
+  document.getElementById('duty-meta').textContent =
+    `${core.kindLabel(state.kind)}${state.cursed ? '  -  cursed mode' : ''}`;
+  document.getElementById('seed').textContent = `seed ${state.seed.toString(16)}`;
+
+  grid.innerHTML = '';
+  state.cells.forEach((cell, index) => {
+    const marked = (state.mask & (1 << index)) !== 0;
+    const color = COLORS[cell.cat] || '#8b93a5';
+
+    const node = el('div', 'cell');
+    node.dataset.index = String(index);
+    node.style.setProperty('--cat', color);
+
+    if (marked) {
+      node.classList.add('marked');
+      node.style.background = rgba(color, 0.16);
+      node.style.borderColor = rgba(color, 0.55);
+    }
+
+    if (inLine.has(index)) node.classList.add('bingo');
+
+    const head = el('div', 'cell-head');
+    const dot = el('span', 'dot');
+    dot.style.background = color;
+    const cat = el('span', 'cat', CAT_NAMES[cell.cat] || cell.cat);
+    cat.style.color = color;
+    head.append(dot, cat);
+    node.append(head);
+
+    node.append(el('div', 'txt', cell.text));
+
+    const foot = el('div', 'cell-foot');
+    const pips = el('span', 'pips');
+    for (let i = 0; i < (RARITY_PIPS[cell.rarity] || 1); i++) {
+      const pip = el('i');
+      pip.style.background = marked ? 'rgba(255,255,255,.25)' : color;
+      pips.append(pip);
+    }
+    foot.append(pips);
+    if (marked) foot.append(el('span', 'check', '\u2713'));
+    node.append(foot);
+
+    node.title = `${CAT_NAMES[cell.cat]} - ${RARITY_NAMES[cell.rarity]}\n${cell.text}`;
+
+    node.addEventListener('click', () => {
+      const bit = 1 << index;
+      const wasMarked = (state.mask & bit) !== 0;
+      const before = core.completedLines(state.mask).length;
+      state.mask ^= bit;
+
+      const after = core.completedLines(state.mask);
+      if (after.length > before) toast(`BINGO - ${after[after.length - 1].label}`);
+      if (!wasMarked && index === 12) toast('The free square is always free.');
+
+      render();
+      renderCode();
+    });
+
+    grid.append(node);
+  });
+
+  const count = state.cells.filter((_, i) => state.mask & (1 << i)).length;
+  document.getElementById('progress').textContent = `${count}/25`;
+  document.getElementById('bar').style.width = `${(count / 25) * 100}%`;
+
+  const lineList = document.getElementById('lines');
+  lineList.innerHTML = '';
+  if (lines.length === 0) {
+    lineList.append(el('span', 'muted', 'no bingo yet - five in a row does it'));
+  } else {
+    lines.forEach((line) => {
+      const chip = el('span', 'chip', `BINGO: ${line.label}`);
+      lineList.append(chip);
+    });
+  }
+}
+
+function renderCode() {
+  const code = core.encodeCode(state.seed, state.mask, state.kind);
+  document.getElementById('code').textContent = code;
+  return code;
+}
+
+let toastTimer = 0;
+
+function toast(message) {
+  const node = document.getElementById('toast');
+  node.textContent = message;
+  node.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => node.classList.remove('show'), 2200);
+}
+
+async function copy(text, label) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(`${label} copied`);
+  } catch {
+    toast('Clipboard blocked by the browser');
+  }
+}
+
+function wire() {
+  document.getElementById('new-card').addEventListener('click', () => roll(randomSeed(), state.kind, state.cursed));
+
+  document.getElementById('kind').addEventListener('change', (event) => {
+    roll(randomSeed(), event.target.value, state.cursed);
+  });
+
+  document.getElementById('cursed').addEventListener('change', (event) => {
+    roll(randomSeed(), state.kind, event.target.checked);
+  });
+
+  document.getElementById('copy-report').addEventListener('click', () => {
+    const text = core.report(state.cells, state.mask, state.seed, state.kind, state.dutyName);
+    copy(text, 'Report');
+  });
+
+  document.getElementById('copy-code').addEventListener('click', () => copy(renderCode(), 'Card code'));
+
+  document.getElementById('load').addEventListener('click', () => {
+    const input = document.getElementById('load-input');
+    const decoded = core.decodeCode(input.value);
+    if (!decoded) {
+      toast('That is not a valid card code');
+      return;
+    }
+
+    roll(decoded.seed, decoded.kind, false);
+    state.mask = decoded.mask >>> 0;
+    render();
+    renderCode();
+    toast('Shared card loaded');
+  });
+
+  document.getElementById('load-input').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') document.getElementById('load').click();
+  });
+
+  document.getElementById('code').addEventListener('click', () => copy(renderCode(), 'Card code'));
+}
+
+document.getElementById('pool-size').textContent = String(POOL.length);
+wire();
+roll(randomSeed(), 'Dungeon', false);
+
+</script>
+</body>
+</html>

@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roulette Bingo - a card for whatever the queue throws at you</title>
+<style>
+  :root {
+    --bg: #080a0e;
+    --panel: #12161f;
+    --panel-2: #1a2030;
+    --text: #e3e7f0;
+    --dim: #8b93a5;
+    --faint: #5c6474;
+    --gold: #dcb35c;
+    --border: rgba(255, 255, 255, .07);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1100px 520px at 50% -8%, #1b2436 0%, rgba(10, 12, 16, 0) 62%),
+      radial-gradient(800px 400px at 85% 110%, #171b26 0%, rgba(10, 12, 16, 0) 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 40px 22px 70px; }
+
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: .34em;
+    text-transform: uppercase;
+    color: var(--gold);
+    opacity: .9;
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    margin: 0 0 10px;
+    font-size: clamp(24px, 3.6vw, 38px);
+    line-height: 1.15;
+    font-weight: 650;
+    letter-spacing: -.02em;
+  }
+
+  h1 span { color: var(--gold); }
+
+  .sub {
+    margin: 0;
+    max-width: 620px;
+    color: var(--dim);
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin: 26px 0 22px;
+  }
+
+  button, select, input {
+    font: inherit;
+    color: var(--text);
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 13px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, transform .06s;
+  }
+
+  button:hover, select:hover { background: var(--panel-2); border-color: rgba(255, 255, 255, .16); }
+  button:active { transform: translateY(1px); }
+
+  button.primary {
+    background: linear-gradient(180deg, rgba(220, 179, 92, .22), rgba(220, 179, 92, .1));
+    border-color: rgba(220, 179, 92, .5);
+    color: #f2ddaa;
+  }
+
+  button.primary:hover { background: linear-gradient(180deg, rgba(220, 179, 92, .32), rgba(220, 179, 92, .16)); }
+
+  input { min-width: 260px; cursor: text; }
+  input::placeholder { color: var(--faint); }
+
+  .spacer { flex: 1 1 auto; }
+
+  .toggle { display: inline-flex; gap: 8px; align-items: center; color: var(--dim); font-size: 13px; cursor: pointer; }
+  .toggle input { min-width: 0; width: auto; cursor: pointer; accent-color: var(--gold); }
+
+  .board {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 20px 18px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .018), rgba(255, 255, 255, 0));
+    box-shadow: 0 30px 80px -40px rgba(0, 0, 0, .9);
+  }
+
+  .board-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+  .board-head h2 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+  .board-head .meta { color: var(--faint); font-size: 12.5px; }
+  .board-head .seed { margin-left: auto; color: var(--faint); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+  .progress-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 14px 0 16px; }
+  .count { font-size: 13px; color: var(--gold); font-variant-numeric: tabular-nums; }
+
+  .bar-track { flex: 1 1 200px; height: 7px; border-radius: 99px; background: rgba(255, 255, 255, .09); overflow: hidden; }
+  .bar-fill { height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, #b98f3e, var(--gold)); transition: width .35s ease; }
+
+  .lines { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #f3e2b6;
+    background: rgba(220, 179, 92, .13);
+    border: 1px solid rgba(220, 179, 92, .4);
+    border-radius: 999px;
+    padding: 3px 9px;
+  }
+  .muted { color: var(--faint); font-size: 12px; }
+
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .cell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 124px;
+    padding: 12px 12px 10px;
+    border-radius: 11px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    transition: transform .07s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+
+  .cell:hover { transform: translateY(-2px); background: var(--panel-2); }
+  .cell:active { transform: translateY(0); }
+
+  .cell.bingo {
+    box-shadow: 0 0 0 2px rgba(220, 179, 92, .75), 0 0 34px -8px rgba(220, 179, 92, .5);
+    border-color: transparent;
+  }
+
+  .cell-head { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
+  .cat { font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700; opacity: .95; }
+
+  .txt { font-size: 13px; line-height: 1.38; letter-spacing: -.005em; }
+  .cell.marked .txt { color: #98a0b2; }
+  .cell.marked .cat { opacity: .55; }
+
+  .cell-foot { margin-top: auto; display: flex; align-items: flex-end; justify-content: space-between; }
+  .pips { display: flex; gap: 3px; }
+  .pips i { width: 4px; height: 4px; border-radius: 50%; display: block; }
+
+  .check {
+    font-size: 14px;
+    line-height: 1;
+    color: var(--cat);
+    filter: drop-shadow(0 0 6px var(--cat));
+    animation: pop .22s ease-out;
+  }
+
+  @keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: #cfd6e4;
+    background: rgba(255, 255, 255, .04);
+    border: 1px dashed rgba(255, 255, 255, .14);
+    border-radius: 8px;
+    padding: 7px 11px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .note { margin-top: 26px; color: var(--faint); font-size: 12.5px; line-height: 1.7; }
+  .note b { color: var(--dim); font-weight: 600; }
+
+  #toast {
+    position: fixed;
+    left: 50%;
+    bottom: 34px;
+    transform: translate(-50%, 20px);
+    background: rgba(18, 22, 31, .96);
+    border: 1px solid rgba(220, 179, 92, .45);
+    color: #f4e4bb;
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 13px;
+    letter-spacing: .02em;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease;
+    box-shadow: 0 18px 50px -20px rgba(0, 0, 0, .9);
+  }
+
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 760px) {
+    .cell { min-height: 112px; padding: 10px; }
+    .txt { font-size: 12px; }
+    input { min-width: 0; flex: 1 1 200px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Roulette Bingo</div>
+  <h1>A card for whatever <span>the queue</span> throws at you.</h1>
+  <p class="sub">
+    Twenty-four small disasters, one free square, and the honour system. This is the plugin's actual board
+    generator running in your browser - same seed, same square pool, same deterministic nonsense.
+  </p>
+
+  <div class="bar">
+    <button id="new-card" class="primary">New card</button>
+    <select id="kind" aria-label="Duty kind">
+      <option value="Dungeon" selected>4-player dungeon</option>
+      <option value="EightMan">8-player raid / trial</option>
+      <option value="Alliance">24-player alliance raid</option>
+      <option value="Pvp">PvP</option>
+    </select>
+    <label class="toggle"><input type="checkbox" id="cursed"> Cursed mode</label>
+    <span class="spacer"></span>
+    <input id="load-input" placeholder="Paste a card code (RB1....)">
+    <button id="load">Load</button>
+  </div>
+
+  <div class="board">
+    <div class="board-head">
+      <h2 id="duty-name">&nbsp;</h2>
+      <span class="meta" id="duty-meta"></span>
+      <span class="seed" id="seed"></span>
+    </div>
+
+    <div class="progress-row">
+      <span class="count" id="progress">0/25</span>
+      <div class="bar-track"><div class="bar-fill" id="bar"></div></div>
+      <div class="lines" id="lines"></div>
+    </div>
+
+    <div id="grid"></div>
+
+    <div class="foot">
+      <code class="code" id="code" title="Click to copy"></code>
+      <button id="copy-code">Copy code</button>
+      <button id="copy-report">Copy report</button>
+      <span class="spacer"></span>
+      <span class="muted"><span id="pool-size">0</span> squares in the pool</span>
+    </div>
+  </div>
+
+  <p class="note">
+    <b>How the real thing works:</b> the plugin rolls a card when a duty starts, auto-detects a handful of squares
+    (deaths, wipes, three vuln stacks, and the chat classics), and leaves the rest to you. Card codes are
+    <b>RB1.</b> plus a seed and a bitmask, so they replay the exact same board on someone else's screen.
+    This preview is generated from the same <b>squares.json</b> the plugin embeds.
+  </p>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const POOL = /*__POOL__*/[];
+</script>
+<script>
+/*__CORE__*/
+</script>
+<script>
+/*__APP__*/
+</script>
+</body>
+</html>

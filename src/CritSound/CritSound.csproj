@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.1.0.1</Version>
+    <Author>Deepseek</Author>
+    <Name>Crit Sound</Name>
+    <Punchline>Plays a sound when a hit crits, direct hits, or does both.</Punchline>
+    <Description>Audio feedback for combat: plays a separate sound for critical hits, direct hits, and critical direct hits.
+
+Everything is configurable in /critsound: which triggers are active, the sound file, the volume, and the minimum gap between sounds. Drop your own .wav files into the plugin's sounds folder and pick them from the list.</Description>
+    <RepoUrl>https://github.com/KazimeirzOdnowiciel/ffxiv-plugins</RepoUrl>
+    <Tags>crit;sound;audio;feedback;damage</Tags>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Sounds\*.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Visible>false</Visible>
+    </Content>
+  </ItemGroup>
+</Project>
