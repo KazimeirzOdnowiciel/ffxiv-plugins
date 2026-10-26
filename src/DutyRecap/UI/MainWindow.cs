@@ -26,6 +26,7 @@ public sealed class MainWindow : Window
             MinimumSize = new Vector2(460, 360),
             MaximumSize = new Vector2(1500, 1800),
         };
+        this.BgAlpha = 1f;
     }
 
     private Configuration Config => this.plugin.Configuration;
@@ -199,17 +200,48 @@ public sealed class MainWindow : Window
         }
 
         var listHeight = Math.Max(140f, ImGui.GetContentRegionAvail().Y * 0.5f);
-        ImGui.BeginChild("##historylist", new Vector2(0f, listHeight));
-        for (var index = 0; index < history.Count; index++)
-        {
-            var run = history[index];
-            var label =
-                $"{run.FinishedUtc.ToLocalTime():MM-dd HH:mm}  {Truncate(run.DutyName, 24),-24}  {Truncate(ContentShort(run), 16),-16}  {Detectors.FormatClock(run.FinishedUtc - run.StartedUtc)}  {run.Wipes}w {run.TotalDeaths}d  {run.Grade}";
+        var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp |
+                    ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings | ImGuiTableFlags.ScrollY;
 
-            if (ImGui.Selectable(label, ReferenceEquals(this.selectedRun, run)))
-                this.selectedRun = run;
+        ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(8f, 6f));
+        if (ImGui.BeginTable("##history", 6, flags, new Vector2(0f, listHeight)))
+        {
+            ImGui.TableSetupColumn("When", ImGuiTableColumnFlags.WidthFixed, 82f, 0);
+            ImGui.TableSetupColumn("Duty", ImGuiTableColumnFlags.WidthStretch, 2.4f, 1);
+            ImGui.TableSetupColumn("Category", ImGuiTableColumnFlags.WidthFixed, 100f, 2);
+            ImGui.TableSetupColumn("Time", ImGuiTableColumnFlags.WidthFixed, 58f, 3);
+            ImGui.TableSetupColumn("W/D", ImGuiTableColumnFlags.WidthFixed, 54f, 4);
+            ImGui.TableSetupColumn("Grade", ImGuiTableColumnFlags.WidthFixed, 44f, 5);
+            ImGui.TableSetupScrollFreeze(0, 1);
+            ImGui.TableHeadersRow();
+
+            for (var index = 0; index < history.Count; index++)
+            {
+                var run = history[index];
+                ImGui.TableNextColumn();
+                if (ImGui.Selectable(run.FinishedUtc.ToLocalTime().ToString("MM-dd HH:mm"), ReferenceEquals(this.selectedRun, run)))
+                    this.selectedRun = run;
+
+                ImGui.TableNextColumn();
+                ColoredText(Theme.Text, Truncate(run.DutyName, 34));
+
+                ImGui.TableNextColumn();
+                ColoredText(Theme.TextDim, ContentShort(run));
+
+                ImGui.TableNextColumn();
+                ColoredText(Theme.TextDim, Detectors.FormatClock(run.FinishedUtc - run.StartedUtc));
+
+                ImGui.TableNextColumn();
+                ColoredText(Theme.TextDim, $"{run.Wipes}w {run.TotalDeaths}d");
+
+                ImGui.TableNextColumn();
+                ColoredText(Theme.GradeColor(run.Grade), run.Grade);
+            }
+
+            ImGui.EndTable();
         }
-        ImGui.EndChild();
+
+        ImGui.PopStyleVar();
 
         var selected = this.selectedRun ?? history[0];
         DrawGoldRule();
@@ -249,7 +281,7 @@ public sealed class MainWindow : Window
         names.Sort(StringComparer.OrdinalIgnoreCase);
 
         var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp |
-                    ImGuiTableFlags.NoSavedSettings;
+                    ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings;
 
         ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(8f, 6f));
         if (ImGui.BeginTable("##records", 6, flags))
@@ -259,7 +291,7 @@ public sealed class MainWindow : Window
             ImGui.TableSetupColumn("Fastest", ImGuiTableColumnFlags.WidthFixed, 64f, 2);
             ImGui.TableSetupColumn("Avg", ImGuiTableColumnFlags.WidthFixed, 64f, 3);
             ImGui.TableSetupColumn("Best deaths", ImGuiTableColumnFlags.WidthFixed, 80f, 4);
-            ImGui.TableSetupColumn("Last", ImGuiTableColumnFlags.WidthFixed, 76f, 5);
+            ImGui.TableSetupColumn("Last", ImGuiTableColumnFlags.WidthFixed, 96f, 5);
             ImGui.TableHeadersRow();
 
             for (var index = 0; index < names.Count; index++)
