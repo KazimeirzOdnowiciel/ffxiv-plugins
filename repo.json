@@ -29,7 +29,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/SlotYield-0.3.0.3.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793032540
+        "LastUpdate":  1793032683
     },
     {
         "Author":  "Deepseek",
@@ -61,7 +61,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/RouletteBingo-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793032541
+        "LastUpdate":  1793032684
     },
     {
         "Author":  "Deepseek",
@@ -91,7 +91,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/CritSound-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793032542
+        "LastUpdate":  1793032685
     },
     {
         "Author":  "Deepseek",
@@ -121,7 +121,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/EnemyListCastBars-1.0.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793032543
+        "LastUpdate":  1793032686
     },
     {
         "Author":  "Deepseek",
@@ -151,7 +151,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DesynthLens-0.4.0.3.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793032544
+        "LastUpdate":  1793032687
     },
     {
         "Author":  "Deepseek",
@@ -182,7 +182,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/MechanicWatch-0.2.0.2.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793032545
+        "LastUpdate":  1793032688
     },
     {
         "Author":  "Deepseek",
@@ -213,13 +213,13 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/GilLedger-0.0.0.2.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793032546
+        "LastUpdate":  1793032689
     },
     {
         "Author":  "Deepseek",
         "Name":  "Duty Recap",
         "InternalName":  "DutyRecap",
-        "AssemblyVersion":  "0.0.0.6",
+        "AssemblyVersion":  "0.0.0.7",
         "Description":  "Summarises each duty the moment it ends: who died and how often, how many wipes, the run\u0027s duration, and a grade with a dry comment. Tracks a personal best per duty and copies a one-line recap into party chat when you want to share the damage.",
         "ApplicableVersion":  "any",
         "RepoUrl":  "https://github.com/KazimeirzOdnowiciel/ffxiv-plugins",
@@ -239,12 +239,12 @@
         "LoadPriority":  0,
         "Punchline":  "A scorecard for every duty: deaths, wipes, and how cursed it was.",
         "AcceptsFeedback":  true,
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DutyRecap-0.0.0.6.zip",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DutyRecap-0.0.0.6.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DutyRecap-0.0.0.6.zip",
-        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DutyRecap-0.0.0.6.png",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DutyRecap-0.0.0.7.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DutyRecap-0.0.0.7.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/DutyRecap-0.0.0.7.zip",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DutyRecap-0.0.0.7.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793032548
+        "LastUpdate":  1793032690
     }
 ]

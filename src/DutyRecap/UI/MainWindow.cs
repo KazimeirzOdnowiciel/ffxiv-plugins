@@ -161,6 +161,7 @@ public sealed class MainWindow : Window
         DrawStatRow(run.Wipes, run.TotalDeaths, run.PartyChatMessages);
 
         DrawGoldRule();
+        this.DrawPullTimeline(run);
 
         this.DrawPlayerTable(run.Players);
 
@@ -280,6 +281,8 @@ public sealed class MainWindow : Window
             Theme.TextDim,
             $"{ContentLabel(selected)}  -  {(selected.Completed ? "cleared" : "left")}  -  {Detectors.FormatClock(selected.FinishedUtc - selected.StartedUtc)}  -  {selected.Wipes} wipes  -  {selected.TotalDeaths} deaths");
 
+        this.DrawPullTimeline(selected);
+
         this.DrawChatSection(selected);
     }
 
@@ -328,6 +331,8 @@ public sealed class MainWindow : Window
             ColoredText(Theme.TextFaint, "No runs stored yet.");
             return;
         }
+
+        this.DrawRecordsSummary(history);
 
         var groups = new Dictionary<string, List<RunRecap>>(StringComparer.OrdinalIgnoreCase);
         for (var index = 0; index < history.Count; index++)
@@ -443,6 +448,111 @@ public sealed class MainWindow : Window
     }
 
     // ------------------------------------------------------------------- chat ----
+
+    private void DrawRecordsSummary(List<RunRecap> history)
+    {
+        var totalSeconds = 0.0;
+        var totalWipes = 0;
+        var totalDeaths = 0;
+        var gradeCounts = new int[GradeLetters.Length];
+
+        for (var index = 0; index < history.Count; index++)
+        {
+            var run = history[index];
+            totalSeconds += Math.Max(0.0, (run.FinishedUtc - run.StartedUtc).TotalSeconds);
+            totalWipes += run.Wipes;
+            totalDeaths += run.TotalDeaths;
+            gradeCounts[GradeIndex(run.Grade)]++;
+        }
+
+        ColoredText(Theme.Text, $"{history.Count} runs");
+        ImGui.SameLine(0f, 14f);
+        ColoredText(Theme.TextDim, $"time {Detectors.FormatClock(TimeSpan.FromSeconds(totalSeconds))}");
+        ImGui.SameLine(0f, 14f);
+        ColoredText(Theme.TextDim, $"{totalWipes} wipes");
+        ImGui.SameLine(0f, 14f);
+        ColoredText(Theme.TextDim, $"{totalDeaths} deaths");
+
+        ImGui.Spacing();
+        ColoredText(Theme.TextFaint, "grades");
+        for (var index = 0; index < GradeLetters.Length; index++)
+        {
+            ImGui.SameLine(0f, 10f);
+            ColoredText(Theme.GradeColor(GradeLetters[index]), $"{GradeLetters[index]} {gradeCounts[index]}");
+        }
+
+        DrawGoldRule();
+    }
+
+    private static readonly string[] GradeLetters = { "S", "A", "B", "C", "F" };
+
+    private static int GradeIndex(string grade) => grade switch
+    {
+        "S" => 0,
+        "A" => 1,
+        "B" => 2,
+        "C" => 3,
+        _ => 4,
+    };
+
+    private void DrawPullTimeline(RunRecap run)
+    {
+        if (run.WipeTimes is null)
+            return;
+
+        var boundaries = new List<DateTime>(run.WipeTimes.Count + 2) { run.StartedUtc };
+        boundaries.AddRange(run.WipeTimes);
+        boundaries.Add(run.FinishedUtc);
+
+        if (boundaries.Count < 2)
+            return;
+
+        var durations = new List<double>(boundaries.Count - 1);
+        var total = 0.0;
+        var longest = 0.0;
+        for (var index = 0; index < boundaries.Count - 1; index++)
+        {
+            var seconds = Math.Max(0.0, (boundaries[index + 1] - boundaries[index]).TotalSeconds);
+            durations.Add(seconds);
+            total += seconds;
+            if (seconds > longest)
+                longest = seconds;
+        }
+
+        if (total <= 0)
+            return;
+
+        var label = durations.Count == 1 ? "1 pull" : $"{durations.Count} pulls";
+        if (run.WipeTimes.Count > 0)
+        {
+            var firstWipe = Math.Max(0.0, (run.WipeTimes[0] - run.StartedUtc).TotalSeconds);
+            label += $"  -  first wipe {Detectors.FormatClock(TimeSpan.FromSeconds(firstWipe))}";
+        }
+
+        label += $"  -  longest {Detectors.FormatClock(TimeSpan.FromSeconds(longest))}";
+        ColoredText(Theme.TextDim, label);
+
+        var drawList = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        var width = ImGui.GetContentRegionAvail().X;
+        const float height = 14f;
+        var cursor = pos.X;
+
+        for (var index = 0; index < durations.Count; index++)
+        {
+            var segment = Math.Max(2f, width * (float)(durations[index] / total));
+            var isLast = index == durations.Count - 1;
+            var color = isLast && run.Completed ? Theme.Green : Theme.Danger;
+            drawList.AddRectFilled(
+                new Vector2(cursor, pos.Y),
+                new Vector2(cursor + segment - 1f, pos.Y + height),
+                Theme.U32(color),
+                2f);
+            cursor += segment;
+        }
+
+        ImGui.Dummy(new Vector2(width, height + 4f));
+    }
 
     private void DrawChatSection(RunRecap run)
     {
