@@ -14,6 +14,9 @@ public sealed class MainWindow : Window
     private readonly Plugin plugin;
 
     private RunRecap? selectedRun;
+    private string historySearch = string.Empty;
+    private int historyCategoryIndex;
+    private bool historyClearedOnly;
 
     public MainWindow(Plugin plugin)
         : base("Duty Recap###DutyRecapMain")
@@ -199,6 +202,30 @@ public sealed class MainWindow : Window
             return;
         }
 
+        var categories = this.BuildCategoryList(history);
+
+        ImGui.SetNextItemWidth(180f);
+        ImGui.InputTextWithHint("##histsearch", "search duty...", ref this.historySearch, 64);
+        ImGui.SameLine(0f, 8f);
+
+        if (this.historyCategoryIndex < 0 || this.historyCategoryIndex >= categories.Count)
+            this.historyCategoryIndex = 0;
+
+        ImGui.SetNextItemWidth(140f);
+        ImGui.Combo("##histcat", ref this.historyCategoryIndex, categories.ToArray(), categories.Count);
+        ImGui.SameLine(0f, 8f);
+        ImGui.Checkbox("cleared only", ref this.historyClearedOnly);
+
+        var filtered = this.FilterHistory(history, categories);
+        if (filtered.Count == 0)
+        {
+            ImGui.Spacing();
+            ColoredText(Theme.TextFaint, "No runs match the filter.");
+            return;
+        }
+
+        ColoredText(Theme.TextFaint, $"{filtered.Count} of {history.Count} runs");
+
         var listHeight = Math.Max(140f, ImGui.GetContentRegionAvail().Y * 0.5f);
         var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp |
                     ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings | ImGuiTableFlags.ScrollY;
@@ -215,9 +242,9 @@ public sealed class MainWindow : Window
             ImGui.TableSetupScrollFreeze(0, 1);
             ImGui.TableHeadersRow();
 
-            for (var index = 0; index < history.Count; index++)
+            for (var index = 0; index < filtered.Count; index++)
             {
-                var run = history[index];
+                var run = filtered[index];
                 ImGui.TableNextColumn();
                 if (ImGui.Selectable(run.FinishedUtc.ToLocalTime().ToString("MM-dd HH:mm"), ReferenceEquals(this.selectedRun, run)))
                     this.selectedRun = run;
@@ -243,7 +270,10 @@ public sealed class MainWindow : Window
 
         ImGui.PopStyleVar();
 
-        var selected = this.selectedRun ?? history[0];
+        var selected = this.selectedRun;
+        if (selected is null || !filtered.Contains(selected))
+            selected = filtered[0];
+
         DrawGoldRule();
         ImGui.TextUnformatted(Truncate(selected.DutyName, 48));
         ColoredText(
@@ -251,6 +281,41 @@ public sealed class MainWindow : Window
             $"{ContentLabel(selected)}  -  {(selected.Completed ? "cleared" : "left")}  -  {Detectors.FormatClock(selected.FinishedUtc - selected.StartedUtc)}  -  {selected.Wipes} wipes  -  {selected.TotalDeaths} deaths");
 
         this.DrawChatSection(selected);
+    }
+
+    private List<string> BuildCategoryList(List<RunRecap> history)
+    {
+        var set = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < history.Count; index++)
+            set.Add(ContentShort(history[index]));
+
+        var list = new List<string> { "All" };
+        list.AddRange(set);
+        return list;
+    }
+
+    private List<RunRecap> FilterHistory(List<RunRecap> history, List<string> categories)
+    {
+        string? category = this.historyCategoryIndex > 0 && this.historyCategoryIndex < categories.Count
+            ? categories[this.historyCategoryIndex]
+            : null;
+        var search = this.historySearch.Trim();
+
+        var result = new List<RunRecap>();
+        for (var index = 0; index < history.Count; index++)
+        {
+            var run = history[index];
+            if (this.historyClearedOnly && !run.Completed)
+                continue;
+            if (category is not null && !string.Equals(ContentShort(run), category, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (search.Length > 0 && run.DutyName.IndexOf(search, StringComparison.OrdinalIgnoreCase) < 0)
+                continue;
+
+            result.Add(run);
+        }
+
+        return result;
     }
 
     // ---------------------------------------------------------------- records ----
