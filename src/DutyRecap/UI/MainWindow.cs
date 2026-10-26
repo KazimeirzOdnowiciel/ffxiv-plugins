@@ -500,6 +500,10 @@ public sealed class MainWindow : Window
         if (run.WipeTimes is null)
             return;
 
+        // Runs recorded before wipe timestamps existed only carry the count.
+        if (run.Wipes > 0 && run.WipeTimes.Count == 0)
+            return;
+
         var boundaries = new List<DateTime>(run.WipeTimes.Count + 2) { run.StartedUtc };
         boundaries.AddRange(run.WipeTimes);
         boundaries.Add(run.FinishedUtc);
