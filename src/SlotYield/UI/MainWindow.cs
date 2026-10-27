@@ -54,6 +54,7 @@ public sealed class MainWindow : Window
             MinimumSize = new Vector2(960, 460),
             MaximumSize = new Vector2(2400, 1600),
         };
+        this.BgAlpha = 1f;
     }
 
     private Configuration Config => this.plugin.Configuration;
@@ -429,7 +430,7 @@ public sealed class MainWindow : Window
         // Filters.
         ImGui.SetNextItemWidth(220f);
         ImGui.InputTextWithHint("##search", "filter by item name...", ref this.search, 64);
-        ImGui.SameLine();
+        ImGui.SameLine(0f, 8f);
         // 0 means "no minimum" and is deliberate: unprofitable rows stay visible so a losing
         // slot can be spotted. Say that instead of printing "min 0", which read as ">= 0".
         ImGui.SetNextItemWidth(150f);
@@ -484,8 +485,12 @@ public sealed class MainWindow : Window
         var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY |
                     ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings;
 
+        ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6f, 4f));
         if (!ImGui.BeginTable("##slots", 13, flags, new Vector2(0f, TableHeight())))
+        {
+            ImGui.PopStyleVar();
             return;
+        }
 
         ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2.4f, 0);
         ImGui.TableSetupColumn("Q", ImGuiTableColumnFlags.WidthFixed, 26f, 1);
@@ -519,6 +524,7 @@ public sealed class MainWindow : Window
             this.DrawRow(rows[i]);
 
         ImGui.EndTable();
+        ImGui.PopStyleVar();
 
         if (rows.Count > limit)
             Theme.Faint($"showing the first {limit} of {rows.Count} - narrow the filter to see the rest");
@@ -752,7 +758,7 @@ public sealed class MainWindow : Window
         ImGui.TableNextColumn();
         var series = candidate.Quote.PriceHistory;
         var sparkPosition = ImGui.GetCursorScreenPos();
-        var sparkSize = new Vector2(88f, 20f);
+        var sparkSize = new Vector2(92f, 24f);
         ImGui.Dummy(sparkSize);
 
         if (series.Length >= 2)
