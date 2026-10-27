@@ -154,6 +154,8 @@ public sealed class MainWindow : Window
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, Theme.WithAlpha(Theme.Text, 0.18f));
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, Theme.WithAlpha(Theme.Text, 0.30f));
         ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, Theme.WithAlpha(Theme.Accent, 0.55f));
+        ImGui.PushStyleColor(ImGuiCol.SliderGrab, Theme.Lerp(Theme.PanelRaised, Theme.Accent, 0.50f));
+        ImGui.PushStyleColor(ImGuiCol.SliderGrabActive, Theme.Accent);
         ImGui.PushStyleColor(ImGuiCol.Separator, Theme.Hairline);
         ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, Theme.Panel);
         ImGui.PushStyleColor(ImGuiCol.TableBorderLight, Theme.Hairline);
@@ -171,7 +173,7 @@ public sealed class MainWindow : Window
     private void PopControlStyle()
     {
         ImGui.PopStyleVar(5);
-        ImGui.PopStyleColor(21);
+        ImGui.PopStyleColor(23);
     }
 
     /// <summary>Table height that fills the window instead of stranding empty space below.</summary>

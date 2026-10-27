@@ -61,7 +61,7 @@ internal static class UiKit
         if (right > textEnd)
             drawList.AddLine(new Vector2(textEnd, mid), new Vector2(right, mid), Theme.WithAlpha(Theme.Text, 0.07f));
 
-        ImGui.Dummy(new Vector2(ImGui.GetContentRegionAvail().X, height + 3f));
+        ImGui.Dummy(new Vector2(ImGui.GetContentRegionAvail().X, height + 7f));
     }
 
     /// <summary>

@@ -20,8 +20,8 @@ public static class Theme
     public static readonly Vector4 Hairline = new(0.902f, 0.855f, 0.776f, 0.06f);
 
     public static readonly Vector4 Text = new(0.902f, 0.882f, 0.839f, 1f);
-    public static readonly Vector4 TextDim = new(0.604f, 0.580f, 0.525f, 1f);
-    public static readonly Vector4 TextFaint = new(0.420f, 0.404f, 0.369f, 1f);
+    public static readonly Vector4 TextDim = new(0.680f, 0.655f, 0.600f, 1f);
+    public static readonly Vector4 TextFaint = new(0.520f, 0.500f, 0.460f, 1f);
 
     /// <summary>Structural accent: brass, used for selection, focus and the slot strip.</summary>
     public static readonly Vector4 Accent = new(0.788f, 0.635f, 0.153f, 1f);
