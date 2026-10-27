@@ -49,6 +49,8 @@ public sealed class MainWindow : Window
     private readonly HashSet<(uint ItemId, Quality Quality)> multiSelected = new();
     private string presetName = string.Empty;
     private string shareInput = string.Empty;
+    private string categoryFilter = string.Empty;
+    private readonly Dictionary<uint, string> categoryNames = new();
 
     private static readonly string[] TabLabels =
     {
@@ -84,6 +86,14 @@ public sealed class MainWindow : Window
             MaximumSize = new Vector2(2400, 1600),
         };
         this.BgAlpha = 1f;
+
+        this.sortColumn = plugin.Configuration.SortColumn;
+        this.sortAscending = plugin.Configuration.SortAscending;
+        if (plugin.Configuration.ColumnVisible.Count == this.columnVisible.Length)
+        {
+            for (var index = 0; index < this.columnVisible.Length; index++)
+                this.columnVisible[index] = plugin.Configuration.ColumnVisible[index];
+        }
     }
 
     private Configuration Config => this.plugin.Configuration;
@@ -331,6 +341,10 @@ public sealed class MainWindow : Window
         ImGui.SameLine();
         if (ImGui.Button("universalis"))
             OpenUrl($"https://universalis.app/market/{candidate.ItemId}");
+
+        ImGui.SameLine();
+        if (ImGui.Button("history"))
+            this.plugin.OpenHistory(candidate.ItemId, candidate.Quality);
 
         ImGui.SameLine();
         if (ImGui.Button("close"))
@@ -662,6 +676,23 @@ public sealed class MainWindow : Window
         }
 
         ImGui.SameLine();
+        var categoryChoices = this.CategoryChoices(result.Candidates);
+        ImGui.SetNextItemWidth(130f);
+        if (ImGui.BeginCombo("##category", this.categoryFilter.Length == 0 ? "all categories" : this.categoryFilter))
+        {
+            if (ImGui.Selectable("all categories", this.categoryFilter.Length == 0))
+                this.categoryFilter = string.Empty;
+
+            foreach (var categoryChoice in categoryChoices)
+            {
+                if (ImGui.Selectable(categoryChoice, this.categoryFilter == categoryChoice))
+                    this.categoryFilter = categoryChoice;
+            }
+
+            ImGui.EndCombo();
+        }
+
+        ImGui.SameLine();
         UiKit.ToggleChip("pinned", ref this.pinnedOnly);
         ImGui.SameLine();
         UiKit.ToggleChip("dead", ref this.showDead);
@@ -728,7 +759,11 @@ public sealed class MainWindow : Window
             {
                 var visible = this.columnVisible[index];
                 if (ImGui.Checkbox(ColumnLabels[index] + "##col" + index, ref visible))
+                {
                     this.columnVisible[index] = visible;
+                    this.Config.ColumnVisible = this.columnVisible.ToList();
+                    this.plugin.SaveConfig();
+                }
             }
 
             ImGui.EndPopup();
@@ -950,6 +985,10 @@ public sealed class MainWindow : Window
                 this.sortColumn = column;
                 this.sortAscending = false;
             }
+
+            this.Config.SortColumn = this.sortColumn;
+            this.Config.SortAscending = this.sortAscending;
+            this.plugin.SaveConfig();
         }
 
         if (this.sortColumn == column)
@@ -2387,6 +2426,39 @@ public sealed class MainWindow : Window
         _ => "craft or buy, whichever is cheaper",
     };
 
+    private string CategoryName(uint itemId)
+    {
+        if (this.categoryNames.TryGetValue(itemId, out var cached))
+            return cached;
+
+        string name;
+        try
+        {
+            var item = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Item>().GetRow(itemId);
+            name = item.ItemUICategory.Value.Name.ToString();
+        }
+        catch
+        {
+            name = string.Empty;
+        }
+
+        this.categoryNames[itemId] = name;
+        return name;
+    }
+
+    private List<string> CategoryChoices(IReadOnlyList<SlotCandidate> candidates)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var candidate in candidates)
+        {
+            var name = this.CategoryName(candidate.ItemId);
+            if (name.Length > 0)
+                set.Add(name);
+        }
+
+        return set.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
     private List<SlotCandidate> Filter(IReadOnlyList<SlotCandidate> source)
     {
         IEnumerable<SlotCandidate> rows = source;
@@ -2407,6 +2479,9 @@ public sealed class MainWindow : Window
 
         if (this.hideStale)
             rows = rows.Where(c => !c.Score.IsStale);
+
+        if (this.categoryFilter.Length > 0)
+            rows = rows.Where(c => this.CategoryName(c.ItemId).Equals(this.categoryFilter, StringComparison.OrdinalIgnoreCase));
 
         // 0 is "no minimum" by design (the slider labels it that way): unprofitable rows stay
         // visible so a slot that loses gil can be found and unpinned.

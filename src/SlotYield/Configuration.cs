@@ -103,6 +103,13 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Notify when a scan's best gil/day reaches this value (0 = off).</summary>
     public long ToastThreshold { get; set; }
 
+    /// <summary>Persisted opportunity table state.</summary>
+    public int SortColumn { get; set; } = 5;
+
+    public bool SortAscending { get; set; }
+
+    public List<bool> ColumnVisible { get; set; } = new();
+
     /// <summary>Total gil/day from past scans, oldest first, for the header pulse.</summary>
     public List<ScanPulse> ScanHistory { get; set; } = new();
 

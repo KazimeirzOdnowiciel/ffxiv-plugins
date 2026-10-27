@@ -31,6 +31,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly MainWindow mainWindow;
     private readonly WorthWindow worthWindow;
     private readonly TickerWindow tickerWindow;
+    private readonly HistoryWindow historyWindow;
     private readonly MarketCapture capture;
     private IReadOnlyList<string>? worlds;
     private volatile bool disposed;
@@ -81,9 +82,11 @@ public sealed class Plugin : IDalamudPlugin
         this.mainWindow = new MainWindow(this);
         this.worthWindow = new WorthWindow(this);
         this.tickerWindow = new TickerWindow(this);
+        this.historyWindow = new HistoryWindow(this);
         this.windowSystem.AddWindow(this.mainWindow);
         this.windowSystem.AddWindow(this.worthWindow);
         this.windowSystem.AddWindow(this.tickerWindow);
+        this.windowSystem.AddWindow(this.historyWindow);
         this.worthWindow.IsOpen = Configuration.WorthOpen;
 
         PluginInterface.UiBuilder.Draw += this.windowSystem.Draw;
@@ -1631,6 +1634,8 @@ public sealed class Plugin : IDalamudPlugin
     {
         this.tickerWindow.IsOpen = !this.tickerWindow.IsOpen;
     }
+
+    public void OpenHistory(uint itemId, Quality quality) => this.historyWindow.Show(itemId, quality);
 
     public void ToggleWorth()
     {
