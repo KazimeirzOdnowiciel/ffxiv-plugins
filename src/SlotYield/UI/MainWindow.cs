@@ -286,12 +286,7 @@ public sealed class MainWindow : Window
         var subtitle = $"   last scan {scanned}";
 
         if (state.Result is { } result)
-        {
-            var live = result.Candidates.Count(c => !c.Score.IsDead && !c.Score.IsSuspect);
-            var profitable = result.Candidates.Count(c => !c.Score.IsDead && !c.Score.IsSuspect && c.Score.ProfitPerDay > 0m);
-            subtitle += $"   -   {live} live / {profitable} profitable   -   " +
-                        $"{result.Stats.Requests} requests in {result.Stats.Duration.TotalSeconds:0}s";
-        }
+            subtitle += $"   -   {result.Stats.Requests} requests in {result.Stats.Duration.TotalSeconds:0}s";
 
         ImGui.SameLine();
         Theme.Colored(Theme.TextFaint, subtitle);
@@ -340,7 +335,7 @@ public sealed class MainWindow : Window
         var filled = Math.Clamp(this.Config.Pinned.Count, 0, slots);
 
         UiKit.SlotStrip(ImGui.GetWindowDrawList(), stripOrigin, stripWidth, 14f, slots, filled, out var hovered);
-        ImGui.Dummy(new Vector2(stripWidth, 16f));
+        ImGui.Dummy(new Vector2(stripWidth, 26f));
 
         if (hovered >= 0)
             ImGui.SetTooltip(hovered < filled ? $"slot {hovered + 1}   pinned" : $"slot {hovered + 1}   free");
@@ -897,9 +892,9 @@ public sealed class MainWindow : Window
             ImGui.TableSetupColumn("#", ImGuiTableColumnFlags.WidthFixed, 28f, 0);
             ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2.4f, 1);
             ImGui.TableSetupColumn("Q", ImGuiTableColumnFlags.WidthFixed, 26f, 2);
-            ImGui.TableSetupColumn("Sales/d", ImGuiTableColumnFlags.WidthFixed, 58f, 3);
-            ImGui.TableSetupColumn("Sellers", ImGuiTableColumnFlags.WidthFixed, 52f, 4);
-            ImGui.TableSetupColumn("Profit/day", ImGuiTableColumnFlags.WidthFixed, 90f, 5);
+            ImGui.TableSetupColumn("Sales/d", ImGuiTableColumnFlags.WidthFixed, 52f, 3);
+            ImGui.TableSetupColumn("Sellers", ImGuiTableColumnFlags.WidthFixed, 48f, 4);
+            ImGui.TableSetupColumn("Profit/day", ImGuiTableColumnFlags.WidthFixed, 84f, 5);
             ImGui.TableSetupColumn("Capital", ImGuiTableColumnFlags.WidthFixed, 84f, 6);
 
             ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
@@ -955,7 +950,7 @@ public sealed class MainWindow : Window
         ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10f, 7f));
 
-        if (ImGui.BeginChild("##portfoliocard", new Vector2(0f, 62f), true))
+        if (ImGui.BeginChild("##portfoliocard", new Vector2(0f, 80f), true))
         {
             var drawList = ImGui.GetWindowDrawList();
             var font = ImGui.GetFont();
