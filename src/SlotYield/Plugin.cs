@@ -246,12 +246,12 @@ public sealed class Plugin : IDalamudPlugin
                 return;
 
             this.exceptionLogCount++;
+            var trace = new System.Diagnostics.StackTrace(1, true).ToString();
             Log.Warning(
-                "[SlotYield][firstchance] {Type}: {Message} @ {Site}\n{Stack}",
+                "[SlotYield][firstchance] {Type}: {Message}\n{Trace}",
                 exception.GetType().FullName,
                 exception.Message,
-                exception.TargetSite,
-                stack);
+                trace);
         }
         catch
         {
