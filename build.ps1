@@ -21,7 +21,8 @@ $plugins = @(
     @{ Folder = "DesynthLens"; Project = "DesynthLens.csproj" },
     @{ Folder = "MechanicWatch"; Project = "MechanicWatch.csproj" },
     @{ Folder = "GilLedger"; Project = "GilLedger.csproj" },
-    @{ Folder = "DutyRecap"; Project = "DutyRecap.csproj" }
+    @{ Folder = "DutyRecap"; Project = "DutyRecap.csproj" },
+    @{ Folder = "CrashTrace"; Project = "CrashTrace.csproj" }
 )
 
 # Plugin sources live inside this repository under src/ so the repo is

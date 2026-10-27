@@ -29,7 +29,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/SlotYield-0.3.4.8.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793143624
+        "LastUpdate":  1793144939
     },
     {
         "Author":  "Deepseek",
@@ -61,7 +61,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/RouletteBingo-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793143626
+        "LastUpdate":  1793144940
     },
     {
         "Author":  "Deepseek",
@@ -91,7 +91,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/CritSound-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793143627
+        "LastUpdate":  1793144942
     },
     {
         "Author":  "Deepseek",
@@ -121,7 +121,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/EnemyListCastBars-1.0.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793143629
+        "LastUpdate":  1793144943
     },
     {
         "Author":  "Deepseek",
@@ -151,7 +151,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DesynthLens-0.4.0.3.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793143630
+        "LastUpdate":  1793144944
     },
     {
         "Author":  "Deepseek",
@@ -182,7 +182,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/MechanicWatch-0.2.0.2.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793143631
+        "LastUpdate":  1793144946
     },
     {
         "Author":  "Deepseek",
@@ -213,7 +213,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/GilLedger-0.0.0.2.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793143633
+        "LastUpdate":  1793144947
     },
     {
         "Author":  "Deepseek",
@@ -245,6 +245,35 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DutyRecap-0.0.0.8.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793143634
+        "LastUpdate":  1793144948
+    },
+    {
+        "Author":  "Deepseek",
+        "Name":  "Crash Trace",
+        "InternalName":  "CrashTrace",
+        "AssemblyVersion":  "0.0.0.1",
+        "Description":  "Logs every first-chance managed exception with its live stack, so the last entry in dalamud.log before a crash identifies the plugin responsible. Diagnostic only: it draws nothing, makes no hooks and changes no game state. Leave it enabled while chasing a crash, then disable it.",
+        "ApplicableVersion":  "any",
+        "RepoUrl":  "https://github.com/KazimeirzOdnowiciel/ffxiv-plugins",
+        "Tags":  [
+                     "diagnostic",
+                     "crash",
+                     "debug",
+                     "troubleshooting"
+                 ],
+        "DalamudApiLevel":  15,
+        "LoadRequiredState":  0,
+        "LoadSync":  false,
+        "CanUnloadAsync":  false,
+        "LoadPriority":  0,
+        "Punchline":  "Names the plugin that throws right before a crash.",
+        "AcceptsFeedback":  true,
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CrashTrace-0.0.0.1.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CrashTrace-0.0.0.1.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/CrashTrace-0.0.0.1.zip",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/CrashTrace-0.0.0.1.png",
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "LastUpdate":  1793144949
     }
 ]

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.0.0.1</Version>
+    <Author>Deepseek</Author>
+    <Name>Crash Trace</Name>
+    <Punchline>Names the plugin that throws right before a crash.</Punchline>
+    <Description>Logs every first-chance managed exception with its live stack, so the last entry in dalamud.log before a crash identifies the plugin responsible. Diagnostic only: it draws nothing, makes no hooks and changes no game state. Leave it enabled while chasing a crash, then disable it.</Description>
+    <RepoUrl>https://github.com/KazimeirzOdnowiciel/ffxiv-plugins</RepoUrl>
+    <Tags>diagnostic;crash;debug;troubleshooting</Tags>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+</Project>
