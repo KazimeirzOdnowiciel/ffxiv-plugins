@@ -20,6 +20,24 @@ internal static class UiKit
         ImGui.GetWindowDrawList().AddLine(origin, origin + new Vector2(width, 0f), Theme.WithAlpha(Theme.Text, alpha));
     }
 
+    /// <summary>Three dots filled by confidence, so a row's sample quality is visible at a glance.</summary>
+    public static void ConfidenceDots(double confidence, float dotRadius = 2.2f)
+    {
+        var filled = (int)MathF.Ceiling(Math.Clamp((float)confidence, 0f, 1f) * 3f);
+        var drawList = ImGui.GetWindowDrawList();
+        var start = ImGui.GetCursorScreenPos();
+        var y = start.Y + (ImGui.GetTextLineHeight() * 0.5f);
+
+        for (var index = 0; index < 3; index++)
+        {
+            var center = new Vector2(start.X + 3f + (index * 5.5f), y);
+            var dotColor = index < filled ? Theme.Accent : new Vector4(Theme.Text.X, Theme.Text.Y, Theme.Text.Z, 0.22f);
+            drawList.AddCircleFilled(center, dotRadius, Theme.U32(dotColor));
+        }
+
+        ImGui.Dummy(new Vector2(3f + (3f * 5.5f), ImGui.GetTextLineHeight()));
+    }
+
     /// <summary>A small rounded label, for scannable one-line lists (retainers, tags, statuses).</summary>
     public static void Chip(string label, Vector4 color)
     {

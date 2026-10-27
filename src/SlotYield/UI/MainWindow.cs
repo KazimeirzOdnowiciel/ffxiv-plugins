@@ -738,6 +738,19 @@ public sealed class MainWindow : Window
         }
     }
 
+    private static (string Label, Vector4 Color) VerdictChip(string verdict)
+    {
+        if (verdict.Contains("fast"))
+            return ("fast", Theme.Profit);
+        if (verdict.Contains("steady"))
+            return ("steady", Theme.Accent);
+        if (verdict.Contains("suspicious") || verdict.Contains("no sales"))
+            return ("?", Theme.Warn);
+        if (verdict.Contains("dead") || verdict.Contains("unsold"))
+            return ("dead", Theme.Danger);
+        return ("slow", Theme.TextDim);
+    }
+
     private void DrawRow(SlotCandidate candidate)
     {
         var score = candidate.Score;
@@ -770,9 +783,18 @@ public sealed class MainWindow : Window
             Theme.Colored(Theme.Warn, "!");
         }
 
-        if (nameHovered)
+        if (score.Verdict.Length > 0 && ImGui.GetContentRegionAvail().X > 80f)
         {
-            var tip = score.Explain;
+            ImGui.SameLine(0f, 8f);
+            var (verdictLabel, verdictColor) = VerdictChip(score.Verdict);
+            UiKit.Chip(verdictLabel, verdictColor);
+
+            ImGui.SameLine(0f, 6f);
+            UiKit.ConfidenceDots(score.Confidence);
+        }
+
+        if (nameHovered)
+        {            var tip = score.Explain;
             if (score.CostPerUnit is { } tipCost)
                 tip += $"\ncost {Money.Exact(tipCost)} / unit ({score.CostSource})";
                 if (score.CostDetail.Length > 0)

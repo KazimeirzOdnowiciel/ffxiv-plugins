@@ -3,7 +3,7 @@
         "Author":  "Deepseek",
         "Name":  "Slot Yield",
         "InternalName":  "SlotYield",
-        "AssemblyVersion":  "0.3.2.5",
+        "AssemblyVersion":  "0.3.2.6",
         "Description":  "Your retainer slots are a portfolio, not a shelf. Slot Yield scans the market board through Universalis, models how much of each item\u0027s daily sales you can actually capture given the competition, and then solves the assignment problem: which N items, within your capital budget, earn the most gil per slot per day.\n\nEvery number is explainable - velocity, sellers at your price, expected share, days to clear a stack, tax. It also keeps your own listings in view, alerts when you are undercut, plans crafts from your bags, and can reprice or list for you when you ask it to.",
         "ApplicableVersion":  "any",
         "RepoUrl":  "https://github.com/KazimeirzOdnowiciel/ffxiv-plugins",
@@ -23,13 +23,13 @@
         "LoadPriority":  0,
         "Punchline":  "Tells you what your retainer slots should actually be selling.",
         "AcceptsFeedback":  true,
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield-0.3.2.5.zip",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield-0.3.2.5.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield-0.3.2.5.zip",
-        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/SlotYield-0.3.2.5.png",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield-0.3.2.6.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield-0.3.2.6.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/SlotYield-0.3.2.6.zip",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/SlotYield-0.3.2.6.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793119643
+        "LastUpdate":  1793119715
     },
     {
         "Author":  "Deepseek",
@@ -61,7 +61,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/RouletteBingo-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793119644
+        "LastUpdate":  1793119716
     },
     {
         "Author":  "Deepseek",
@@ -91,7 +91,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/CritSound-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793119645
+        "LastUpdate":  1793119717
     },
     {
         "Author":  "Deepseek",
@@ -121,7 +121,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/EnemyListCastBars-1.0.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793119646
+        "LastUpdate":  1793119718
     },
     {
         "Author":  "Deepseek",
@@ -151,7 +151,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DesynthLens-0.4.0.3.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793119647
+        "LastUpdate":  1793119719
     },
     {
         "Author":  "Deepseek",
@@ -182,7 +182,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/MechanicWatch-0.2.0.2.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793119649
+        "LastUpdate":  1793119720
     },
     {
         "Author":  "Deepseek",
@@ -213,7 +213,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/GilLedger-0.0.0.2.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793119650
+        "LastUpdate":  1793119721
     },
     {
         "Author":  "Deepseek",
@@ -245,6 +245,6 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DutyRecap-0.0.0.8.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793119650
+        "LastUpdate":  1793119722
     }
 ]
