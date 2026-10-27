@@ -50,6 +50,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly HashSet<uint> listingQuotesInFlight = new();
     private readonly object listingQuoteLock = new();
     private IDtrBarEntry? dtrEntry;
+    private bool frameworkFaultLogged;
 
     public Plugin()
     {
@@ -2166,9 +2167,25 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnFrameworkUpdate(IFramework framework)
     {
+        try
+        {
+            this.OnFrameworkUpdateCore(framework);
+        }
+        catch (Exception exception)
+        {
+            if (!this.frameworkFaultLogged)
+            {
+                this.frameworkFaultLogged = true;
+                Log.Error(exception, "[SlotYield] Framework update failed.");
+            }
+        }
+    }
+
+    private void OnFrameworkUpdateCore(IFramework framework)
+    {
         var now = DateTime.UtcNow;
 
-        if (this.Configuration.AutoScanHours > 0 && !this.State.IsScanning)
+        if (this.Configuration.AutoScanHours > 0 && !this.State.IsScanning && PlayerState.IsLoaded)
         {
             var lastScan = this.Configuration.LastScanUtc ?? DateTime.MinValue;
             if (now - lastScan >= TimeSpan.FromHours(this.Configuration.AutoScanHours))
