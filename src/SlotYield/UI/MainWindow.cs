@@ -51,6 +51,16 @@ public sealed class MainWindow : Window
     {
         "Opportunities", "Changes", "Portfolio", "Craft", "My listings", "Scan",
     };
+
+    private static readonly string[] ColumnLabels =
+    {
+        "Item", "Q", "Price", "Cost", "Revenue/d", "Profit/d", "Sales/d", "Sellers", "Share", "Capital", "Clear", "30d", "",
+    };
+
+    private readonly bool[] columnVisible =
+    {
+        true, true, true, true, true, true, true, true, true, true, true, true, true,
+    };
     private int minGilPerDay;
     private bool pinnedOnly;
     private bool affordableOnly;
@@ -665,6 +675,22 @@ public sealed class MainWindow : Window
             this.hideStale = false;
         }
 
+        ImGui.SameLine();
+        if (ImGui.SmallButton("columns"))
+            ImGui.OpenPopup("##columns");
+
+        if (ImGui.BeginPopup("##columns"))
+        {
+            for (var index = 0; index < ColumnLabels.Length; index++)
+            {
+                var visible = this.columnVisible[index];
+                if (ImGui.Checkbox(ColumnLabels[index] + "##col" + index, ref visible))
+                    this.columnVisible[index] = visible;
+            }
+
+            ImGui.EndPopup();
+        }
+
         var rows = this.Filter(result.Candidates);
         this.Sort(rows);
 
@@ -719,6 +745,9 @@ public sealed class MainWindow : Window
         ImGui.TableSetupColumn("Clear", ImGuiTableColumnFlags.WidthFixed, 52f, 10);
         ImGui.TableSetupColumn("30d", ImGuiTableColumnFlags.WidthFixed, 112f, 11);
         ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 40f, 12);
+
+        for (var columnIndex = 0; columnIndex < this.columnVisible.Length; columnIndex++)
+            ImGui.TableSetColumnEnabled(columnIndex, this.columnVisible[columnIndex]);
 
         ImGui.TableSetupScrollFreeze(0, 1);
         this.DrawHeaderRow();
