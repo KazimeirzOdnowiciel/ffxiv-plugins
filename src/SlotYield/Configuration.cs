@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Dalamud.Configuration;
 using SlotYield.Core;
+using SlotYield.UI;
 
 namespace SlotYield;
 
@@ -95,6 +96,9 @@ public sealed class Configuration : IPluginConfiguration
 
     /// <summary>Saved opportunity filter combinations.</summary>
     public List<FilterPreset> Presets { get; set; } = new();
+
+    /// <summary>Colour palette variant.</summary>
+    public ThemeVariant Theme { get; set; } = ThemeVariant.Graphite;
 
     /// <summary>Total gil/day from past scans, oldest first, for the header pulse.</summary>
     public List<ScanPulse> ScanHistory { get; set; } = new();

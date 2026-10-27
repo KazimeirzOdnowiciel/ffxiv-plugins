@@ -423,8 +423,8 @@ public sealed class MainWindow : Window
         // Actions sit on the right edge so the left side stays a status line.
         ImGui.SameLine();
         var style = ImGui.GetStyle();
-        var actionsWidth = ImGui.CalcTextSize("Net worth").X + ImGui.CalcTextSize("Rescan").X +
-                           (style.FramePadding.X * 4f) + (style.ItemSpacing.X * 2f) + 6f;
+        var actionsWidth = ImGui.CalcTextSize("Net worth").X + ImGui.CalcTextSize("Ticker").X + ImGui.CalcTextSize("Rescan").X +
+                           (style.FramePadding.X * 6f) + (style.ItemSpacing.X * 3f) + 6f;
         var rightEdge = ImGui.GetWindowContentRegionMax().X - actionsWidth;
         if (ImGui.GetCursorPosX() < rightEdge)
             ImGui.SetCursorPosX(rightEdge);
@@ -434,6 +434,10 @@ public sealed class MainWindow : Window
 
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Opens the net worth window (/slotyield worth). It remembers being open.");
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Ticker"))
+            this.plugin.ToggleTicker();
 
         if (state.IsScanning)
         {
@@ -2081,6 +2085,28 @@ public sealed class MainWindow : Window
             this.Config.DtrBar = dtrBar;
             this.plugin.SaveConfig();
             this.plugin.RefreshDtr();
+        }
+
+        ImGui.SameLine();
+        var themeVariant = this.Config.Theme;
+        ImGui.SetNextItemWidth(110f);
+        if (ImGui.BeginCombo("##theme", themeVariant == ThemeVariant.Graphite ? "graphite" : "parchment"))
+        {
+            if (ImGui.Selectable("graphite", themeVariant == ThemeVariant.Graphite))
+            {
+                this.Config.Theme = ThemeVariant.Graphite;
+                Theme.Apply(ThemeVariant.Graphite);
+                this.plugin.SaveConfig();
+            }
+
+            if (ImGui.Selectable("parchment", themeVariant == ThemeVariant.Parchment))
+            {
+                this.Config.Theme = ThemeVariant.Parchment;
+                Theme.Apply(ThemeVariant.Parchment);
+                this.plugin.SaveConfig();
+            }
+
+            ImGui.EndCombo();
         }
 
         UiKit.SectionHeader("World");

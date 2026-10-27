@@ -30,6 +30,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly WindowSystem windowSystem = new("SlotYield");
     private readonly MainWindow mainWindow;
     private readonly WorthWindow worthWindow;
+    private readonly TickerWindow tickerWindow;
     private readonly MarketCapture capture;
     private IReadOnlyList<string>? worlds;
     private volatile bool disposed;
@@ -79,8 +80,10 @@ public sealed class Plugin : IDalamudPlugin
 
         this.mainWindow = new MainWindow(this);
         this.worthWindow = new WorthWindow(this);
+        this.tickerWindow = new TickerWindow(this);
         this.windowSystem.AddWindow(this.mainWindow);
         this.windowSystem.AddWindow(this.worthWindow);
+        this.windowSystem.AddWindow(this.tickerWindow);
         this.worthWindow.IsOpen = Configuration.WorthOpen;
 
         PluginInterface.UiBuilder.Draw += this.windowSystem.Draw;
@@ -110,6 +113,8 @@ public sealed class Plugin : IDalamudPlugin
             this.mainWindow.IsOpen = true;
 
         Log.Information("[SlotYield] Loaded. World: {World}", this.ResolveWorld());
+
+        Theme.Apply(Configuration.Theme);
 
         this.dtrEntry = DtrBar.Get("Slot Yield");
         this.dtrEntry.Tooltip = "Best gil/day - click for Slot Yield";
@@ -1574,6 +1579,11 @@ public sealed class Plugin : IDalamudPlugin
     public bool WorthRefreshing { get; private set; }
 
     /// <summary>Shows or hides the net worth window, measuring once if it has never run.</summary>
+    public void ToggleTicker()
+    {
+        this.tickerWindow.IsOpen = !this.tickerWindow.IsOpen;
+    }
+
     public void ToggleWorth()
     {
         this.worthWindow.Toggle();
