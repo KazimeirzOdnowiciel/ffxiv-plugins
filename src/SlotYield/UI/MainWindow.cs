@@ -1986,6 +1986,7 @@ public sealed class MainWindow : Window
         {
             this.Config.DtrBar = dtrBar;
             this.plugin.SaveConfig();
+            this.plugin.RefreshDtr();
         }
 
         UiKit.SectionHeader("World");

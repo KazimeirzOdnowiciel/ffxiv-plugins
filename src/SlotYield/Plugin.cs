@@ -114,6 +114,7 @@ public sealed class Plugin : IDalamudPlugin
         this.dtrEntry = DtrBar.Get("Slot Yield");
         this.dtrEntry.Tooltip = "Best gil/day - click for Slot Yield";
         this.dtrEntry.OnClick = _ => this.OpenMain();
+        this.dtrEntry.Text = "no scan";
         this.dtrEntry.Shown = false;
     }
 
@@ -204,6 +205,29 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     public void SaveConfig() => PluginInterface.SavePluginConfig(Configuration);
+
+    /// <summary>Re-apply the dtr bar preference (and the current best pick) immediately.</summary>
+    public void RefreshDtr()
+    {
+        if (this.dtrEntry is not { } dtr)
+            return;
+
+        dtr.Shown = Configuration.DtrBar;
+
+        if (State.Result is { } result)
+            ApplyDtr(dtr, result);
+    }
+
+    private static void ApplyDtr(IDtrBarEntry dtr, ScanResult result)
+    {
+        var best = result.Candidates
+            .Where(c => !c.Score.IsDead && !c.Score.IsSuspect)
+            .Select(c => c.Score.ProfitPerDay)
+            .DefaultIfEmpty(0m)
+            .Max();
+
+        dtr.Text = best > 0m ? $"+{Money.Gil(best)}/d" : "no picks";
+    }
 
     public void Print(string message) => ChatGui.Print($"[Slot Yield] {message}");
 
@@ -2273,13 +2297,7 @@ public sealed class Plugin : IDalamudPlugin
 
                     if (this.dtrEntry is { } dtr)
                     {
-                        var bestEntry = result.Candidates
-                            .Where(c => !c.Score.IsDead && !c.Score.IsSuspect)
-                            .Select(c => c.Score.ProfitPerDay)
-                            .DefaultIfEmpty(0m)
-                            .Max();
-
-                        dtr.Text = bestEntry > 0m ? $"+{Money.Gil(bestEntry)}/d" : "no picks";
+                        ApplyDtr(dtr, result);
                         dtr.Shown = Configuration.DtrBar;
                     }
                 });
