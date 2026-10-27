@@ -53,6 +53,7 @@ public sealed class MainWindow : Window
     private readonly Dictionary<uint, string> categoryNames = new();
     private PinnedSlot? undoSlot;
     private DateTime undoUtc;
+    private bool watchedOnly;
 
     public IReadOnlyCollection<(uint ItemId, Quality Quality)> MultiSelection => this.multiSelected;
 
@@ -710,6 +711,9 @@ public sealed class MainWindow : Window
         UiKit.ToggleChip("fresh only", ref this.hideStale);
 
         ImGui.SameLine();
+        UiKit.ToggleChip("watched", ref this.watchedOnly);
+
+        ImGui.SameLine();
         if (ImGui.SmallButton("reset"))
         {
             this.search = string.Empty;
@@ -1160,6 +1164,9 @@ public sealed class MainWindow : Window
 
             if (ImGui.MenuItem(pinned ? "Unpin" : "Pin to my slots"))
                 this.TogglePin(candidate.ItemId, candidate.Quality);
+
+            if (ImGui.MenuItem(this.IsWatched(candidate.ItemId, candidate.Quality) ? "Unwatch" : "Watch for alerts"))
+                this.ToggleWatch(candidate.ItemId, candidate.Quality);
 
             if (ImGui.MenuItem("Copy item name"))
                 ImGui.SetClipboardText(info.Name);
@@ -2513,6 +2520,9 @@ public sealed class MainWindow : Window
         if (this.hideStale)
             rows = rows.Where(c => !c.Score.IsStale);
 
+        if (this.watchedOnly)
+            rows = rows.Where(c => this.IsWatched(c.ItemId, c.Quality));
+
         if (this.categoryFilter.Length > 0)
             rows = rows.Where(c => this.CategoryName(c.ItemId).Equals(this.categoryFilter, StringComparison.OrdinalIgnoreCase));
 
@@ -2556,6 +2566,30 @@ public sealed class MainWindow : Window
 
     private bool IsSlotPinned(uint itemId, Quality quality) =>
         this.Config.Pinned.Any(p => p.ItemId == itemId && p.Hq == (quality == Quality.Hq));
+
+    private bool IsWatched(uint itemId, Quality quality)
+        => this.Config.Watchlist.Any(watched => watched.ItemId == itemId && watched.Hq == (quality == Quality.Hq));
+
+    private void ToggleWatch(uint itemId, Quality quality)
+    {
+        var wanted = quality == Quality.Hq;
+        var existing = this.Config.Watchlist.FirstOrDefault(watched => watched.ItemId == itemId && watched.Hq == wanted);
+
+        if (existing is not null)
+        {
+            this.Config.Watchlist.Remove(existing);
+        }
+        else
+        {
+            this.Config.Watchlist.Add(new WatchedItem
+            {
+                ItemId = itemId,
+                Hq = wanted,
+            });
+        }
+
+        this.plugin.SaveConfig();
+    }
 
     private void TogglePin(uint itemId, Quality quality)
     {

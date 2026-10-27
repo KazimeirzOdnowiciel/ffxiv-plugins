@@ -27,8 +27,7 @@ public sealed class ScanPulse
 
 [Serializable]
 public sealed class FilterPreset
-{
-    public string Name { get; set; } = string.Empty;
+{    public string Name { get; set; } = string.Empty;
 
     public string Search { get; set; } = string.Empty;
 
@@ -43,6 +42,14 @@ public sealed class FilterPreset
     public bool AffordableOnly { get; set; }
 
     public bool HideStale { get; set; }
+}
+
+[Serializable]
+public sealed class WatchedItem
+{
+    public uint ItemId { get; set; }
+
+    public bool Hq { get; set; }
 }
 
 [Serializable]
@@ -96,6 +103,9 @@ public sealed class Configuration : IPluginConfiguration
 
     /// <summary>Saved opportunity filter combinations.</summary>
     public List<FilterPreset> Presets { get; set; } = new();
+
+    /// <summary>Items you want an alert for, regardless of the portfolio.</summary>
+    public List<WatchedItem> Watchlist { get; set; } = new();
 
     /// <summary>Colour palette variant.</summary>
     public ThemeVariant Theme { get; set; } = ThemeVariant.Graphite;

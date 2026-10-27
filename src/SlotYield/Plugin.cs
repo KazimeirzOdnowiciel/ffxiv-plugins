@@ -2403,6 +2403,20 @@ public sealed class Plugin : IDalamudPlugin
                                 Type = NotificationType.Success,
                             });
                     }
+
+                    foreach (var watched in Configuration.Watchlist)
+                    {
+                        var watchedCandidate = result.Candidates.FirstOrDefault(c => c.ItemId == watched.ItemId && c.Quality == (watched.Hq ? Quality.Hq : Quality.Nq));
+                        if (watchedCandidate is null || watchedCandidate.Score.ProfitPerDay < Math.Max(1m, Configuration.ToastThreshold))
+                            continue;
+
+                        Notifications.AddNotification(new Notification
+                        {
+                            Title = "Slot Yield - watched",
+                            Content = $"{this.Catalog.Name(watched.ItemId)}: {Money.Gil(watchedCandidate.Score.ProfitPerDay)}/day",
+                            Type = NotificationType.Info,
+                        });
+                    }
                 });
             }
             catch (OperationCanceledException)
