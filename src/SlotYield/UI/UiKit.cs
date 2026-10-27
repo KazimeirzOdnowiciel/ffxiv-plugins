@@ -20,6 +20,32 @@ internal static class UiKit
         ImGui.GetWindowDrawList().AddLine(origin, origin + new Vector2(width, 0f), Theme.WithAlpha(Theme.Text, alpha));
     }
 
+    /// <summary>A circular gauge: track plus an arc for the fraction used.</summary>
+    public static void Ring(ImDrawListPtr list, Vector2 center, float radius, float thickness, float fraction, Vector4 color)
+    {
+        var arcRadius = radius - (thickness * 0.5f);
+        const int steps = 48;
+
+        DrawArc(list, center, arcRadius, 0f, MathF.PI * 2f, steps, Theme.WithAlpha(Theme.Text, 0.10f), thickness);
+
+        var clamped = Math.Clamp(fraction, 0f, 1f);
+        if (clamped > 0f)
+            DrawArc(list, center, arcRadius, -MathF.PI * 0.5f, (-MathF.PI * 0.5f) + (MathF.PI * 2f * clamped), Math.Max(2, (int)(steps * clamped)), Theme.U32(color), thickness);
+    }
+
+    private static void DrawArc(ImDrawListPtr list, Vector2 center, float arcRadius, float start, float end, int steps, uint color, float thickness)
+    {
+        var previous = new Vector2(center.X + (MathF.Cos(start) * arcRadius), center.Y + (MathF.Sin(start) * arcRadius));
+
+        for (var index = 1; index <= steps; index++)
+        {
+            var angle = start + ((end - start) * index / steps);
+            var next = new Vector2(center.X + (MathF.Cos(angle) * arcRadius), center.Y + (MathF.Sin(angle) * arcRadius));
+            list.AddLine(previous, next, color, thickness);
+            previous = next;
+        }
+    }
+
     /// <summary>Three dots filled by confidence, so a row's sample quality is visible at a glance.</summary>
     public static void ConfidenceDots(double confidence, float dotRadius = 2.2f)
     {

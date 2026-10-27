@@ -366,8 +366,24 @@ public sealed class MainWindow : Window
         if (hovered >= 0)
             ImGui.SetTooltip(hovered < filled ? $"slot {hovered + 1}   pinned" : $"slot {hovered + 1}   free");
 
-        Theme.Faint($"{filled} pinned   -   {slots} slots   -   budget {Money.Gil(this.Config.PortfolioBudget)}");
+        var budget = (decimal)this.Config.PortfolioBudget;
+        var capital = 0m;
+        if (state.Result is { } ringResult)
+        {
+            foreach (var slot in this.Config.Pinned)
+            {
+                var ringCandidate = ringResult.Candidates.FirstOrDefault(c => c.ItemId == slot.ItemId && c.Quality == (slot.Hq ? Quality.Hq : Quality.Nq));
+                if (ringCandidate is not null)
+                    capital += ringCandidate.Score.CapitalPerSlot;
+            }
+        }
 
+        var ringPos = ImGui.GetCursorScreenPos();
+        var ringFraction = budget > 0m ? Math.Clamp((float)(capital / budget), 0f, 1f) : 0f;
+        UiKit.Ring(ImGui.GetWindowDrawList(), ringPos + new Vector2(9f, 9f), 9f, 2.5f, ringFraction, capital > budget ? Theme.Warn : Theme.Accent);
+        ImGui.Dummy(new Vector2(22f, 18f));
+        ImGui.SameLine(0f, 4f);
+        Theme.Faint($"{filled} pinned   -   {slots} slots   -   budget {Money.Gil(budget)}   ({Money.Gil(capital)} in)");
         if (state.IsScanning)
         {
             var progressOrigin = ImGui.GetCursorScreenPos();
