@@ -344,8 +344,8 @@ public sealed class MainWindow : Window
             pinnedIcons.Add((UiKit.IconIdForItem(slot.ItemId), slot.Hq));
         }
 
-        UiKit.SlotStrip(ImGui.GetWindowDrawList(), stripOrigin, stripWidth, 14f, slots, filled, out var hovered, pinnedIcons);
-        ImGui.Dummy(new Vector2(stripWidth, 26f));
+        UiKit.SlotStrip(ImGui.GetWindowDrawList(), stripOrigin, stripWidth, 20f, slots, filled, out var hovered, pinnedIcons);
+        ImGui.Dummy(new Vector2(stripWidth, 32f));
 
         if (hovered >= 0)
             ImGui.SetTooltip(hovered < filled ? $"slot {hovered + 1}   pinned" : $"slot {hovered + 1}   free");
