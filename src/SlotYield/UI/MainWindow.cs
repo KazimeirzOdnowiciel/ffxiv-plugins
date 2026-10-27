@@ -1178,6 +1178,46 @@ public sealed class MainWindow : Window
 
     // --------------------------------------------------------------------- craft ----
 
+    /// <summary>The best recipe your bags can make right now, framed like the other hero cards.</summary>
+    private void DrawCraftSummaryCard(CraftOpportunity best, int count)
+    {
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.WithAlpha(Theme.Accent, 0.06f));
+        ImGui.PushStyleColor(ImGuiCol.Border, Theme.WithAlpha(Theme.Accent, 0.32f));
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 5f);
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10f, 7f));
+        ImGui.PushStyleVar(ImGuiStyleVar.Alpha, this.cardFade);
+
+        if (ImGui.BeginChild("##craftcard", new Vector2(0f, 80f), true))
+        {
+            var drawList = ImGui.GetWindowDrawList();
+            var font = ImGui.GetFont();
+
+            Theme.Colored(Theme.Accent, "BEST CRAFT");
+
+            UiKit.ItemIcon(UiKit.IconIdForItem(best.ItemId), false, 30f);
+            ImGui.SameLine(0f, 8f);
+            Theme.Colored(Theme.Text, this.plugin.Catalog.Name(best.ItemId));
+
+            ImGui.SameLine(0f, 20f);
+            var profitText = "+" + Money.Gil(best.Profit);
+            var profitPos = ImGui.GetCursorScreenPos() + new Vector2(0f, -4f);
+            drawList.AddText(font, 20f, profitPos, Theme.U32(Theme.Profit), profitText);
+            var profitWidth = ImGui.CalcTextSize(profitText).X * (20f / ImGui.GetFontSize());
+            ImGui.Dummy(new Vector2(profitWidth + 4f, 22f));
+            ImGui.SameLine(0f, 2f);
+            Theme.Faint("profit/craft");
+
+            Theme.Faint($"{count} recipes ready   {best.Crafts} crafts   {best.Produced} units");
+        }
+
+        ImGui.EndChild();
+        ImGui.PopStyleVar(5);
+        ImGui.PopStyleColor(2);
+
+        ImGui.Spacing();
+    }
+
     private void DrawCraft()
     {
         Theme.Dimmed(
@@ -1221,6 +1261,10 @@ public sealed class MainWindow : Window
         }
 
         ImGui.Spacing();
+
+        var bestIdea = plan.MaxBy(idea => idea.Profit);
+        if (bestIdea is not null && bestIdea.Profit > 0m)
+            this.DrawCraftSummaryCard(bestIdea, plan.Count);
 
         if (!ImGui.BeginTable(
                 "##craft",
