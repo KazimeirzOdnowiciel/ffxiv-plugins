@@ -2240,6 +2240,13 @@ public sealed class Plugin : IDalamudPlugin
                 {
                     Configuration.LastScanUtc = result.ScannedUtc;
                     Configuration.LastWorld = world;
+                    Configuration.ScanHistory.Add(new ScanPulse
+                    {
+                        Utc = result.ScannedUtc,
+                        GilPerDay = (long)result.Candidates.Where(c => !c.Score.IsDead && !c.Score.IsSuspect).Sum(c => c.Score.ProfitPerDay),
+                    });
+                    if (Configuration.ScanHistory.Count > 30)
+                        Configuration.ScanHistory.RemoveAt(0);
                     this.SaveConfig();
 
                     ChatGui.Print(

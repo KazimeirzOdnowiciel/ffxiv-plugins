@@ -38,6 +38,8 @@ public sealed class MainWindow : Window
     private float cardFade = 1f;
     private float sparkProgress = 1f;
     private bool focusSearch;
+    private int lastPinnedCount;
+    private float stripPulse;
 
     private static readonly string[] TabLabels =
     {
@@ -353,6 +355,14 @@ public sealed class MainWindow : Window
         var slots = Math.Clamp(this.Config.PortfolioSlots, 1, 40);
         var filled = Math.Clamp(this.Config.Pinned.Count, 0, slots);
 
+        if (filled != this.lastPinnedCount)
+        {
+            this.lastPinnedCount = filled;
+            this.stripPulse = 1f;
+        }
+
+        this.stripPulse = MathF.Max(0f, this.stripPulse - (ImGui.GetIO().DeltaTime * 2f));
+
         var pinnedIcons = new List<(uint IconId, bool Hq)>(filled);
         for (var index = 0; index < this.Config.Pinned.Count; index++)
         {
@@ -360,7 +370,7 @@ public sealed class MainWindow : Window
             pinnedIcons.Add((UiKit.IconIdForItem(slot.ItemId), slot.Hq));
         }
 
-        UiKit.SlotStrip(ImGui.GetWindowDrawList(), stripOrigin, stripWidth, 26f, slots, filled, out var hovered, pinnedIcons);
+        UiKit.SlotStrip(ImGui.GetWindowDrawList(), stripOrigin, stripWidth, 26f, slots, filled, out var hovered, pinnedIcons, this.stripPulse);
         ImGui.Dummy(new Vector2(stripWidth, 38f));
 
         if (hovered >= 0)
@@ -384,6 +394,21 @@ public sealed class MainWindow : Window
         ImGui.Dummy(new Vector2(22f, 18f));
         ImGui.SameLine(0f, 4f);
         Theme.Faint($"{filled} pinned   -   {slots} slots   -   budget {Money.Gil(budget)}   ({Money.Gil(capital)} in)");
+
+        var history = this.Config.ScanHistory;
+        if (history.Count >= 2)
+        {
+            var pulseWidth = 120f;
+            var pulseHeight = 16f;
+            var pulseX = MathF.Max(ImGui.GetCursorPosX() + 12f, ImGui.GetWindowContentRegionMax().X - pulseWidth);
+            ImGui.SameLine(pulseX);
+            var pulsePos = ImGui.GetCursorScreenPos();
+            ImGui.Dummy(new Vector2(pulseWidth, pulseHeight));
+            var pulseSeries = new decimal[history.Count];
+            for (var index = 0; index < history.Count; index++)
+                pulseSeries[index] = history[index].GilPerDay;
+            DrawSparkline(ImGui.GetWindowDrawList(), pulsePos, new Vector2(pulseWidth, pulseHeight), pulseSeries, Theme.U32(Theme.Accent));
+        }
         if (state.IsScanning)
         {
             var progressOrigin = ImGui.GetCursorScreenPos();
@@ -467,12 +492,9 @@ public sealed class MainWindow : Window
         if (result is null || result.Candidates.Count == 0)
         {
             ImGui.Spacing();
-            Theme.Dimmed("No scan yet.");
-            ImGui.TextWrapped(
-                "A scan walks every marketable item on your world, ranks them by how much gil a slot " +
-                "could realistically earn, and prices the shortlist exactly. It takes one to three " +
-                "minutes and stays cached for a few hours.");
-            ImGui.Spacing();
+            UiKit.EmptyState(
+                "No scan yet",
+                "A scan walks every marketable item on your world, ranks them by how much gil a slot could realistically earn, and prices the shortlist exactly. It takes one to three minutes and stays cached for a few hours.");
             if (ImGui.Button("Scan now"))
                 this.plugin.StartScan();
 
@@ -570,7 +592,7 @@ public sealed class MainWindow : Window
         var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY |
                     ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings;
 
-        ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, new Vector2(6f, 4f));
+        ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, this.Config.CompactRows ? new Vector2(6f, 1f) : new Vector2(6f, 4f));
         if (!ImGui.BeginTable("##slots", 13, flags, new Vector2(0f, TableHeight())))
         {
             ImGui.PopStyleVar();
@@ -1269,7 +1291,8 @@ public sealed class MainWindow : Window
 
         if (plan.Count == 0)
         {
-            Theme.Faint(
+            UiKit.EmptyState(
+                this.plugin.IsPricingCraft ? "Pricing your bags..." : "No recipes ready",
                 this.plugin.IsPricingCraft
                     ? "Pricing the items your bags can make - this fills in on its own."
                     : "No fully matchable recipes yet. Read your bags again after gathering, or check that this character holds the materials.");
@@ -1415,8 +1438,9 @@ public sealed class MainWindow : Window
 
         if (listings.Count == 0)
         {
-            Theme.Faint("Nothing captured yet.");
-            Theme.Faint("Your retainer's listing shows up next to everyone else's when you view that item.");
+            UiKit.EmptyState(
+                "Nothing captured yet",
+                "Your retainer's listing shows up next to everyone else's when you view that item, and this tab keeps it priced.");
             return;
         }
 
@@ -1799,6 +1823,13 @@ public sealed class MainWindow : Window
 
         ImGui.Spacing();
         ImGui.Separator();
+
+        var compactRows = this.Config.CompactRows;
+        if (ImGui.Checkbox("compact rows", ref compactRows))
+        {
+            this.Config.CompactRows = compactRows;
+            this.plugin.SaveConfig();
+        }
 
         UiKit.SectionHeader("World");
         var worlds = this.plugin.Worlds;

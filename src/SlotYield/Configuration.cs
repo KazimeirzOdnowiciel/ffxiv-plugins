@@ -17,6 +17,14 @@ public sealed class PinnedSlot
 }
 
 [Serializable]
+public sealed class ScanPulse
+{
+    public DateTime Utc { get; set; }
+
+    public long GilPerDay { get; set; }
+}
+
+[Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
     public int Version { get; set; } = 1;
@@ -58,6 +66,12 @@ public sealed class Configuration : IPluginConfiguration
 
     /// <summary>Minimum gil/day for an item to show up as an opportunity.</summary>
     public int MinimumGilPerDay { get; set; } = 1000;
+
+    /// <summary>Draw the opportunity table with tighter row padding.</summary>
+    public bool CompactRows { get; set; }
+
+    /// <summary>Total gil/day from past scans, oldest first, for the header pulse.</summary>
+    public List<ScanPulse> ScanHistory { get; set; } = new();
 
     public bool ShowDeadSlots { get; set; } = true;
 

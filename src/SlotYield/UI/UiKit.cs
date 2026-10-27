@@ -20,6 +20,35 @@ internal static class UiKit
         ImGui.GetWindowDrawList().AddLine(origin, origin + new Vector2(width, 0f), Theme.WithAlpha(Theme.Text, alpha));
     }
 
+    /// <summary>A drawn empty state: brass diamond, centred title, centred body.</summary>
+    public static void EmptyState(string title, string body)
+    {
+        var drawList = ImGui.GetWindowDrawList();
+        var origin = ImGui.GetCursorScreenPos();
+        var width = ImGui.GetContentRegionAvail().X;
+
+        var center = new Vector2(origin.X + (width * 0.5f), origin.Y + 24f);
+        drawList.AddQuadFilled(
+            center + new Vector2(0f, -11f),
+            center + new Vector2(11f, 0f),
+            center + new Vector2(0f, 11f),
+            center + new Vector2(-11f, 0f),
+            Theme.WithAlpha(Theme.Accent, 0.55f));
+
+        ImGui.Dummy(new Vector2(width, 44f));
+
+        var titleSize = ImGui.CalcTextSize(title);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + MathF.Max(0f, (width - titleSize.X) * 0.5f));
+        Theme.Colored(Theme.Text, title);
+
+        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextDim);
+        ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + (width * 0.72f));
+        ImGui.TextWrapped(body);
+        ImGui.PopTextWrapPos();
+        ImGui.PopStyleColor();
+        ImGui.Spacing();
+    }
+
     /// <summary>A circular gauge: track plus an arc for the fraction used.</summary>
     public static void Ring(ImDrawListPtr list, Vector2 center, float radius, float thickness, float fraction, Vector4 color)
     {
@@ -116,7 +145,7 @@ internal static class UiKit
     /// This is the window's signature element — the product's model (N slots competing for
     /// gil/day) made visible without opening a tab.
     /// </summary>
-    public static void SlotStrip(ImDrawListPtr list, Vector2 origin, float width, float height, int total, int filled, out int hovered, IReadOnlyList<(uint IconId, bool Hq)>? icons = null)
+    public static void SlotStrip(ImDrawListPtr list, Vector2 origin, float width, float height, int total, int filled, out int hovered, IReadOnlyList<(uint IconId, bool Hq)>? icons = null, float pulse = 0f)
     {
         hovered = -1;
         if (total <= 0 || width <= 0f)
@@ -140,6 +169,9 @@ internal static class UiKit
             if (i < filledCount)
             {
                 var tint = Theme.Lerp(Theme.Accent, Theme.AccentBright, total <= 1 ? 0f : i / (float)(total - 1));
+                if (i == filledCount - 1 && pulse > 0f)
+                    tint = Theme.Lerp(tint, Theme.AccentBright, pulse);
+
                 list.AddRectFilled(min, max, Theme.U32(tint), rounding);
 
                 if (icons is not null && i < icons.Count)
