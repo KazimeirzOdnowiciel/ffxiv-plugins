@@ -46,6 +46,8 @@ public sealed class MainWindow : Window
     private int selectedRow = -1;
     private float tabUnderlineX;
     private bool tabUnderlineInit;
+    private readonly HashSet<(uint ItemId, Quality Quality)> multiSelected = new();
+    private string presetName = string.Empty;
 
     private static readonly string[] TabLabels =
     {
@@ -676,6 +678,42 @@ public sealed class MainWindow : Window
         }
 
         ImGui.SameLine();
+        if (ImGui.SmallButton("save filter"))
+            ImGui.OpenPopup("##savefilter");
+
+        if (ImGui.BeginPopup("##savefilter"))
+        {
+            ImGui.InputTextWithHint("##presetname", "preset name", ref this.presetName, 32);
+            if (ImGui.Button("save") && this.presetName.Length > 0)
+            {
+                this.Config.Presets.RemoveAll(preset => preset.Name == this.presetName);
+                this.Config.Presets.Add(this.CurrentPreset(this.presetName));
+                this.plugin.SaveConfig();
+                ImGui.CloseCurrentPopup();
+            }
+
+            ImGui.EndPopup();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton("presets"))
+            ImGui.OpenPopup("##presets");
+
+        if (ImGui.BeginPopup("##presets"))
+        {
+            if (this.Config.Presets.Count == 0)
+                Theme.Faint("no saved filters");
+
+            foreach (var preset in this.Config.Presets)
+            {
+                if (ImGui.Selectable(preset.Name))
+                    this.ApplyPreset(preset);
+            }
+
+            ImGui.EndPopup();
+        }
+
+        ImGui.SameLine();
         if (ImGui.SmallButton("columns"))
             ImGui.OpenPopup("##columns");
 
@@ -696,6 +734,25 @@ public sealed class MainWindow : Window
 
         ImGui.SameLine();
         Theme.Faint($"{rows.Count} shown");
+
+        if (this.multiSelected.Count > 0)
+        {
+            ImGui.SameLine();
+            if (ImGui.SmallButton($"pin {this.multiSelected.Count}"))
+            {
+                foreach (var (itemId, pinQuality) in this.multiSelected)
+                {
+                    if (!this.IsSlotPinned(itemId, pinQuality))
+                        this.TogglePin(itemId, pinQuality);
+                }
+
+                this.multiSelected.Clear();
+            }
+
+            ImGui.SameLine();
+            if (ImGui.SmallButton("x"))
+                this.multiSelected.Clear();
+        }
 
         if (ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows) && !ImGui.IsAnyItemActive() && rows.Count > 0)
         {
@@ -925,6 +982,29 @@ public sealed class MainWindow : Window
         return ("slow", Theme.TextDim);
     }
 
+    private FilterPreset CurrentPreset(string name) => new()
+    {
+        Name = name,
+        Search = this.search,
+        MinGilPerDay = this.minGilPerDay,
+        Quality = this.qualityFilter,
+        PinnedOnly = this.pinnedOnly,
+        ShowDead = this.showDead,
+        AffordableOnly = this.affordableOnly,
+        HideStale = this.hideStale,
+    };
+
+    private void ApplyPreset(FilterPreset preset)
+    {
+        this.search = preset.Search;
+        this.minGilPerDay = preset.MinGilPerDay;
+        this.qualityFilter = preset.Quality;
+        this.pinnedOnly = preset.PinnedOnly;
+        this.showDead = preset.ShowDead;
+        this.affordableOnly = preset.AffordableOnly;
+        this.hideStale = preset.HideStale;
+    }
+
     private void DrawRow(SlotCandidate candidate, int index)
     {
         var score = candidate.Score;
@@ -949,6 +1029,13 @@ public sealed class MainWindow : Window
             var barMin = new Vector2(ImGui.GetCursorScreenPos().X - 2f, rowTop);
             ImGui.GetWindowDrawList().AddRectFilled(barMin, barMin + new Vector2(3f, rowBottom - rowTop), Theme.U32(Theme.Accent));
         }
+
+        if (this.multiSelected.Contains((candidate.ItemId, candidate.Quality)))
+        {
+            var selMin = new Vector2(ImGui.GetCursorScreenPos().X, rowTop);
+            var selMax = new Vector2(selMin.X + ImGui.GetContentRegionAvail().X, rowBottom);
+            ImGui.GetWindowDrawList().AddRectFilled(selMin, selMax, Theme.WithAlpha(Theme.Accent, 0.16f), 2f);
+        }
         ImGui.TableNextColumn();
 
         var nameColor = dim ? Theme.TextFaint : Theme.Text;
@@ -956,6 +1043,13 @@ public sealed class MainWindow : Window
         ImGui.SameLine(0f, 6f);
         Theme.Colored(nameColor, info.Name);
         var nameHovered = ImGui.IsItemHovered();
+
+        if (ImGui.IsItemClicked(ImGuiMouseButton.Left) && ImGui.GetIO().KeyCtrl)
+        {
+            var key = (candidate.ItemId, candidate.Quality);
+            if (!this.multiSelected.Add(key))
+                this.multiSelected.Remove(key);
+        }
 
         if (score.IsStale)
         {

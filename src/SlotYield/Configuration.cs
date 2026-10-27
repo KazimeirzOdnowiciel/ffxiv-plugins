@@ -25,6 +25,26 @@ public sealed class ScanPulse
 }
 
 [Serializable]
+public sealed class FilterPreset
+{
+    public string Name { get; set; } = string.Empty;
+
+    public string Search { get; set; } = string.Empty;
+
+    public int MinGilPerDay { get; set; }
+
+    public int Quality { get; set; }
+
+    public bool PinnedOnly { get; set; }
+
+    public bool ShowDead { get; set; } = true;
+
+    public bool AffordableOnly { get; set; }
+
+    public bool HideStale { get; set; }
+}
+
+[Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
     public int Version { get; set; } = 1;
@@ -72,6 +92,9 @@ public sealed class Configuration : IPluginConfiguration
 
     /// <summary>Show the best gil/day in the server info bar.</summary>
     public bool DtrBar { get; set; } = true;
+
+    /// <summary>Saved opportunity filter combinations.</summary>
+    public List<FilterPreset> Presets { get; set; } = new();
 
     /// <summary>Total gil/day from past scans, oldest first, for the header pulse.</summary>
     public List<ScanPulse> ScanHistory { get; set; } = new();
