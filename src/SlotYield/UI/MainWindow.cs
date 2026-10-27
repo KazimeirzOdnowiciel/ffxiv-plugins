@@ -879,10 +879,7 @@ public sealed class MainWindow : Window
         else
             Theme.Colored(Theme.Warn, $"only {freshSource.Count} fresh items for {config.PortfolioSlots} slots; stale data included");
 
-        Theme.Colored(Theme.Gold, $"Best {plan.Picks.Count} slots: {Money.Gil(plan.GilPerDay)} profit/day");
-        Theme.Dimmed(
-            $"{Money.Gil(plan.Capital)} tied up  -  weakest slot worth {Money.Gil(plan.ShadowSlotValue)}/day  -  " +
-            $"+1M gil would add {Money.Gil(plan.MarginalGilPerMillion)}/day");
+        this.DrawPortfolioSummaryCard(plan);
 
         if (plan.Truncated)
             Theme.Colored(Theme.Warn, "Large candidate set: the plan is near-optimal rather than provably optimal.");
@@ -947,6 +944,41 @@ public sealed class MainWindow : Window
         ImGui.Spacing();
         ImGui.Separator();
         this.DrawPinned(result);
+    }
+
+    /// <summary>The portfolio's headline figure, drawn as the same card the best pick uses.</summary>
+    private void DrawPortfolioSummaryCard(PortfolioPlan plan)
+    {
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.WithAlpha(Theme.Accent, 0.06f));
+        ImGui.PushStyleColor(ImGuiCol.Border, Theme.WithAlpha(Theme.Accent, 0.32f));
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 5f);
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10f, 7f));
+
+        if (ImGui.BeginChild("##portfoliocard", new Vector2(0f, 62f), true))
+        {
+            var drawList = ImGui.GetWindowDrawList();
+            var font = ImGui.GetFont();
+
+            Theme.Colored(Theme.Accent, "BEST PORTFOLIO");
+
+            var profitText = "+" + Money.Gil(plan.GilPerDay);
+            var profitPos = ImGui.GetCursorScreenPos() + new Vector2(0f, -3f);
+            drawList.AddText(font, 20f, profitPos, Theme.U32(Theme.Profit), profitText);
+            var profitWidth = ImGui.CalcTextSize(profitText).X * (20f / ImGui.GetFontSize());
+            ImGui.Dummy(new Vector2(profitWidth + 4f, 22f));
+            ImGui.SameLine(0f, 2f);
+            Theme.Faint("profit/day");
+
+            Theme.Faint(
+                $"{plan.Picks.Count} slots   {Money.Gil(plan.Capital)} tied up   weakest {Money.Gil(plan.ShadowSlotValue)}/day   +1M gil adds {Money.Gil(plan.MarginalGilPerMillion)}/day");
+        }
+
+        ImGui.EndChild();
+        ImGui.PopStyleVar(3);
+        ImGui.PopStyleColor(2);
+
+        ImGui.Spacing();
     }
 
     private void DrawPinned(ScanResult? result)
@@ -1560,7 +1592,7 @@ public sealed class MainWindow : Window
         ImGui.Spacing();
         ImGui.Separator();
 
-        Theme.Colored(Theme.Text, "World");
+        UiKit.SectionHeader("World");
         var worlds = this.plugin.Worlds;
         var world = this.plugin.ResolveWorld();
 
@@ -1588,7 +1620,7 @@ public sealed class MainWindow : Window
 
         ImGui.Spacing();
         ImGui.Separator();
-        Theme.Colored(Theme.Text, "Model");
+        UiKit.SectionHeader("Model");
 
         var strategy = config.Strategy;
         ImGui.SetNextItemWidth(220f);
@@ -1678,7 +1710,7 @@ public sealed class MainWindow : Window
 
         ImGui.Spacing();
         ImGui.Separator();
-        Theme.Colored(Theme.Text, "Alerts");
+        UiKit.SectionHeader("Alerts");
 
         var alertsOn = config.AlertsEnabled;
         if (ImGui.Checkbox("chat alerts for undercuts and price drops", ref alertsOn))
@@ -1747,7 +1779,7 @@ public sealed class MainWindow : Window
 
         ImGui.Spacing();
         ImGui.Separator();
-        Theme.Colored(Theme.Text, "Repricing");
+        UiKit.SectionHeader("Repricing");
 
         var minMove = config.RepriceMinMoveGil;
         ImGui.SetNextItemWidth(180f);
