@@ -51,6 +51,8 @@ public sealed class MainWindow : Window
     private string shareInput = string.Empty;
     private string categoryFilter = string.Empty;
     private readonly Dictionary<uint, string> categoryNames = new();
+    private PinnedSlot? undoSlot;
+    private DateTime undoUtc;
 
     private static readonly string[] TabLabels =
     {
@@ -438,8 +440,8 @@ public sealed class MainWindow : Window
         // Actions sit on the right edge so the left side stays a status line.
         ImGui.SameLine();
         var style = ImGui.GetStyle();
-        var actionsWidth = ImGui.CalcTextSize("Net worth").X + ImGui.CalcTextSize("Ticker").X + ImGui.CalcTextSize("Rescan").X +
-                           (style.FramePadding.X * 6f) + (style.ItemSpacing.X * 3f) + 6f;
+        var actionsWidth = ImGui.CalcTextSize("Net worth").X + ImGui.CalcTextSize("Ticker").X + ImGui.CalcTextSize("Rescan").X + ImGui.CalcTextSize("?").X +
+                           (style.FramePadding.X * 8f) + (style.ItemSpacing.X * 4f) + 6f;
         var rightEdge = ImGui.GetWindowContentRegionMax().X - actionsWidth;
         if (ImGui.GetCursorPosX() < rightEdge)
             ImGui.SetCursorPosX(rightEdge);
@@ -453,6 +455,10 @@ public sealed class MainWindow : Window
         ImGui.SameLine();
         if (ImGui.SmallButton("Ticker"))
             this.plugin.ToggleTicker();
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton("?"))
+            this.plugin.ToggleHelp();
 
         if (state.IsScanning)
         {
@@ -792,6 +798,18 @@ public sealed class MainWindow : Window
             ImGui.SameLine();
             if (ImGui.SmallButton("x"))
                 this.multiSelected.Clear();
+        }
+
+        if (this.undoSlot is not null && (DateTime.UtcNow - this.undoUtc).TotalSeconds < 10)
+        {
+            ImGui.SameLine();
+            if (ImGui.SmallButton("undo unpin"))
+            {
+                this.Config.Pinned.Add(this.undoSlot);
+                this.Config.Normalize();
+                this.plugin.SaveConfig();
+                this.undoSlot = null;
+            }
         }
 
         if (ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows) && !ImGui.IsAnyItemActive() && rows.Count > 0)
@@ -2532,6 +2550,8 @@ public sealed class MainWindow : Window
         if (existing is not null)
         {
             this.Config.Pinned.Remove(existing);
+            this.undoSlot = existing;
+            this.undoUtc = DateTime.UtcNow;
         }
         else
         {
