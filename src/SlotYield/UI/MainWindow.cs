@@ -35,6 +35,8 @@ public sealed class MainWindow : Window
     private float animatedProfitable;
     private float animatedBestPickProfit;
     private float animatedPortfolioProfit;
+    private float cardFade = 1f;
+    private float sparkProgress = 1f;
 
     private static readonly string[] TabLabels =
     {
@@ -211,6 +213,10 @@ public sealed class MainWindow : Window
 
     private void DrawContent()
     {
+        var deltaTime = ImGui.GetIO().DeltaTime;
+        this.cardFade += (1f - this.cardFade) * (1f - MathF.Exp(-10f * deltaTime));
+        this.sparkProgress += (1f - this.sparkProgress) * (1f - MathF.Exp(-8f * deltaTime));
+
         this.DrawHeader();
         this.DrawTabBar();
 
@@ -271,8 +277,12 @@ public sealed class MainWindow : Window
                     Theme.U32(Theme.Accent),
                     1f);
 
-            if (hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+            if (hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left) && this.activeTab != index)
+            {
                 this.activeTab = index;
+                this.cardFade = 0f;
+                this.sparkProgress = 0f;
+            }
 
             x += width;
         }
@@ -587,6 +597,7 @@ public sealed class MainWindow : Window
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 5f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10f, 7f));
+        ImGui.PushStyleVar(ImGuiStyleVar.Alpha, this.cardFade);
 
         if (ImGui.BeginChild("##bestpick", new Vector2(0f, 84f), true))
         {
@@ -625,7 +636,7 @@ public sealed class MainWindow : Window
         }
 
         ImGui.EndChild();
-        ImGui.PopStyleVar(3);
+        ImGui.PopStyleVar(4);
         ImGui.PopStyleColor(2);
 
         ImGui.Spacing();
@@ -788,7 +799,11 @@ public sealed class MainWindow : Window
         if (series.Length >= 2)
         {
             var sparkColor = score.IsFalling ? Theme.Danger : score.TrendPercent > 0.05 ? Theme.Accent : Theme.TextDim;
-            DrawSparkline(ImGui.GetWindowDrawList(), sparkPosition, sparkSize, series, Theme.WithAlpha(sparkColor, 0.9f));
+            var sparkList = ImGui.GetWindowDrawList();
+            var sparkClip = sparkPosition + new Vector2(sparkSize.X * this.sparkProgress, sparkSize.Y);
+            sparkList.PushClipRect(sparkPosition, sparkClip, true);
+            DrawSparkline(sparkList, sparkPosition, sparkSize, series, Theme.WithAlpha(sparkColor, 0.9f));
+            sparkList.PopClipRect();
 
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip($"30-day trend {score.TrendPercent:+0.0%;-0.0%;0%}\n(quantity-weighted daily prices)");
@@ -979,6 +994,7 @@ public sealed class MainWindow : Window
         ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 5f);
         ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10f, 7f));
+        ImGui.PushStyleVar(ImGuiStyleVar.Alpha, this.cardFade);
 
         if (ImGui.BeginChild("##portfoliocard", new Vector2(0f, 80f), true))
         {
@@ -1002,7 +1018,7 @@ public sealed class MainWindow : Window
         }
 
         ImGui.EndChild();
-        ImGui.PopStyleVar(3);
+        ImGui.PopStyleVar(4);
         ImGui.PopStyleColor(2);
 
         ImGui.Spacing();
