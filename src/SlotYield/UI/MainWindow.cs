@@ -30,6 +30,9 @@ public sealed class MainWindow : Window
     private int qualityFilter;
     private decimal maxProfitMagnitude = 1m;
     private int activeTab;
+    private float animatedBestProfit;
+    private float animatedLive;
+    private float animatedProfitable;
 
     private static readonly string[] TabLabels =
     {
@@ -392,12 +395,19 @@ public sealed class MainWindow : Window
         const float bandHeight = 46f;
         var cell = width / 3f;
 
+        // Frame-rate independent easing: the figures climb to their new value instead of snapping,
+        // so a finished scan reads as "filling in" rather than flickering.
+        var ease = 1f - MathF.Exp(-7f * ImGui.GetIO().DeltaTime);
+        this.animatedBestProfit += ((float)bestProfit - this.animatedBestProfit) * ease;
+        this.animatedLive += (live - this.animatedLive) * ease;
+        this.animatedProfitable += (profitable - this.animatedProfitable) * ease;
+
         drawList.AddRectFilled(origin, origin + new Vector2(width, bandHeight), Theme.WithAlpha(Theme.Panel, 0.55f), 4f);
         drawList.AddRect(origin, origin + new Vector2(width, bandHeight), Theme.U32(Theme.Hairline), 4f);
 
-        DrawStatCell(drawList, font, origin + new Vector2(12f, 6f), "BEST / DAY", "+" + Money.Gil(bestProfit), Theme.Profit);
-        DrawStatCell(drawList, font, origin + new Vector2(cell + 12f, 6f), "LIVE ITEMS", live.ToString(), Theme.Text);
-        DrawStatCell(drawList, font, origin + new Vector2((cell * 2f) + 12f, 6f), "PROFITABLE", profitable.ToString(), Theme.Accent);
+        DrawStatCell(drawList, font, origin + new Vector2(12f, 6f), "BEST / DAY", "+" + Money.Gil((decimal)this.animatedBestProfit), Theme.Profit);
+        DrawStatCell(drawList, font, origin + new Vector2(cell + 12f, 6f), "LIVE ITEMS", ((int)MathF.Round(this.animatedLive)).ToString(), Theme.Text);
+        DrawStatCell(drawList, font, origin + new Vector2((cell * 2f) + 12f, 6f), "PROFITABLE", ((int)MathF.Round(this.animatedProfitable)).ToString(), Theme.Accent);
 
         ImGui.Dummy(new Vector2(width, bandHeight + 6f));
     }
