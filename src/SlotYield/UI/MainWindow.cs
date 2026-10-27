@@ -2019,8 +2019,7 @@ public sealed class MainWindow : Window
         if (deltas.Count == 0)
             return;
 
-        ImGui.Spacing();
-        Theme.Colored(color, title);
+        UiKit.SectionHeader(title, color);
 
         foreach (var delta in deltas)
         {
@@ -2042,8 +2041,7 @@ public sealed class MainWindow : Window
         if (entries.Count == 0)
             return;
 
-        ImGui.Spacing();
-        Theme.Colored(color, title);
+        UiKit.SectionHeader(title, color);
 
         foreach (var entry in entries)
         {

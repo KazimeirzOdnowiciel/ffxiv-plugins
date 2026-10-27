@@ -39,13 +39,15 @@ internal static class UiKit
     /// A section title that reads as chrome rather than a stock label: a small brass diamond,
     /// the title in dimmed text, then a hairline that trails off to the right edge.
     /// </summary>
-    public static void SectionHeader(string label)
+    public static void SectionHeader(string label, Vector4? accent = null)
     {
         var drawList = ImGui.GetWindowDrawList();
         var font = ImGui.GetFont();
         var origin = ImGui.GetCursorScreenPos();
         var height = ImGui.GetTextLineHeight();
         var mid = origin.Y + (height * 0.5f);
+        var diamondColor = accent ?? Theme.Accent;
+        var labelColor = accent ?? Theme.TextDim;
 
         var center = new Vector2(origin.X + 4f, mid);
         drawList.AddQuadFilled(
@@ -53,9 +55,9 @@ internal static class UiKit
             center + new Vector2(3.2f, 0f),
             center + new Vector2(0f, 3.2f),
             center + new Vector2(-3.2f, 0f),
-            Theme.U32(Theme.Accent));
+            Theme.U32(diamondColor));
 
-        drawList.AddText(font, ImGui.GetFontSize(), origin + new Vector2(14f, 0f), Theme.U32(Theme.TextDim), label);
+        drawList.AddText(font, ImGui.GetFontSize(), origin + new Vector2(14f, 0f), Theme.U32(labelColor), label);
 
         var textEnd = origin.X + 14f + ImGui.CalcTextSize(label).X + 10f;
         var right = origin.X + ImGui.GetContentRegionAvail().X;
