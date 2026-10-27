@@ -103,6 +103,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Notify when a scan's best gil/day reaches this value (0 = off).</summary>
     public long ToastThreshold { get; set; }
 
+    /// <summary>Re-scan automatically this many hours after the last scan (0 = off).</summary>
+    public int AutoScanHours { get; set; }
+
     /// <summary>Persisted opportunity table state.</summary>
     public int SortColumn { get; set; } = 5;
 

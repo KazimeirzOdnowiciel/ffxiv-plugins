@@ -54,6 +54,8 @@ public sealed class MainWindow : Window
     private PinnedSlot? undoSlot;
     private DateTime undoUtc;
 
+    public IReadOnlyCollection<(uint ItemId, Quality Quality)> MultiSelection => this.multiSelected;
+
     private static readonly string[] TabLabels =
     {
         "Opportunities", "Changes", "Portfolio", "Craft", "My listings", "Scan",
@@ -794,6 +796,10 @@ public sealed class MainWindow : Window
 
                 this.multiSelected.Clear();
             }
+
+            ImGui.SameLine();
+            if (ImGui.SmallButton("compare"))
+                this.plugin.ToggleCompare();
 
             ImGui.SameLine();
             if (ImGui.SmallButton("x"))
@@ -2194,6 +2200,15 @@ public sealed class MainWindow : Window
         if (ImGui.SliderInt("##toast", ref toastThreshold, 0, 200_000, toastThreshold <= 0 ? "no alert" : "alert >= %d/day"))
         {
             this.Config.ToastThreshold = toastThreshold;
+            this.plugin.SaveConfig();
+        }
+
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(140f);
+        var autoScanHours = Math.Clamp(this.Config.AutoScanHours, 0, 48);
+        if (ImGui.SliderInt("##autoscan", ref autoScanHours, 0, 48, autoScanHours <= 0 ? "no auto-scan" : "auto every %dh"))
+        {
+            this.Config.AutoScanHours = autoScanHours;
             this.plugin.SaveConfig();
         }
 

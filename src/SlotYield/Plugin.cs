@@ -33,6 +33,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly TickerWindow tickerWindow;
     private readonly HistoryWindow historyWindow;
     private readonly HelpWindow helpWindow;
+    private readonly CompareWindow compareWindow;
     private readonly MarketCapture capture;
     private IReadOnlyList<string>? worlds;
     private volatile bool disposed;
@@ -85,11 +86,13 @@ public sealed class Plugin : IDalamudPlugin
         this.tickerWindow = new TickerWindow(this);
         this.historyWindow = new HistoryWindow(this);
         this.helpWindow = new HelpWindow();
+        this.compareWindow = new CompareWindow(this, this.mainWindow);
         this.windowSystem.AddWindow(this.mainWindow);
         this.windowSystem.AddWindow(this.worthWindow);
         this.windowSystem.AddWindow(this.tickerWindow);
         this.windowSystem.AddWindow(this.historyWindow);
         this.windowSystem.AddWindow(this.helpWindow);
+        this.windowSystem.AddWindow(this.compareWindow);
         this.worthWindow.IsOpen = Configuration.WorthOpen;
 
         PluginInterface.UiBuilder.Draw += this.windowSystem.Draw;
@@ -1645,6 +1648,11 @@ public sealed class Plugin : IDalamudPlugin
         this.helpWindow.IsOpen = !this.helpWindow.IsOpen;
     }
 
+    public void ToggleCompare()
+    {
+        this.compareWindow.IsOpen = !this.compareWindow.IsOpen;
+    }
+
     public void ToggleWorth()
     {
         this.worthWindow.Toggle();
@@ -2159,6 +2167,13 @@ public sealed class Plugin : IDalamudPlugin
     private void OnFrameworkUpdate(IFramework framework)
     {
         var now = DateTime.UtcNow;
+
+        if (this.Configuration.AutoScanHours > 0 && !this.State.IsScanning)
+        {
+            var lastScan = this.Configuration.LastScanUtc ?? DateTime.MinValue;
+            if (now - lastScan >= TimeSpan.FromHours(this.Configuration.AutoScanHours))
+                this.StartScan();
+        }
 
         if (now >= this.nextSellListPollUtc)
         {
