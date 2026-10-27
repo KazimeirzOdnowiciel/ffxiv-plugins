@@ -37,6 +37,7 @@ public sealed class MainWindow : Window
     private float animatedPortfolioProfit;
     private float cardFade = 1f;
     private float sparkProgress = 1f;
+    private bool focusSearch;
 
     private static readonly string[] TabLabels =
     {
@@ -297,7 +298,7 @@ public sealed class MainWindow : Window
     {
         var state = this.plugin.State;
         var world = this.plugin.ResolveWorld();
-        var scanned = this.Config.LastScanUtc?.ToLocalTime().ToString("MMM d HH:mm") ?? "never";
+        var scanned = this.Config.LastScanUtc is { } lastScan ? RelativeTime(lastScan) : "never";
 
         Theme.Colored(Theme.Text, world);
 
@@ -380,6 +381,20 @@ public sealed class MainWindow : Window
         UiKit.Rule();
     }
 
+    private static string RelativeTime(DateTime utc)
+    {
+        var elapsed = DateTime.UtcNow - utc;
+        if (elapsed.TotalMinutes < 1)
+            return "just now";
+        if (elapsed.TotalHours < 1)
+            return $"{elapsed.TotalMinutes:0}m ago";
+        if (elapsed.TotalDays < 1)
+            return $"{elapsed.TotalHours:0}h ago";
+        if (elapsed.TotalDays < 7)
+            return $"{elapsed.TotalDays:0}d ago";
+        return utc.ToLocalTime().ToString("MMM d HH:mm");
+    }
+
     /// <summary>Three large figures where the status line used to be: a dashboard head, not a sentence.</summary>
     private void DrawStatBand(ScanResult result)
     {
@@ -459,8 +474,19 @@ public sealed class MainWindow : Window
         UiKit.SectionHeader("All opportunities");
 
         // Filters.
+        if (ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows) && ImGui.GetIO().KeyCtrl && ImGui.IsKeyPressed(ImGuiKey.F))
+            this.focusSearch = true;
+
         ImGui.SetNextItemWidth(220f);
+        if (this.focusSearch)
+        {
+            ImGui.SetKeyboardFocusHere();
+            this.focusSearch = false;
+        }
+
         ImGui.InputTextWithHint("##search", "filter by item name...", ref this.search, 64);
+        if (ImGui.IsItemActive() && ImGui.IsKeyPressed(ImGuiKey.Escape))
+            this.search = string.Empty;
         ImGui.SameLine(0f, 8f);
         // 0 means "no minimum" and is deliberate: unprofitable rows stay visible so a losing
         // slot can be spotted. Say that instead of printing "min 0", which read as ">= 0".
@@ -492,6 +518,18 @@ public sealed class MainWindow : Window
         UiKit.ToggleChip("affordable", ref this.affordableOnly);
         ImGui.SameLine();
         UiKit.ToggleChip("fresh only", ref this.hideStale);
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton("reset"))
+        {
+            this.search = string.Empty;
+            this.minGilPerDay = 0;
+            this.qualityFilter = 0;
+            this.pinnedOnly = false;
+            this.showDead = true;
+            this.affordableOnly = false;
+            this.hideStale = false;
+        }
 
         var rows = this.Filter(result.Candidates);
         this.Sort(rows);
@@ -665,8 +703,7 @@ public sealed class MainWindow : Window
     private void HeaderButton(string label, int column, ImGuiTableColumnFlags flags)
     {
         ImGui.TableNextColumn();
-        var marker = this.sortColumn == column ? (this.sortAscending ? " ^" : " v") : string.Empty;
-        if (ImGui.SmallButton(label + marker + "##h" + column))
+        if (ImGui.SmallButton(label + "##h" + column))
         {
             if (this.sortColumn == column)
             {
@@ -678,6 +715,27 @@ public sealed class MainWindow : Window
                 this.sortAscending = false;
             }
         }
+
+        if (this.sortColumn == column)
+        {
+            var drawList = ImGui.GetWindowDrawList();
+            var min = ImGui.GetItemRectMin();
+            var max = ImGui.GetItemRectMax();
+            var centerX = max.X + 6f;
+            var centerY = (min.Y + max.Y) * 0.5f;
+            if (this.sortAscending)
+                drawList.AddTriangleFilled(
+                    new Vector2(centerX - 4f, centerY + 2f),
+                    new Vector2(centerX + 4f, centerY + 2f),
+                    new Vector2(centerX, centerY - 3f),
+                    Theme.U32(Theme.Accent));
+            else
+                drawList.AddTriangleFilled(
+                    new Vector2(centerX - 4f, centerY - 2f),
+                    new Vector2(centerX + 4f, centerY - 2f),
+                    new Vector2(centerX, centerY + 3f),
+                    Theme.U32(Theme.Accent));
+        }
     }
 
     private void DrawRow(SlotCandidate candidate)
@@ -688,6 +746,16 @@ public sealed class MainWindow : Window
         var dim = score.IsDead;
 
         ImGui.TableNextRow();
+
+        var rowTop = ImGui.GetCursorScreenPos().Y;
+        var rowBottom = rowTop + MathF.Max(ImGui.GetTextLineHeight(), 20f) + 8f;
+        var mouseY = ImGui.GetMousePos().Y;
+        if (mouseY >= rowTop && mouseY <= rowBottom)
+        {
+            var rowMin = new Vector2(ImGui.GetCursorScreenPos().X, rowTop);
+            var rowMax = new Vector2(rowMin.X + ImGui.GetContentRegionAvail().X, rowBottom);
+            ImGui.GetWindowDrawList().AddRectFilled(rowMin, rowMax, Theme.WithAlpha(Theme.Accent, 0.10f), 2f);
+        }
         ImGui.TableNextColumn();
 
         var nameColor = dim ? Theme.TextFaint : Theme.Text;
