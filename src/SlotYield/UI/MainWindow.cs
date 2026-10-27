@@ -40,6 +40,12 @@ public sealed class MainWindow : Window
     private bool focusSearch;
     private int lastPinnedCount;
     private float stripPulse;
+    private uint detailItemId;
+    private Quality detailQuality;
+    private bool openDetail;
+    private int selectedRow = -1;
+    private float tabUnderlineX;
+    private bool tabUnderlineInit;
 
     private static readonly string[] TabLabels =
     {
@@ -244,6 +250,80 @@ public sealed class MainWindow : Window
                 this.DrawScanTab();
                 break;
         }
+
+        this.DrawDetailPopup();
+    }
+
+    /// <summary>Open a row's full breakdown: ladder, history, explain and actions.</summary>
+    private void DrawDetailPopup()
+    {
+        if (this.openDetail)
+        {
+            ImGui.SetNextWindowSize(new Vector2(460f, 400f), ImGuiCond.Appearing);
+            ImGui.OpenPopup("##itemdetail");
+            this.openDetail = false;
+        }
+
+        if (!ImGui.BeginPopup("##itemdetail"))
+            return;
+
+        var result = this.plugin.State.Result;
+        var candidate = result?.Candidates.FirstOrDefault(c => c.ItemId == this.detailItemId && c.Quality == this.detailQuality);
+        if (candidate is null)
+        {
+            Theme.Dimmed("Not in the current scan.");
+            ImGui.EndPopup();
+            return;
+        }
+
+        var score = candidate.Score;
+        var info = this.plugin.Catalog.Get(candidate.ItemId);
+
+        UiKit.ItemIcon(UiKit.IconIdForItem(candidate.ItemId), candidate.Quality == Quality.Hq, 32f);
+        ImGui.SameLine(0f, 8f);
+        Theme.Colored(Theme.Text, info.Name);
+        if (candidate.Quality == Quality.Hq)
+        {
+            ImGui.SameLine(0f, 6f);
+            Theme.Colored(Theme.Hq, "HQ");
+        }
+
+        ImGui.Spacing();
+        var (verdictLabel, verdictColor) = VerdictChip(score.Verdict);
+        UiKit.Chip(verdictLabel, verdictColor);
+        ImGui.SameLine(0f, 6f);
+        UiKit.ConfidenceDots(score.Confidence);
+
+        ImGui.Spacing();
+        Theme.Faint($"price {Money.Gil(score.ListPrice)}   revenue {Money.Gil(score.GilPerDay)}/day   profit {Money.Gil(score.ProfitPerDay)}/day");
+        Theme.Faint($"{score.Quote.DailyVelocity:0.0} sales/day   {score.Quote.DistinctSellers} sellers   share {score.ExpectedShare:P0}   clears in {Money.Days(score.DaysToClear)}");
+        Theme.Faint($"capital {Money.Gil(score.CapitalPerSlot)}   trend {score.TrendPercent:+0.0%;-0.0%;0%}");
+
+        ImGui.Spacing();
+        Theme.Dimmed(score.Explain);
+
+        if (candidate.Quote.PriceHistory.Length >= 2)
+        {
+            ImGui.Spacing();
+            var chartPos = ImGui.GetCursorScreenPos();
+            var chartSize = new Vector2(ImGui.GetContentRegionAvail().X, 64f);
+            ImGui.Dummy(chartSize);
+            DrawSparkline(ImGui.GetWindowDrawList(), chartPos, chartSize, candidate.Quote.PriceHistory, Theme.U32(Theme.Accent));
+        }
+
+        ImGui.Spacing();
+        if (ImGui.Button(this.IsSlotPinned(candidate.ItemId, candidate.Quality) ? "unpin" : "pin to slot"))
+            this.TogglePin(candidate.ItemId, candidate.Quality);
+
+        ImGui.SameLine();
+        if (ImGui.Button("universalis"))
+            OpenUrl($"https://universalis.app/market/{candidate.ItemId}");
+
+        ImGui.SameLine();
+        if (ImGui.Button("close"))
+            ImGui.CloseCurrentPopup();
+
+        ImGui.EndPopup();
     }
 
     /// <summary>
@@ -257,6 +337,8 @@ public sealed class MainWindow : Window
         var pos = ImGui.GetCursorScreenPos();
         var height = ImGui.GetTextLineHeight() + 10f;
         var x = pos.X;
+        var activeMin = pos.X;
+        var activeWidth = 0f;
 
         for (var index = 0; index < TabLabels.Length; index++)
         {
@@ -267,18 +349,17 @@ public sealed class MainWindow : Window
             var hovered = ImGui.IsMouseHoveringRect(min, max);
             var active = index == this.activeTab;
 
+            if (active)
+            {
+                activeMin = min.X;
+                activeWidth = width;
+            }
+
             if (hovered && !active)
                 drawList.AddRectFilled(min, max, Theme.WithAlpha(Theme.PanelHover, 0.7f), 3f);
 
             var textColor = active || hovered ? Theme.Text : Theme.TextDim;
             drawList.AddText(font, ImGui.GetFontSize(), min + new Vector2(8f, 5f), Theme.U32(textColor), label);
-
-            if (active)
-                drawList.AddRectFilled(
-                    new Vector2(min.X + 6f, max.Y - 2f),
-                    new Vector2(max.X - 6f, max.Y),
-                    Theme.U32(Theme.Accent),
-                    1f);
 
             if (hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left) && this.activeTab != index)
             {
@@ -289,6 +370,21 @@ public sealed class MainWindow : Window
 
             x += width;
         }
+
+        // One underline that glides between tabs instead of switching instantly.
+        if (!this.tabUnderlineInit)
+        {
+            this.tabUnderlineX = activeMin;
+            this.tabUnderlineInit = true;
+        }
+
+        this.tabUnderlineX += (activeMin - this.tabUnderlineX) * (1f - MathF.Exp(-14f * ImGui.GetIO().DeltaTime));
+
+        drawList.AddRectFilled(
+            new Vector2(this.tabUnderlineX + 6f, pos.Y + height - 2f),
+            new Vector2(this.tabUnderlineX + activeWidth - 6f, pos.Y + height),
+            Theme.U32(Theme.Accent),
+            1f);
 
         ImGui.Dummy(new Vector2(0f, height));
         UiKit.Rule(0.05f);
@@ -575,6 +671,17 @@ public sealed class MainWindow : Window
         ImGui.SameLine();
         Theme.Faint($"{rows.Count} shown");
 
+        if (ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows) && !ImGui.IsAnyItemActive() && rows.Count > 0)
+        {
+            if (ImGui.IsKeyPressed(ImGuiKey.DownArrow))
+                this.selectedRow = Math.Min(rows.Count - 1, this.selectedRow + 1);
+            else if (ImGui.IsKeyPressed(ImGuiKey.UpArrow))
+                this.selectedRow = Math.Max(0, this.selectedRow - 1);
+
+            if (this.selectedRow >= 0 && this.selectedRow < rows.Count && ImGui.IsKeyPressed(ImGuiKey.Enter))
+                this.TogglePin(rows[this.selectedRow].ItemId, rows[this.selectedRow].Quality);
+        }
+
         if (this.plugin.State.Diff is { HasAnything: true } changes)
         {
             ImGui.SameLine();
@@ -628,7 +735,7 @@ public sealed class MainWindow : Window
         this.maxProfitMagnitude = maxMagnitude;
 
         for (var i = 0; i < limit; i++)
-            this.DrawRow(rows[i]);
+            this.DrawRow(rows[i], i);
 
         ImGui.EndTable();
         ImGui.PopStyleVar();
@@ -789,7 +896,7 @@ public sealed class MainWindow : Window
         return ("slow", Theme.TextDim);
     }
 
-    private void DrawRow(SlotCandidate candidate)
+    private void DrawRow(SlotCandidate candidate, int index)
     {
         var score = candidate.Score;
         var info = this.plugin.Catalog.Get(candidate.ItemId);
@@ -806,6 +913,12 @@ public sealed class MainWindow : Window
             var rowMin = new Vector2(ImGui.GetCursorScreenPos().X, rowTop);
             var rowMax = new Vector2(rowMin.X + ImGui.GetContentRegionAvail().X, rowBottom);
             ImGui.GetWindowDrawList().AddRectFilled(rowMin, rowMax, Theme.WithAlpha(Theme.Accent, 0.10f), 2f);
+        }
+
+        if (index == this.selectedRow)
+        {
+            var barMin = new Vector2(ImGui.GetCursorScreenPos().X - 2f, rowTop);
+            ImGui.GetWindowDrawList().AddRectFilled(barMin, barMin + new Vector2(3f, rowBottom - rowTop), Theme.U32(Theme.Accent));
         }
         ImGui.TableNextColumn();
 
@@ -847,6 +960,13 @@ public sealed class MainWindow : Window
 
         if (ImGui.BeginPopupContextItem($"##ctx{candidate.ItemId}{candidate.Quality}"))
         {
+            if (ImGui.MenuItem("Details..."))
+            {
+                this.detailItemId = candidate.ItemId;
+                this.detailQuality = candidate.Quality;
+                this.openDetail = true;
+            }
+
             if (ImGui.MenuItem(pinned ? "Unpin" : "Pin to my slots"))
                 this.TogglePin(candidate.ItemId, candidate.Quality);
 
