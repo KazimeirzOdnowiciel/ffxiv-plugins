@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.Command;
+using Dalamud.Game.Gui.Dtr;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
@@ -44,6 +45,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Dictionary<(uint ItemId, Quality Quality), MarketQuote> listingQuotes = new();
     private readonly HashSet<uint> listingQuotesInFlight = new();
     private readonly object listingQuoteLock = new();
+    private IDtrBarEntry? dtrEntry;
 
     public Plugin()
     {
@@ -108,6 +110,11 @@ public sealed class Plugin : IDalamudPlugin
             this.mainWindow.IsOpen = true;
 
         Log.Information("[SlotYield] Loaded. World: {World}", this.ResolveWorld());
+
+        this.dtrEntry = DtrBar.Get("Slot Yield");
+        this.dtrEntry.Tooltip = "Best gil/day - click for Slot Yield";
+        this.dtrEntry.OnClick = _ => this.OpenMain();
+        this.dtrEntry.Shown = false;
     }
 
     [PluginService]
@@ -130,6 +137,9 @@ public sealed class Plugin : IDalamudPlugin
 
     [PluginService]
     internal static IFramework Framework { get; private set; } = null!;
+
+    [PluginService]
+    internal static IDtrBar DtrBar { get; private set; } = null!;
 
     [PluginService]
     internal static IMarketBoard MarketBoard { get; private set; } = null!;
@@ -185,6 +195,9 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenConfigUi -= this.OpenMain;
         PluginInterface.UiBuilder.OpenMainUi -= this.OpenMain;
         this.windowSystem.RemoveAllWindows();
+
+        this.dtrEntry?.Remove();
+        this.dtrEntry = null;
 
         this.Client.Dispose();
         this.SaveConfig();
@@ -2257,6 +2270,18 @@ public sealed class Plugin : IDalamudPlugin
                         ChatGui.PrintError("[Slot Yield] No recipe data was loaded; costs fall back to market prices.");
 
                     this.CheckProfitFloor(result);
+
+                    if (this.dtrEntry is { } dtr)
+                    {
+                        var bestEntry = result.Candidates
+                            .Where(c => !c.Score.IsDead && !c.Score.IsSuspect)
+                            .Select(c => c.Score.ProfitPerDay)
+                            .DefaultIfEmpty(0m)
+                            .Max();
+
+                        dtr.Text = bestEntry > 0m ? $"+{Money.Gil(bestEntry)}/d" : "no picks";
+                        dtr.Shown = Configuration.DtrBar;
+                    }
                 });
             }
             catch (OperationCanceledException)

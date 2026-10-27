@@ -1980,6 +1980,14 @@ public sealed class MainWindow : Window
             this.plugin.SaveConfig();
         }
 
+        ImGui.SameLine();
+        var dtrBar = this.Config.DtrBar;
+        if (ImGui.Checkbox("dtr bar", ref dtrBar))
+        {
+            this.Config.DtrBar = dtrBar;
+            this.plugin.SaveConfig();
+        }
+
         UiKit.SectionHeader("World");
         var worlds = this.plugin.Worlds;
         var world = this.plugin.ResolveWorld();

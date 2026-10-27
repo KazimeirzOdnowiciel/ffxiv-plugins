@@ -70,6 +70,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Draw the opportunity table with tighter row padding.</summary>
     public bool CompactRows { get; set; }
 
+    /// <summary>Show the best gil/day in the server info bar.</summary>
+    public bool DtrBar { get; set; } = true;
+
     /// <summary>Total gil/day from past scans, oldest first, for the header pulse.</summary>
     public List<ScanPulse> ScanHistory { get; set; } = new();
 
