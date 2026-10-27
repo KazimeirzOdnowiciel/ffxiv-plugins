@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 
@@ -69,7 +70,7 @@ internal static class UiKit
     /// This is the window's signature element — the product's model (N slots competing for
     /// gil/day) made visible without opening a tab.
     /// </summary>
-    public static void SlotStrip(ImDrawListPtr list, Vector2 origin, float width, float height, int total, int filled, out int hovered)
+    public static void SlotStrip(ImDrawListPtr list, Vector2 origin, float width, float height, int total, int filled, out int hovered, IReadOnlyList<(uint IconId, bool Hq)>? icons = null)
     {
         hovered = -1;
         if (total <= 0 || width <= 0f)
@@ -94,6 +95,17 @@ internal static class UiKit
             {
                 var tint = Theme.Lerp(Theme.Accent, Theme.AccentBright, total <= 1 ? 0f : i / (float)(total - 1));
                 list.AddRectFilled(min, max, Theme.U32(tint), rounding);
+
+                if (icons is not null && i < icons.Count)
+                {
+                    var (iconId, hq) = icons[i];
+                    if (IconCache.TryGet(iconId, hq, out var iconWrap) && iconWrap is not null)
+                    {
+                        var side = MathF.Max(4f, height - 4f);
+                        var iconMin = new Vector2(min.X + ((cell - side) * 0.5f), min.Y + ((height - side) * 0.5f));
+                        list.AddImage(iconWrap.Handle, iconMin, iconMin + new Vector2(side, side));
+                    }
+                }
             }
             else
             {

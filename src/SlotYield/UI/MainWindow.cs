@@ -337,7 +337,14 @@ public sealed class MainWindow : Window
         var slots = Math.Clamp(this.Config.PortfolioSlots, 1, 40);
         var filled = Math.Clamp(this.Config.Pinned.Count, 0, slots);
 
-        UiKit.SlotStrip(ImGui.GetWindowDrawList(), stripOrigin, stripWidth, 14f, slots, filled, out var hovered);
+        var pinnedIcons = new List<(uint IconId, bool Hq)>(filled);
+        for (var index = 0; index < this.Config.Pinned.Count; index++)
+        {
+            var slot = this.Config.Pinned[index];
+            pinnedIcons.Add((UiKit.IconIdForItem(slot.ItemId), slot.Hq));
+        }
+
+        UiKit.SlotStrip(ImGui.GetWindowDrawList(), stripOrigin, stripWidth, 14f, slots, filled, out var hovered, pinnedIcons);
         ImGui.Dummy(new Vector2(stripWidth, 26f));
 
         if (hovered >= 0)
