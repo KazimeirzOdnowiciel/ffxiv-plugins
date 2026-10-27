@@ -2202,6 +2202,17 @@ public sealed class MainWindow : Window
         }
 
         ImGui.SameLine();
+        var exceptionLog = this.Config.ExceptionLog;
+        if (ImGui.Checkbox("exception log", ref exceptionLog))
+        {
+            this.Config.ExceptionLog = exceptionLog;
+            this.plugin.SaveConfig();
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Diagnostic: log first-chance exceptions to dalamud.log. Applies after a plugin reload.");
+
+        ImGui.SameLine();
         ImGui.SetNextItemWidth(150f);
         var toastThreshold = (int)Math.Clamp(this.Config.ToastThreshold, 0, 200_000);
         if (ImGui.SliderInt("##toast", ref toastThreshold, 0, 200_000, toastThreshold <= 0 ? "no alert" : "alert >= %d/day"))

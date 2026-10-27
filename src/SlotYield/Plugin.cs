@@ -51,6 +51,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly object listingQuoteLock = new();
     private IDtrBarEntry? dtrEntry;
     private bool frameworkFaultLogged;
+    private int exceptionLogCount;
+    private bool exceptionLogging;
 
     public Plugin()
     {
@@ -131,6 +133,9 @@ public sealed class Plugin : IDalamudPlugin
         this.dtrEntry.OnClick = _ => this.OpenMain();
         this.dtrEntry.Text = "no scan";
         this.dtrEntry.Shown = false;
+
+        if (Configuration.ExceptionLog)
+            AppDomain.CurrentDomain.FirstChanceException += this.OnFirstChanceException;
     }
 
     [PluginService]
@@ -215,15 +220,47 @@ public sealed class Plugin : IDalamudPlugin
         this.dtrEntry?.Remove();
         this.dtrEntry = null;
 
+        AppDomain.CurrentDomain.FirstChanceException -= this.OnFirstChanceException;
+
         this.Client.Dispose();
         this.SaveConfig();
     }
 
     public void SaveConfig() => PluginInterface.SavePluginConfig(Configuration);
 
-    /// <summary>Re-apply the dtr bar preference (and the current best pick) immediately.</summary>
-    public void RefreshDtr()
+    private void OnFirstChanceException(object? sender, System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs args)
     {
+        if (this.exceptionLogging || this.exceptionLogCount >= 400)
+            return;
+
+        this.exceptionLogging = true;
+        try
+        {
+            var exception = args.Exception;
+            var stack = exception.StackTrace ?? string.Empty;
+            if (stack.Contains("SlotYield", StringComparison.Ordinal))
+                return;
+
+            this.exceptionLogCount++;
+            Log.Warning(
+                "[SlotYield][firstchance] {Type}: {Message} @ {Site}\n{Stack}",
+                exception.GetType().FullName,
+                exception.Message,
+                exception.TargetSite,
+                stack);
+        }
+        catch
+        {
+            // the tracer must never throw
+        }
+        finally
+        {
+            this.exceptionLogging = false;
+        }
+    }
+
+    /// <summary>Re-apply the dtr bar preference (and the current best pick) immediately.</summary>
+    public void RefreshDtr()    {
         if (this.dtrEntry is not { } dtr)
             return;
 
