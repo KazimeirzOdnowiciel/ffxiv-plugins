@@ -138,6 +138,19 @@ internal static class UiKit
 
         var filledEnd = new Vector2(origin.X + MathF.Max(height, width * clamped), origin.Y + height);
         list.AddRectFilled(origin, filledEnd, Theme.U32(Theme.Accent), rounding);
+
+        // A highlight sweeps the filled part while the scan runs, so the bar reads as active.
+        var filledWidth = filledEnd.X - origin.X;
+        if (filledWidth > height * 2f)
+        {
+            var phase = (float)(ImGui.GetTime() % 1.6) / 1.6f;
+            var bandWidth = MathF.Max(height * 2f, filledWidth * 0.20f);
+            var bandX = origin.X - bandWidth + ((filledWidth + bandWidth) * phase);
+            var bandMin = MathF.Max(origin.X, bandX);
+            var bandMax = MathF.Min(filledEnd.X, bandX + bandWidth);
+            if (bandMax > bandMin)
+                list.AddRectFilled(new Vector2(bandMin, origin.Y), new Vector2(bandMax, origin.Y + height), Theme.WithAlpha(Theme.AccentBright, 0.55f), rounding);
+        }
     }
 
     /// <summary>A 0..1 bar for expected share, drawn inline in a table cell.</summary>

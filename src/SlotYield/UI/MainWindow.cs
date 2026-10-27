@@ -33,6 +33,8 @@ public sealed class MainWindow : Window
     private float animatedBestProfit;
     private float animatedLive;
     private float animatedProfitable;
+    private float animatedBestPickProfit;
+    private float animatedPortfolioProfit;
 
     private static readonly string[] TabLabels =
     {
@@ -607,7 +609,9 @@ public sealed class MainWindow : Window
             }
 
             ImGui.SameLine(0f, 20f);
-            var profitText = "+" + Money.Gil(score.ProfitPerDay);
+            var ease = 1f - MathF.Exp(-7f * ImGui.GetIO().DeltaTime);
+            this.animatedBestPickProfit += ((float)score.ProfitPerDay - this.animatedBestPickProfit) * ease;
+            var profitText = "+" + Money.Gil((decimal)this.animatedBestPickProfit);
             var profitPos = ImGui.GetCursorScreenPos() + new Vector2(0f, -4f);
             drawList.AddText(font, 20f, profitPos, Theme.U32(Theme.Profit), profitText);
             var profitWidth = ImGui.CalcTextSize(profitText).X * (20f / ImGui.GetFontSize());
@@ -983,7 +987,9 @@ public sealed class MainWindow : Window
 
             Theme.Colored(Theme.Accent, "BEST PORTFOLIO");
 
-            var profitText = "+" + Money.Gil(plan.GilPerDay);
+            var ease = 1f - MathF.Exp(-7f * ImGui.GetIO().DeltaTime);
+            this.animatedPortfolioProfit += ((float)plan.GilPerDay - this.animatedPortfolioProfit) * ease;
+            var profitText = "+" + Money.Gil((decimal)this.animatedPortfolioProfit);
             var profitPos = ImGui.GetCursorScreenPos() + new Vector2(0f, -3f);
             drawList.AddText(font, 20f, profitPos, Theme.U32(Theme.Profit), profitText);
             var profitWidth = ImGui.CalcTextSize(profitText).X * (20f / ImGui.GetFontSize());
