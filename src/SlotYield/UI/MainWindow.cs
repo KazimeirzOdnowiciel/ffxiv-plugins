@@ -48,6 +48,7 @@ public sealed class MainWindow : Window
     private bool tabUnderlineInit;
     private readonly HashSet<(uint ItemId, Quality Quality)> multiSelected = new();
     private string presetName = string.Empty;
+    private string shareInput = string.Empty;
 
     private static readonly string[] TabLabels =
     {
@@ -1404,6 +1405,27 @@ public sealed class MainWindow : Window
         var pinned = this.Config.Pinned;
         Theme.Colored(Theme.Text, $"My slots ({pinned.Count})");
 
+        ImGui.SameLine();
+        if (ImGui.SmallButton("share"))
+            ImGui.SetClipboardText(this.plugin.BuildShareCode());
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton("import"))
+            ImGui.OpenPopup("##importslots");
+
+        if (ImGui.BeginPopup("##importslots"))
+        {
+            ImGui.InputTextWithHint("##slotcode", "paste a share code", ref this.shareInput, 512);
+            if (ImGui.Button("import"))
+            {
+                this.plugin.ImportShareCode(this.shareInput);
+                this.shareInput = string.Empty;
+                ImGui.CloseCurrentPopup();
+            }
+
+            ImGui.EndPopup();
+        }
+
         if (pinned.Count == 0)
         {
             Theme.Faint("Pin items from the Opportunities tab to model the slots you actually keep stocked.");
@@ -2107,6 +2129,15 @@ public sealed class MainWindow : Window
             }
 
             ImGui.EndCombo();
+        }
+
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(150f);
+        var toastThreshold = (int)Math.Clamp(this.Config.ToastThreshold, 0, 200_000);
+        if (ImGui.SliderInt("##toast", ref toastThreshold, 0, 200_000, toastThreshold <= 0 ? "no alert" : "alert >= %d/day"))
+        {
+            this.Config.ToastThreshold = toastThreshold;
+            this.plugin.SaveConfig();
         }
 
         UiKit.SectionHeader("World");

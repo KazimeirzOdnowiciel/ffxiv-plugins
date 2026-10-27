@@ -234,6 +234,54 @@ public sealed class Plugin : IDalamudPlugin
         dtr.Text = best > 0m ? $"+{Money.Gil(best)}/d" : "no picks";
     }
 
+    /// <summary>Encode the pinned portfolio as a portable base64 string.</summary>
+    public string BuildShareCode()
+    {
+        var parts = Configuration.Pinned.Select(slot => $"{slot.ItemId}:{(slot.Hq ? 1 : 0)}:{slot.StackSize}");
+        return Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(string.Join(",", parts)));
+    }
+
+    /// <summary>Merge a share code into the pinned portfolio; returns how many slots were added.</summary>
+    public int ImportShareCode(string code)
+    {
+        try
+        {
+            var decoded = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(code.Trim()));
+            var added = 0;
+
+            foreach (var part in decoded.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var fields = part.Split(':');
+                if (fields.Length < 3 || !uint.TryParse(fields[0], out var itemId) || !int.TryParse(fields[2], out var stack))
+                    continue;
+
+                var hq = fields[1] == "1";
+                if (Configuration.Pinned.Any(slot => slot.ItemId == itemId && slot.Hq == hq))
+                    continue;
+
+                Configuration.Pinned.Add(new PinnedSlot
+                {
+                    ItemId = itemId,
+                    Hq = hq,
+                    StackSize = Math.Clamp(stack, 1, 9999),
+                });
+                added++;
+            }
+
+            if (added > 0)
+            {
+                Configuration.Normalize();
+                this.SaveConfig();
+            }
+
+            return added;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     public void Print(string message) => ChatGui.Print($"[Slot Yield] {message}");
 
     public IReadOnlyList<CraftOpportunity> CraftPlan { get; private set; } = Array.Empty<CraftOpportunity>();
@@ -2309,6 +2357,23 @@ public sealed class Plugin : IDalamudPlugin
                     {
                         ApplyDtr(dtr, result);
                         dtr.Shown = Configuration.DtrBar;
+                    }
+
+                    if (Configuration.ToastThreshold > 0)
+                    {
+                        var bestToast = result.Candidates
+                            .Where(c => !c.Score.IsDead && !c.Score.IsSuspect)
+                            .Select(c => c.Score.ProfitPerDay)
+                            .DefaultIfEmpty(0m)
+                            .Max();
+
+                        if (bestToast >= Configuration.ToastThreshold)
+                            Notifications.AddNotification(new Notification
+                            {
+                                Title = "Slot Yield",
+                                Content = $"Best pick now {Money.Gil(bestToast)}/day",
+                                Type = NotificationType.Success,
+                            });
                     }
                 });
             }

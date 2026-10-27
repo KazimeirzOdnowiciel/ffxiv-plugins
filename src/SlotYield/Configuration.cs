@@ -100,6 +100,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Colour palette variant.</summary>
     public ThemeVariant Theme { get; set; } = ThemeVariant.Graphite;
 
+    /// <summary>Notify when a scan's best gil/day reaches this value (0 = off).</summary>
+    public long ToastThreshold { get; set; }
+
     /// <summary>Total gil/day from past scans, oldest first, for the header pulse.</summary>
     public List<ScanPulse> ScanHistory { get; set; } = new();
 
