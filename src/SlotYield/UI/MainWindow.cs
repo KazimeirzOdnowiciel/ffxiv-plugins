@@ -769,6 +769,7 @@ public sealed class MainWindow : Window
         var sparkPosition = ImGui.GetCursorScreenPos();
         var sparkSize = new Vector2(92f, 24f);
         ImGui.Dummy(sparkSize);
+        ImGui.GetWindowDrawList().AddRectFilled(sparkPosition, sparkPosition + sparkSize, Theme.WithAlpha(Theme.PanelRaised, 0.40f), 4f);
 
         if (series.Length >= 2)
         {
@@ -1485,6 +1486,14 @@ public sealed class MainWindow : Window
             var advice = review.Status == ListingStatus.Unpriced && this.plugin.IsPricingListings
                 ? "pricing..."
                 : review.Advice;
+
+            var dotOrigin = ImGui.GetCursorScreenPos();
+            ImGui.GetWindowDrawList().AddCircleFilled(
+                new Vector2(dotOrigin.X + 4f, dotOrigin.Y + (ImGui.GetTextLineHeight() * 0.5f)),
+                2.6f,
+                Theme.U32(statusColor));
+            ImGui.Dummy(new Vector2(12f, ImGui.GetTextLineHeight()));
+            ImGui.SameLine(0f, 0f);
             Theme.Colored(statusColor, advice);
 
             ImGui.TableNextColumn();
