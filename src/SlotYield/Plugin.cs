@@ -54,6 +54,10 @@ public sealed class Plugin : IDalamudPlugin
     private int exceptionLogCount;
     private bool exceptionLogging;
 
+    /// <summary>Set while SlotYield runs its own try/catch-guarded lookups, so the tracer ignores them.</summary>
+    [System.ThreadStatic]
+    public static bool SuppressTracer;
+
     public Plugin()
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
@@ -230,7 +234,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnFirstChanceException(object? sender, System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs args)
     {
-        if (this.exceptionLogging || this.exceptionLogCount >= 400)
+        if (SuppressTracer || this.exceptionLogging || this.exceptionLogCount >= 2000)
             return;
 
         this.exceptionLogging = true;

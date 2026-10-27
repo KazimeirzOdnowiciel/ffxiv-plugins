@@ -271,6 +271,7 @@ internal static class UiKit
     /// <summary>Icon id for an item row, or 0 when the sheet has no such row.</summary>
     public static uint IconIdForItem(uint itemId)
     {
+        Plugin.SuppressTracer = true;
         try
         {
             return Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Item>().GetRow(itemId).Icon;
@@ -278,6 +279,10 @@ internal static class UiKit
         catch
         {
             return 0;
+        }
+        finally
+        {
+            Plugin.SuppressTracer = false;
         }
     }
 

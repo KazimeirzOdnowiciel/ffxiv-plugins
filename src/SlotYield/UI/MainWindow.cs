@@ -2483,14 +2483,20 @@ public sealed class MainWindow : Window
             return cached;
 
         string name;
+        Plugin.SuppressTracer = true;
         try
         {
-            var item = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Item>().GetRow(itemId);
+            var sheet = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Item>();
+            var item = sheet.GetRow(itemId);
             name = item.ItemUICategory.Value.Name.ToString();
         }
         catch
         {
             name = string.Empty;
+        }
+        finally
+        {
+            Plugin.SuppressTracer = false;
         }
 
         this.categoryNames[itemId] = name;
