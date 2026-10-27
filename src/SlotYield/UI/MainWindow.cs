@@ -1006,6 +1006,8 @@ public sealed class MainWindow : Window
 
             if (candidate is null)
             {
+                UiKit.ItemIcon(UiKit.IconIdForItem(slot.ItemId), slot.Hq, 16f);
+                ImGui.SameLine(0f, 6f);
                 Theme.Colored(Theme.Warn, $"  {name}  -  not in the last scan (pin it again after a rescan)");
             }
             else
@@ -1031,6 +1033,8 @@ public sealed class MainWindow : Window
                 }
 
                 ImGui.SameLine();
+                UiKit.ItemIcon(UiKit.IconIdForItem(slot.ItemId), slot.Hq, 16f);
+                ImGui.SameLine(0f, 6f);
                 var color = score.IsDead || score.ProfitPerDay <= 0m ? Theme.Danger : Theme.Text;
                 Theme.Colored(color, $"{name,-34} {Money.Gil(score.ProfitPerDay),8}/day  {Money.Days(score.DaysToClear),6}  {score.Verdict}");
             }
