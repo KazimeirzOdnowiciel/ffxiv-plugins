@@ -20,6 +20,36 @@ internal static class UiKit
     }
 
     /// <summary>
+    /// A section title that reads as chrome rather than a stock label: a small brass diamond,
+    /// the title in dimmed text, then a hairline that trails off to the right edge.
+    /// </summary>
+    public static void SectionHeader(string label)
+    {
+        var drawList = ImGui.GetWindowDrawList();
+        var font = ImGui.GetFont();
+        var origin = ImGui.GetCursorScreenPos();
+        var height = ImGui.GetTextLineHeight();
+        var mid = origin.Y + (height * 0.5f);
+
+        var center = new Vector2(origin.X + 4f, mid);
+        drawList.AddQuadFilled(
+            center + new Vector2(0f, -3.2f),
+            center + new Vector2(3.2f, 0f),
+            center + new Vector2(0f, 3.2f),
+            center + new Vector2(-3.2f, 0f),
+            Theme.U32(Theme.Accent));
+
+        drawList.AddText(font, ImGui.GetFontSize(), origin + new Vector2(14f, 0f), Theme.U32(Theme.TextDim), label);
+
+        var textEnd = origin.X + 14f + ImGui.CalcTextSize(label).X + 10f;
+        var right = origin.X + ImGui.GetContentRegionAvail().X;
+        if (right > textEnd)
+            drawList.AddLine(new Vector2(textEnd, mid), new Vector2(right, mid), Theme.WithAlpha(Theme.Text, 0.07f));
+
+        ImGui.Dummy(new Vector2(ImGui.GetContentRegionAvail().X, height + 3f));
+    }
+
+    /// <summary>
     /// The retainer slot strip: one cell per portfolio slot, filled ones brass-shaded.
     /// This is the window's signature element — the product's model (N slots competing for
     /// gil/day) made visible without opening a tab.

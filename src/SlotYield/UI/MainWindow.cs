@@ -28,6 +28,13 @@ public sealed class MainWindow : Window
     private bool sortAscending;
     private bool showDead;
     private int qualityFilter;
+    private decimal maxProfitMagnitude = 1m;
+    private int activeTab;
+
+    private static readonly string[] TabLabels =
+    {
+        "Opportunities", "Changes", "Portfolio", "Craft", "My listings", "Scan",
+    };
     private int minGilPerDay;
     private bool pinnedOnly;
     private bool affordableOnly;
@@ -197,58 +204,73 @@ public sealed class MainWindow : Window
     private void DrawContent()
     {
         this.DrawHeader();
+        this.DrawTabBar();
 
-        // Tab colours carry the brass accent; ImGui's defaults read as a debug tool.
-        ImGui.PushStyleColor(ImGuiCol.Tab, Theme.Panel);
-        ImGui.PushStyleColor(ImGuiCol.TabHovered, Theme.PanelHover);
-        ImGui.PushStyleColor(ImGuiCol.TabActive, Theme.WithAlpha(Theme.Accent, 0.20f));
-        ImGui.PushStyleColor(ImGuiCol.TabUnfocused, Theme.Panel);
-        ImGui.PushStyleColor(ImGuiCol.TabUnfocusedActive, Theme.WithAlpha(Theme.Accent, 0.10f));
-
-        if (!ImGui.BeginTabBar("##slotyield-tabs"))
+        switch (this.activeTab)
         {
-            ImGui.PopStyleColor(5);
-            return;
+            case 0:
+                this.DrawOpportunities();
+                break;
+            case 1:
+                this.DrawChanges();
+                break;
+            case 2:
+                this.DrawPortfolio();
+                break;
+            case 3:
+                this.DrawCraft();
+                break;
+            case 4:
+                this.DrawMyListings();
+                break;
+            default:
+                this.DrawScanTab();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Brass-underline tabs drawn by hand. The stock ImGui tabs are the last "tool window"
+    /// tell in this UI; these read as a ledger's index instead.
+    /// </summary>
+    private void DrawTabBar()
+    {
+        var drawList = ImGui.GetWindowDrawList();
+        var font = ImGui.GetFont();
+        var pos = ImGui.GetCursorScreenPos();
+        var height = ImGui.GetTextLineHeight() + 10f;
+        var x = pos.X;
+
+        for (var index = 0; index < TabLabels.Length; index++)
+        {
+            var label = TabLabels[index];
+            var width = ImGui.CalcTextSize(label).X + 16f;
+            var min = new Vector2(x, pos.Y);
+            var max = min + new Vector2(width, height);
+            var hovered = ImGui.IsMouseHoveringRect(min, max);
+            var active = index == this.activeTab;
+
+            if (hovered && !active)
+                drawList.AddRectFilled(min, max, Theme.WithAlpha(Theme.PanelHover, 0.7f), 3f);
+
+            var textColor = active || hovered ? Theme.Text : Theme.TextDim;
+            drawList.AddText(font, ImGui.GetFontSize(), min + new Vector2(8f, 5f), Theme.U32(textColor), label);
+
+            if (active)
+                drawList.AddRectFilled(
+                    new Vector2(min.X + 6f, max.Y - 2f),
+                    new Vector2(max.X - 6f, max.Y),
+                    Theme.U32(Theme.Accent),
+                    1f);
+
+            if (hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                this.activeTab = index;
+
+            x += width;
         }
 
-        if (ImGui.BeginTabItem("Opportunities"))
-        {
-            this.DrawOpportunities();
-            ImGui.EndTabItem();
-        }
-
-        if (ImGui.BeginTabItem("Changes"))
-        {
-            this.DrawChanges();
-            ImGui.EndTabItem();
-        }
-
-        if (ImGui.BeginTabItem("Portfolio"))
-        {
-            this.DrawPortfolio();
-            ImGui.EndTabItem();
-        }
-
-        if (ImGui.BeginTabItem("Craft"))
-        {
-            this.DrawCraft();
-            ImGui.EndTabItem();
-        }
-
-        if (ImGui.BeginTabItem("My listings"))
-        {
-            this.DrawMyListings();
-            ImGui.EndTabItem();
-        }
-
-        if (ImGui.BeginTabItem("Scan"))
-        {
-            this.DrawScanTab();
-            ImGui.EndTabItem();
-        }
-
-        ImGui.EndTabBar();
-        ImGui.PopStyleColor(5);
+        ImGui.Dummy(new Vector2(0f, height));
+        UiKit.Rule(0.05f);
     }
 
     // ------------------------------------------------------------------ header ----
@@ -301,8 +323,17 @@ public sealed class MainWindow : Window
                 this.plugin.StartScan();
         }
 
+        if (state.Result is { } bandResult)
+        {
+            ImGui.NewLine();
+            this.DrawStatBand(bandResult);
+        }
+        else
+        {
+            ImGui.NewLine();
+        }
+
         // Retainer slot strip: the portfolio's shape at a glance, one cell per slot.
-        ImGui.NewLine();
         var stripOrigin = ImGui.GetCursorScreenPos() + new Vector2(0f, 9f);
         var stripWidth = ImGui.GetContentRegionAvail().X;
         var slots = Math.Clamp(this.Config.PortfolioSlots, 1, 40);
@@ -329,7 +360,48 @@ public sealed class MainWindow : Window
         UiKit.Rule();
     }
 
-    // ----------------------------------------------------------- opportunities ----
+    /// <summary>Three large figures where the status line used to be: a dashboard head, not a sentence.</summary>
+    private void DrawStatBand(ScanResult result)
+    {
+        var live = 0;
+        var profitable = 0;
+        var bestProfit = 0m;
+
+        for (var index = 0; index < result.Candidates.Count; index++)
+        {
+            var candidate = result.Candidates[index];
+            if (candidate.Score.IsDead || candidate.Score.IsSuspect)
+                continue;
+
+            live++;
+            if (candidate.Score.ProfitPerDay > 0m)
+                profitable++;
+            if (candidate.Score.ProfitPerDay > bestProfit)
+                bestProfit = candidate.Score.ProfitPerDay;
+        }
+
+        var drawList = ImGui.GetWindowDrawList();
+        var font = ImGui.GetFont();
+        var origin = ImGui.GetCursorScreenPos();
+        var width = ImGui.GetContentRegionAvail().X;
+        const float bandHeight = 46f;
+        var cell = width / 3f;
+
+        drawList.AddRectFilled(origin, origin + new Vector2(width, bandHeight), Theme.WithAlpha(Theme.Panel, 0.55f), 4f);
+        drawList.AddRect(origin, origin + new Vector2(width, bandHeight), Theme.U32(Theme.Hairline), 4f);
+
+        DrawStatCell(drawList, font, origin + new Vector2(12f, 6f), "BEST / DAY", "+" + Money.Gil(bestProfit), Theme.Profit);
+        DrawStatCell(drawList, font, origin + new Vector2(cell + 12f, 6f), "LIVE ITEMS", live.ToString(), Theme.Text);
+        DrawStatCell(drawList, font, origin + new Vector2((cell * 2f) + 12f, 6f), "PROFITABLE", profitable.ToString(), Theme.Accent);
+
+        ImGui.Dummy(new Vector2(width, bandHeight + 6f));
+    }
+
+    private static void DrawStatCell(ImDrawListPtr drawList, ImFontPtr font, Vector2 position, string label, string value, Vector4 color)
+    {
+        drawList.AddText(font, 10f, position, Theme.U32(Theme.TextFaint), label);
+        drawList.AddText(font, 20f, position + new Vector2(0f, 13f), Theme.U32(color), value);
+    }
 
     private void DrawOpportunities()
     {
@@ -352,6 +424,12 @@ public sealed class MainWindow : Window
 
             return;
         }
+
+        var best = this.BestCandidate(result.Candidates);
+        if (best is not null)
+            this.DrawBestPick(best);
+
+        UiKit.SectionHeader("All opportunities");
 
         // Filters.
         ImGui.SetNextItemWidth(220f);
@@ -432,6 +510,16 @@ public sealed class MainWindow : Window
         this.DrawHeaderRow();
 
         var limit = Math.Min(rows.Count, 250);
+        var maxMagnitude = 1m;
+        for (var i = 0; i < limit; i++)
+        {
+            var magnitude = Math.Abs(rows[i].Score.ProfitPerDay);
+            if (magnitude > maxMagnitude)
+                maxMagnitude = magnitude;
+        }
+
+        this.maxProfitMagnitude = maxMagnitude;
+
         for (var i = 0; i < limit; i++)
             this.DrawRow(rows[i]);
 
@@ -439,6 +527,84 @@ public sealed class MainWindow : Window
 
         if (rows.Count > limit)
             Theme.Faint($"showing the first {limit} of {rows.Count} - narrow the filter to see the rest");
+    }
+
+    private SlotCandidate? BestCandidate(IReadOnlyList<SlotCandidate> candidates)
+    {
+        SlotCandidate? best = null;
+        var bestProfit = decimal.MinValue;
+
+        for (var index = 0; index < candidates.Count; index++)
+        {
+            var candidate = candidates[index];
+            if (candidate.Score.IsDead || candidate.Score.IsSuspect)
+                continue;
+
+            if (candidate.Score.ProfitPerDay > bestProfit)
+            {
+                bestProfit = candidate.Score.ProfitPerDay;
+                best = candidate;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// The one figure the window exists to answer: your best slot right now. Drawn as a card
+    /// above the table so the tab has a clear hero instead of opening on a wall of rows.
+    /// </summary>
+    private void DrawBestPick(SlotCandidate candidate)
+    {
+        var score = candidate.Score;
+        var info = this.plugin.Catalog.Get(candidate.ItemId);
+        var pinned = this.IsSlotPinned(candidate.ItemId, candidate.Quality);
+
+        ImGui.PushStyleColor(ImGuiCol.ChildBg, Theme.WithAlpha(Theme.Accent, 0.06f));
+        ImGui.PushStyleColor(ImGuiCol.Border, Theme.WithAlpha(Theme.Accent, 0.32f));
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 5f);
+        ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10f, 7f));
+
+        if (ImGui.BeginChild("##bestpick", new Vector2(0f, 84f), true))
+        {
+            var drawList = ImGui.GetWindowDrawList();
+            var font = ImGui.GetFont();
+
+            Theme.Colored(Theme.Accent, "BEST PICK");
+
+            ImGui.SameLine(ImGui.GetWindowContentRegionMax().X - 46f);
+            if (ImGui.SmallButton(pinned ? "unpin" : "pin"))
+                this.TogglePin(candidate.ItemId, candidate.Quality);
+
+            UiKit.ItemIcon(UiKit.IconIdForItem(candidate.ItemId), candidate.Quality == Quality.Hq, 30f);
+            ImGui.SameLine(0f, 8f);
+            Theme.Colored(Theme.Text, info.Name);
+            if (candidate.Quality == Quality.Hq)
+            {
+                ImGui.SameLine(0f, 6f);
+                Theme.Colored(Theme.Hq, "HQ");
+            }
+
+            ImGui.SameLine(0f, 20f);
+            var profitText = "+" + Money.Gil(score.ProfitPerDay);
+            var profitPos = ImGui.GetCursorScreenPos() + new Vector2(0f, -4f);
+            drawList.AddText(font, 20f, profitPos, Theme.U32(Theme.Profit), profitText);
+            var profitWidth = ImGui.CalcTextSize(profitText).X * (20f / ImGui.GetFontSize());
+            ImGui.Dummy(new Vector2(profitWidth + 4f, 22f));
+            ImGui.SameLine(0f, 2f);
+            Theme.Faint("gil/day per slot");
+
+            var cost = score.CostPerUnit is { } unitCost ? Money.Gil(unitCost) : "-";
+            Theme.Faint(
+                $"price {Money.Gil(score.ListPrice)}   cost {cost}   {score.Quote.DailyVelocity:0.0} sales/day   clears in {Money.Days(score.DaysToClear)}   share {Money.Percent(score.ExpectedShare)}");
+        }
+
+        ImGui.EndChild();
+        ImGui.PopStyleVar(3);
+        ImGui.PopStyleColor(2);
+
+        ImGui.Spacing();
     }
 
     private void DrawHeaderRow()
@@ -549,6 +715,22 @@ public sealed class MainWindow : Window
         var profit = score.ProfitPerDay;
         // Profit is the one figure that leads a row; every other number stays neutral.
         var profitColor = dim ? Theme.TextFaint : profit <= 0m ? Theme.Danger : Theme.Profit;
+        if (!dim && this.maxProfitMagnitude > 0m)
+        {
+            var heat = Math.Clamp((float)(Math.Abs(profit) / this.maxProfitMagnitude), 0f, 1f);
+            if (heat > 0f)
+            {
+                var cellWidth = ImGui.GetContentRegionAvail().X;
+                var heatOrigin = ImGui.GetCursorScreenPos();
+                var heatColor = profit > 0m ? Theme.Profit : Theme.Danger;
+                ImGui.GetWindowDrawList().AddRectFilled(
+                    heatOrigin,
+                    heatOrigin + new Vector2(cellWidth * heat, ImGui.GetTextLineHeight()),
+                    Theme.WithAlpha(heatColor, 0.16f),
+                    2f);
+            }
+        }
+
         Theme.Colored(profitColor, dim ? "-" : Money.Gil(profit));
 
         ImGui.TableNextColumn();
