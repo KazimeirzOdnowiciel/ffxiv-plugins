@@ -19,6 +19,21 @@ internal static class UiKit
         ImGui.GetWindowDrawList().AddLine(origin, origin + new Vector2(width, 0f), Theme.WithAlpha(Theme.Text, alpha));
     }
 
+    /// <summary>A small rounded label, for scannable one-line lists (retainers, tags, statuses).</summary>
+    public static void Chip(string label, Vector4 color)
+    {
+        var drawList = ImGui.GetWindowDrawList();
+        var pos = ImGui.GetCursorScreenPos();
+        var textSize = ImGui.CalcTextSize(label);
+        const float padX = 7f;
+        const float padY = 2.5f;
+        var size = new Vector2(textSize.X + (padX * 2f), textSize.Y + (padY * 2f));
+
+        drawList.AddRectFilled(pos, pos + size, Theme.WithAlpha(color, 0.14f), size.Y / 2f);
+        drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), pos + new Vector2(padX, padY), Theme.U32(color), label);
+        ImGui.Dummy(size);
+    }
+
     /// <summary>
     /// A section title that reads as chrome rather than a stock label: a small brass diamond,
     /// the title in dimmed text, then a hairline that trails off to the right edge.

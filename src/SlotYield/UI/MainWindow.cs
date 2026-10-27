@@ -1193,15 +1193,18 @@ public sealed class MainWindow : Window
         var retainers = Retainers.All();
         if (retainers.Count > 0)
         {
-            var summary = string.Join(
-                "   ",
-                retainers.Select(r =>
-                {
-                    var free = Math.Max(0, MarketSlotsPerRetainer - r.MarketItemCount);
-                    return $"{r.Name} {r.MarketItemCount}/{MarketSlotsPerRetainer} ({free} free)";
-                }));
+            for (var index = 0; index < retainers.Count; index++)
+            {
+                var retainer = retainers[index];
+                var free = Math.Max(0, MarketSlotsPerRetainer - retainer.MarketItemCount);
+                var label = $"{retainer.Name} {retainer.MarketItemCount}/{MarketSlotsPerRetainer}";
+                var color = free == 0 ? Theme.Warn : free <= 2 ? Theme.AccentBright : Theme.TextDim;
 
-            Theme.Faint(summary);
+                if (index > 0)
+                    ImGui.SameLine(0f, 6f);
+
+                UiKit.Chip(label, color);
+            }
 
             var totalListed = retainers.Sum(r => r.MarketItemCount);
             var totalFree = retainers.Sum(r => Math.Max(0, MarketSlotsPerRetainer - r.MarketItemCount));

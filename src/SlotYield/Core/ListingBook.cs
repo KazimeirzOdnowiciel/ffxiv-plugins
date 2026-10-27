@@ -201,12 +201,12 @@ public static class ListingBook
         var advice = status switch
         {
             ListingStatus.Cheapest => "cheapest - leave it",
-            ListingStatus.AtMarket => "at the minimum - sharing the queue",
-            _ => $"reprice to {Money.Gil(suggested)} - {Money.Days(repricedDays)} instead of {Money.Days(days)}",
+            ListingStatus.AtMarket => "at minimum - sharing queue",
+            _ => $"reprice {Money.Gil(suggested)} ({Money.Days(repricedDays)} vs {Money.Days(days)})",
         };
 
         if (probablySold)
-            advice = $"not seen in {age.TotalDays:0}d - sold or expired?";
+            advice = $"not seen {age.TotalDays:0}d - sold?";
 
         return new ListingReview(
             listing,
