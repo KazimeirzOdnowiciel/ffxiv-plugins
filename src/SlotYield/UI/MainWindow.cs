@@ -390,8 +390,8 @@ public sealed class MainWindow : Window
 
         var ringPos = ImGui.GetCursorScreenPos();
         var ringFraction = budget > 0m ? Math.Clamp((float)(capital / budget), 0f, 1f) : 0f;
-        UiKit.Ring(ImGui.GetWindowDrawList(), ringPos + new Vector2(9f, 9f), 9f, 2.5f, ringFraction, capital > budget ? Theme.Warn : Theme.Accent);
-        ImGui.Dummy(new Vector2(22f, 18f));
+        UiKit.Ring(ImGui.GetWindowDrawList(), ringPos + new Vector2(11f, 11f), 11f, 3.5f, ringFraction, capital > budget ? Theme.Warn : Theme.Accent);
+        ImGui.Dummy(new Vector2(26f, 22f));
         ImGui.SameLine(0f, 4f);
         Theme.Faint($"{filled} pinned   -   {slots} slots   -   budget {Money.Gil(budget)}   ({Money.Gil(capital)} in)");
 
@@ -592,7 +592,7 @@ public sealed class MainWindow : Window
         var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY |
                     ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings;
 
-        ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, this.Config.CompactRows ? new Vector2(6f, 1f) : new Vector2(6f, 4f));
+        ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, this.Config.CompactRows ? new Vector2(6f, 1f) : new Vector2(6f, 6f));
         if (!ImGui.BeginTable("##slots", 13, flags, new Vector2(0f, TableHeight())))
         {
             ImGui.PopStyleVar();
@@ -610,7 +610,7 @@ public sealed class MainWindow : Window
         ImGui.TableSetupColumn("Share", ImGuiTableColumnFlags.WidthFixed, 48f, 8);
         ImGui.TableSetupColumn("Capital", ImGuiTableColumnFlags.WidthFixed, 72f, 9);
         ImGui.TableSetupColumn("Clear", ImGuiTableColumnFlags.WidthFixed, 52f, 10);
-        ImGui.TableSetupColumn("30d", ImGuiTableColumnFlags.WidthFixed, 96f, 11);
+        ImGui.TableSetupColumn("30d", ImGuiTableColumnFlags.WidthFixed, 112f, 11);
         ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 40f, 12);
 
         ImGui.TableSetupScrollFreeze(0, 1);
@@ -920,7 +920,7 @@ public sealed class MainWindow : Window
         ImGui.TableNextColumn();
         var series = candidate.Quote.PriceHistory;
         var sparkPosition = ImGui.GetCursorScreenPos();
-        var sparkSize = new Vector2(92f, 24f);
+        var sparkSize = new Vector2(104f, 24f);
         ImGui.Dummy(sparkSize);
         ImGui.GetWindowDrawList().AddRectFilled(sparkPosition, sparkPosition + sparkSize, Theme.WithAlpha(Theme.PanelRaised, 0.40f), 4f);
 

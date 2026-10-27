@@ -55,7 +55,7 @@ internal static class UiKit
         var arcRadius = radius - (thickness * 0.5f);
         const int steps = 48;
 
-        DrawArc(list, center, arcRadius, 0f, MathF.PI * 2f, steps, Theme.WithAlpha(Theme.Text, 0.10f), thickness);
+        DrawArc(list, center, arcRadius, 0f, MathF.PI * 2f, steps, Theme.WithAlpha(Theme.Text, 0.18f), thickness);
 
         var clamped = Math.Clamp(fraction, 0f, 1f);
         if (clamped > 0f)
@@ -103,7 +103,7 @@ internal static class UiKit
         const float padY = 2.5f;
         var size = new Vector2(textSize.X + (padX * 2f), textSize.Y + (padY * 2f));
 
-        drawList.AddRectFilled(pos, pos + size, Theme.WithAlpha(color, 0.14f), size.Y / 2f);
+        drawList.AddRectFilled(pos, pos + size, Theme.WithAlpha(color, 0.22f), size.Y / 2f);
         drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), pos + new Vector2(padX, padY), Theme.U32(color), label);
         ImGui.Dummy(size);
     }
