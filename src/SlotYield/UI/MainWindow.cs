@@ -59,7 +59,7 @@ public sealed class MainWindow : Window
 
     private static readonly string[] TabLabels =
     {
-        "Opportunities", "Changes", "Portfolio", "Craft", "My listings", "Scan",
+        "Opportunities", "Changes", "Portfolio", "Craft", "My listings", "Arbitrage", "Scan",
     };
 
     private static readonly string[] ColumnLabels =
@@ -273,6 +273,9 @@ public sealed class MainWindow : Window
                 break;
             case 4:
                 this.DrawMyListings();
+                break;
+            case 5:
+                this.DrawArbitrageTab();
                 break;
             default:
                 this.DrawScanTab();
@@ -2116,6 +2119,118 @@ public sealed class MainWindow : Window
     }
 
     // --------------------------------------------------------------------- scan ----
+
+    // ---------------------------------------------------------------- arbitrage ----
+
+    private void DrawArbitrageTab()
+    {
+        var config = this.Config;
+        var report = this.plugin.Arbitrage;
+
+        Theme.Dimmed("Buy low on one world, sell high on another. Universalis prices the scan's best items on each world in your data center.");
+
+        ImGui.SetNextItemWidth(130f);
+        var worldCount = Math.Clamp(config.ArbitrageWorldCount, 2, 16);
+        if (ImGui.SliderInt("##arbworlds", ref worldCount, 2, 16, "%d worlds"))
+        {
+            config.ArbitrageWorldCount = worldCount;
+            this.plugin.SaveConfig();
+        }
+
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(150f);
+        var topItems = Math.Clamp(config.ArbitrageTopItems, 10, 400);
+        if (ImGui.SliderInt("##arbtop", ref topItems, 10, 400, "top %d items"))
+        {
+            config.ArbitrageTopItems = topItems;
+            this.plugin.SaveConfig();
+        }
+
+        ImGui.SameLine();
+        if (this.plugin.ArbitrageRunning)
+            Theme.Colored(Theme.Gold, "comparing worlds...");
+        else if (ImGui.Button("compare worlds"))
+            this.plugin.StartArbitrage();
+
+        ImGui.Spacing();
+
+        if (report is null)
+        {
+            UiKit.EmptyState("No arbitrage run yet", "Scan your world, then press compare worlds to price the shortlist across your data center.");
+            return;
+        }
+
+        Theme.Faint($"{report.Worlds.Count} worlds ({string.Join(", ", report.Worlds)}) - {report.ComputedUtc.ToLocalTime():HH:mm}");
+
+        if (report.Warnings.Count > 0)
+            Theme.Colored(Theme.Warn, string.Join("; ", report.Warnings));
+
+        if (report.Rows.Count == 0)
+        {
+            UiKit.EmptyState("No arbitrage found", "Nothing on the shortlist is cheaper on one world than it sells for on another after tax.");
+            return;
+        }
+
+        if (!ImGui.BeginTable(
+                "##arbitrage",
+                7,
+                ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings,
+                new Vector2(0f, TableHeight())))
+        {
+            return;
+        }
+
+        ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2.2f, 0);
+        ImGui.TableSetupColumn("Buy on", ImGuiTableColumnFlags.WidthFixed, 110f, 1);
+        ImGui.TableSetupColumn("Buy", ImGuiTableColumnFlags.WidthFixed, 80f, 2);
+        ImGui.TableSetupColumn("Sell on", ImGuiTableColumnFlags.WidthFixed, 110f, 3);
+        ImGui.TableSetupColumn("Sell", ImGuiTableColumnFlags.WidthFixed, 80f, 4);
+        ImGui.TableSetupColumn("Net/unit", ImGuiTableColumnFlags.WidthFixed, 90f, 5);
+        ImGui.TableSetupColumn("Sales/d", ImGuiTableColumnFlags.WidthFixed, 60f, 6);
+
+        ImGui.TableSetupScrollFreeze(0, 1);
+        ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
+        foreach (var label in new[] { "Item", "Buy on", "Buy", "Sell on", "Sell", "Net/unit", "Sales/d" })
+        {
+            ImGui.TableNextColumn();
+            Theme.Faint(label);
+        }
+
+        foreach (var row in report.Rows)
+        {
+            ImGui.TableNextRow();
+
+            ImGui.TableNextColumn();
+            UiKit.ItemIcon(UiKit.IconIdForItem(row.ItemId), row.Quality == Quality.Hq, 16f);
+            ImGui.SameLine(0f, 6f);
+            Theme.Colored(Theme.Text, this.plugin.Catalog.Name(row.ItemId));
+            if (row.Quality == Quality.Hq)
+            {
+                ImGui.SameLine(0f, 6f);
+                Theme.Colored(Theme.Hq, "HQ");
+            }
+
+            ImGui.TableNextColumn();
+            Theme.Colored(Theme.Accent, row.BuyWorld);
+
+            ImGui.TableNextColumn();
+            Theme.Dimmed(Money.Gil(row.BuyPrice));
+
+            ImGui.TableNextColumn();
+            Theme.Colored(Theme.Accent, row.SellWorld);
+
+            ImGui.TableNextColumn();
+            Theme.Dimmed(Money.Gil(row.SellPrice));
+
+            ImGui.TableNextColumn();
+            Theme.Colored(Theme.Profit, "+" + Money.Gil(row.NetPerUnit));
+
+            ImGui.TableNextColumn();
+            Theme.Faint(row.SellVelocity.ToString("0.0"));
+        }
+
+        ImGui.EndTable();
+    }
 
     private void DrawScanTab()
     {

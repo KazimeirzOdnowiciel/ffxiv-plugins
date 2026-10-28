@@ -101,6 +101,16 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Show the best gil/day in the server info bar.</summary>
     public bool DtrBar { get; set; } = true;
 
+    /// <summary>Cross-world arbitrage: compare the scan's shortlist across a set of worlds.</summary>
+    public bool ArbitrageEnabled { get; set; }
+
+    public int ArbitrageWorldCount { get; set; } = 4;
+
+    public int ArbitrageTopItems { get; set; } = 60;
+
+    /// <summary>Explicit world set; empty means "every world in my data center".</summary>
+    public List<string> ArbitrageWorlds { get; set; } = new();
+
     /// <summary>Saved opportunity filter combinations.</summary>
     public List<FilterPreset> Presets { get; set; } = new();
 

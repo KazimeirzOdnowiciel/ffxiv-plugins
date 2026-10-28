@@ -79,6 +79,7 @@ public sealed class Plugin : IDalamudPlugin
             Log.Debug($"[SlotYield] trimmed {trimmed} stale cache file(s).");
 
         Client = new UniversalisClient(maxConcurrency: Configuration.MaxConcurrency);
+        this.arbitrageService = new ArbitrageService(this.Client);
         
         Catalog = new ItemCatalog(DataManager);
         State = new ScanState();
@@ -186,6 +187,14 @@ public sealed class Plugin : IDalamudPlugin
     public MarketCache Cache { get; }
 
     public UniversalisClient Client { get; }
+
+    private readonly ArbitrageService? arbitrageService;
+    private ArbitrageReport? arbitrageReport;
+    private volatile bool arbitrageRunning;
+
+    public ArbitrageReport? Arbitrage => this.arbitrageReport;
+
+    public bool ArbitrageRunning => this.arbitrageRunning;
 
     public ItemCatalog Catalog { get; }
 
@@ -2299,6 +2308,104 @@ public sealed class Plugin : IDalamudPlugin
             return overrideWorld;
 
         return this.CurrentWorldName();
+    }
+
+    /// <summary>The worlds arbitrage compares: an explicit list, or every world of the current data center.</summary>
+    public IReadOnlyList<string> ResolveArbitrageWorlds()
+    {
+        if (this.Configuration.ArbitrageWorlds.Count > 0)
+            return this.Configuration.ArbitrageWorlds;
+
+        var current = this.ResolveWorld();
+        var worlds = new List<string>();
+
+        try
+        {
+            var sheet = DataManager.GetExcelSheet<Lumina.Excel.Sheets.World>();
+            var currentRow = sheet.FirstOrDefault(world => world.Name.ToString().Equals(current, StringComparison.OrdinalIgnoreCase));
+            if (currentRow.RowId != 0)
+            {
+                var dataCenter = currentRow.DataCenter.RowId;
+                foreach (var world in sheet)
+                {
+                    if (world.DataCenter.RowId != dataCenter)
+                        continue;
+
+                    var name = world.Name.ToString();
+                    if (!string.IsNullOrEmpty(name))
+                        worlds.Add(name);
+                }
+            }
+        }
+        catch
+        {
+            // fall back to the current world only
+        }
+
+        if (worlds.Count == 0)
+            worlds.Add(current);
+
+        var ordered = new List<string>();
+        if (worlds.RemoveAll(world => world.Equals(current, StringComparison.OrdinalIgnoreCase)) > 0)
+            ordered.Add(current);
+        ordered.AddRange(worlds);
+
+        var count = Math.Clamp(this.Configuration.ArbitrageWorldCount, 2, 16);
+        return ordered.Take(count).ToList();
+    }
+
+    public void StartArbitrage()
+    {
+        if (this.disposed || this.arbitrageRunning || this.arbitrageService is null)
+            return;
+
+        if (State.Result is not { } result)
+        {
+            State.Error = "Scan first - arbitrage compares the scan's shortlist across worlds.";
+            this.OpenMain();
+            return;
+        }
+
+        var worlds = this.ResolveArbitrageWorlds();
+        if (worlds.Count < 2)
+        {
+            State.Error = "Arbitrage needs at least two worlds.";
+            this.OpenMain();
+            return;
+        }
+
+        this.arbitrageRunning = true;
+        var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var report = await this.arbitrageService.ComputeAsync(
+                    result,
+                    worlds,
+                    this.Configuration.ArbitrageTopItems,
+                    this.Configuration.TaxRate,
+                    token).ConfigureAwait(false);
+
+                this.arbitrageReport = report;
+                Log.Information("[SlotYield] Arbitrage: {Rows} rows across {Worlds} worlds", report.Rows.Count, worlds.Count);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception exception)
+            {
+                Log.Error(exception, "[SlotYield] Arbitrage failed.");
+                State.Error = $"Arbitrage failed: {exception.Message}";
+            }
+            finally
+            {
+                this.arbitrageRunning = false;
+                cancellation.Dispose();
+            }
+        });
     }
 
     public void StartScan()
