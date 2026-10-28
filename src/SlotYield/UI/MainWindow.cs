@@ -1640,21 +1640,39 @@ public sealed class MainWindow : Window
         else
             Theme.Faint("nothing read yet");
 
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(170f);
+        var craftFloorSlider = (int)Math.Clamp(this.Config.CraftMinProfit, 0, 5_000_000);
+        if (ImGui.SliderInt("##craftfloor", ref craftFloorSlider, 0, 5_000_000, craftFloorSlider <= 0 ? "any profit" : "min %d profit"))
+        {
+            this.Config.CraftMinProfit = craftFloorSlider;
+            this.plugin.SaveConfig();
+        }
+
         if (this.plugin.IsPricingCraft)
         {
             ImGui.SameLine();
             Theme.Colored(Theme.Warn, "pricing candidates...");
         }
 
-        var plan = this.plugin.CraftPlan;
+        var allIdeas = this.plugin.CraftPlan;
 
-        if (plan.Count == 0)
+        if (allIdeas.Count == 0)
         {
             UiKit.EmptyState(
                 this.plugin.IsPricingCraft ? "Pricing your bags..." : "No recipes ready",
                 this.plugin.IsPricingCraft
                     ? "Pricing the items your bags can make - this fills in on its own."
                     : "No fully matchable recipes yet. Read your bags again after gathering, or check that this character holds the materials.");
+            return;
+        }
+
+        var craftFloor = (decimal)this.Config.CraftMinProfit;
+        var plan = craftFloor > 0m ? allIdeas.Where(idea => idea.Profit >= craftFloor).ToList() : allIdeas;
+
+        if (plan.Count == 0)
+        {
+            UiKit.EmptyState("Nothing above the floor", "Every recipe is below the minimum profit - lower the floor or read stock again.");
             return;
         }
 
@@ -1666,7 +1684,7 @@ public sealed class MainWindow : Window
 
         if (!ImGui.BeginTable(
                 "##craft",
-                10,
+                12,
                 ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY |
                 ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings,
                 new Vector2(0f, TableHeight())))
@@ -1681,14 +1699,16 @@ public sealed class MainWindow : Window
         ImGui.TableSetupColumn("Revenue", ImGuiTableColumnFlags.WidthFixed, 76f, 4);
         ImGui.TableSetupColumn("Mats", ImGuiTableColumnFlags.WidthFixed, 76f, 5);
         ImGui.TableSetupColumn("Profit", ImGuiTableColumnFlags.WidthFixed, 76f, 6);
-        ImGui.TableSetupColumn("HQ", ImGuiTableColumnFlags.WidthFixed, 72f, 7);
-        ImGui.TableSetupColumn("Owned", ImGuiTableColumnFlags.WidthFixed, 76f, 8);
-        ImGui.TableSetupColumn("Clear", ImGuiTableColumnFlags.WidthFixed, 52f, 9);
+        ImGui.TableSetupColumn("Per unit", ImGuiTableColumnFlags.WidthFixed, 78f, 7);
+        ImGui.TableSetupColumn("Stack", ImGuiTableColumnFlags.WidthFixed, 84f, 8);
+        ImGui.TableSetupColumn("HQ", ImGuiTableColumnFlags.WidthFixed, 72f, 9);
+        ImGui.TableSetupColumn("Owned", ImGuiTableColumnFlags.WidthFixed, 76f, 10);
+        ImGui.TableSetupColumn("Clear", ImGuiTableColumnFlags.WidthFixed, 52f, 11);
 
         ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
 
-        foreach (var label in new[] { "Item", "Job", "Crafts", "Qty", "Revenue", "Mats", "Profit", "HQ", "Owned", "Clear" })
+        foreach (var label in new[] { "Item", "Job", "Crafts", "Qty", "Revenue", "Mats", "Profit", "Per unit", "Stack", "HQ", "Owned", "Clear" })
         {
             ImGui.TableNextColumn();
             Theme.Faint(label);
@@ -1738,6 +1758,13 @@ public sealed class MainWindow : Window
 
             ImGui.TableNextColumn();
             Theme.Colored(idea.Profit > 0m ? Theme.Accent : Theme.Danger, Money.Gil(idea.Profit));
+
+            var perUnit = idea.Produced > 0 ? idea.Profit / idea.Produced : 0m;
+            ImGui.TableNextColumn();
+            Theme.Dimmed(Money.Gil(perUnit));
+
+            ImGui.TableNextColumn();
+            Theme.Dimmed(Money.Gil(perUnit * this.Config.DefaultStackSize));
 
             ImGui.TableNextColumn();
             if (idea.HqAvailable)
