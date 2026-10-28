@@ -2139,6 +2139,30 @@ public sealed class MainWindow : Window
 
     // ---------------------------------------------------------------- arbitrage ----
 
+    private string BuildArbitrageCsv(IReadOnlyList<ArbitrageRow> rows)
+    {
+        var header = new[]
+        {
+            "item", "quality", "buy_world", "buy_price", "sell_world", "sell_price", "net_unit", "stack_profit", "my_world_price", "sales_per_day",
+        };
+
+        var lines = rows.Select(row => (IReadOnlyList<string>)new[]
+        {
+            this.plugin.Catalog.Name(row.ItemId),
+            row.Quality == Quality.Hq ? "HQ" : "NQ",
+            row.BuyWorld,
+            row.BuyPrice.ToString("0.##", CultureInfo.InvariantCulture),
+            row.SellWorld,
+            row.SellPrice.ToString("0.##", CultureInfo.InvariantCulture),
+            row.NetPerUnit.ToString("0.##", CultureInfo.InvariantCulture),
+            (row.NetPerUnit * this.Config.DefaultStackSize).ToString("0.##", CultureInfo.InvariantCulture),
+            row.HomePrice.ToString("0.##", CultureInfo.InvariantCulture),
+            row.SellVelocity.ToString("0.###", CultureInfo.InvariantCulture),
+        });
+
+        return CsvExport.Build(header, lines);
+    }
+
     private void ArbitrageHeader(string label, int column)
     {
         ImGui.TableNextColumn();
@@ -2299,6 +2323,12 @@ public sealed class MainWindow : Window
         if (this.arbitrageSortAscending)
             visible.Reverse();
 
+        if (ImGui.SmallButton("copy list"))
+            ImGui.SetClipboardText(this.BuildArbitrageCsv(visible));
+
+        ImGui.SameLine();
+        Theme.Faint($"{visible.Count} of {report.Rows.Count} rows");
+
         if (!ImGui.BeginTable(
                 "##arbitrage",
                 9,
@@ -2370,6 +2400,20 @@ public sealed class MainWindow : Window
 
             ImGui.TableNextColumn();
             Theme.Faint(row.SellVelocity.ToString("0.0"));
+
+            if (ImGui.BeginPopupContextItem($"##arbctx{row.ItemId}{row.Quality}"))
+            {
+                if (ImGui.MenuItem("Copy item name"))
+                    ImGui.SetClipboardText(this.plugin.Catalog.Name(row.ItemId));
+
+                if (ImGui.MenuItem("Copy pair"))
+                    ImGui.SetClipboardText($"{row.BuyWorld} {Money.Gil(row.BuyPrice)} -> {row.SellWorld} {Money.Gil(row.SellPrice)} (+{Money.Gil(row.NetPerUnit)})");
+
+                if (ImGui.MenuItem("Open on Universalis"))
+                    OpenUrl($"https://universalis.app/market/{row.ItemId}");
+
+                ImGui.EndPopup();
+            }
         }
 
         ImGui.EndTable();
