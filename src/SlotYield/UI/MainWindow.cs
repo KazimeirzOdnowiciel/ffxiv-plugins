@@ -2167,6 +2167,40 @@ public sealed class MainWindow : Window
         else if (ImGui.Button("compare worlds"))
             this.plugin.StartArbitrage();
 
+        ImGui.SameLine();
+        if (ImGui.SmallButton("worlds"))
+            ImGui.OpenPopup("##arbworlds");
+
+        if (ImGui.BeginPopup("##arbworlds"))
+        {
+            var allWorlds = this.plugin.DataCenterWorlds();
+            var selected = this.Config.ArbitrageWorlds;
+            if (selected.Count == 0)
+                Theme.Faint("auto: the whole data center");
+
+            foreach (var world in allWorlds)
+            {
+                var isSelected = selected.Any(entry => entry.Equals(world, StringComparison.OrdinalIgnoreCase));
+                if (ImGui.Checkbox(world + "##arbw" + world, ref isSelected))
+                {
+                    if (isSelected)
+                        selected.Add(world);
+                    else
+                        selected.RemoveAll(entry => entry.Equals(world, StringComparison.OrdinalIgnoreCase));
+
+                    this.plugin.SaveConfig();
+                }
+            }
+
+            if (ImGui.Button("auto (whole DC)"))
+            {
+                selected.Clear();
+                this.plugin.SaveConfig();
+            }
+
+            ImGui.EndPopup();
+        }
+
         ImGui.Spacing();
 
         if (report is null)
@@ -2188,7 +2222,7 @@ public sealed class MainWindow : Window
 
         if (!ImGui.BeginTable(
                 "##arbitrage",
-                7,
+                8,
                 ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings,
                 new Vector2(0f, TableHeight())))
         {
@@ -2201,11 +2235,12 @@ public sealed class MainWindow : Window
         ImGui.TableSetupColumn("Sell on", ImGuiTableColumnFlags.WidthFixed, 110f, 3);
         ImGui.TableSetupColumn("Sell", ImGuiTableColumnFlags.WidthFixed, 80f, 4);
         ImGui.TableSetupColumn("Net/unit", ImGuiTableColumnFlags.WidthFixed, 90f, 5);
-        ImGui.TableSetupColumn("Sales/d", ImGuiTableColumnFlags.WidthFixed, 60f, 6);
+        ImGui.TableSetupColumn("My world", ImGuiTableColumnFlags.WidthFixed, 80f, 6);
+        ImGui.TableSetupColumn("Sales/d", ImGuiTableColumnFlags.WidthFixed, 60f, 7);
 
         ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
-        foreach (var label in new[] { "Item", "Buy on", "Buy", "Sell on", "Sell", "Net/unit", "Sales/d" })
+        foreach (var label in new[] { "Item", "Buy on", "Buy", "Sell on", "Sell", "Net/unit", "My world", "Sales/d" })
         {
             ImGui.TableNextColumn();
             Theme.Faint(label);
@@ -2239,6 +2274,12 @@ public sealed class MainWindow : Window
 
             ImGui.TableNextColumn();
             Theme.Colored(Theme.Profit, "+" + Money.Gil(row.NetPerUnit));
+
+            ImGui.TableNextColumn();
+            if (row.HomePrice > 0m)
+                Theme.Dimmed(Money.Gil(row.HomePrice));
+            else
+                Theme.Faint("-");
 
             ImGui.TableNextColumn();
             Theme.Faint(row.SellVelocity.ToString("0.0"));

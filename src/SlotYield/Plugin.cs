@@ -2310,14 +2310,11 @@ public sealed class Plugin : IDalamudPlugin
         return this.CurrentWorldName();
     }
 
-    /// <summary>The worlds arbitrage compares: an explicit list, or every world of the current data center.</summary>
-    public IReadOnlyList<string> ResolveArbitrageWorlds()
+    /// <summary>Every world in the player's data center, current world first.</summary>
+    public IReadOnlyList<string> DataCenterWorlds()
     {
-        if (this.Configuration.ArbitrageWorlds.Count > 0)
-            return this.Configuration.ArbitrageWorlds;
-
         var current = this.ResolveWorld();
-        var worlds = new List<string>();
+        var worlds = new List<string> { current };
 
         try
         {
@@ -2332,7 +2329,7 @@ public sealed class Plugin : IDalamudPlugin
                         continue;
 
                     var name = world.Name.ToString();
-                    if (!string.IsNullOrEmpty(name))
+                    if (!string.IsNullOrEmpty(name) && !name.Equals(current, StringComparison.OrdinalIgnoreCase))
                         worlds.Add(name);
                 }
             }
@@ -2342,16 +2339,17 @@ public sealed class Plugin : IDalamudPlugin
             // fall back to the current world only
         }
 
-        if (worlds.Count == 0)
-            worlds.Add(current);
+        return worlds;
+    }
 
-        var ordered = new List<string>();
-        if (worlds.RemoveAll(world => world.Equals(current, StringComparison.OrdinalIgnoreCase)) > 0)
-            ordered.Add(current);
-        ordered.AddRange(worlds);
+    /// <summary>The worlds arbitrage compares: an explicit list, or the data center up to the configured count.</summary>
+    public IReadOnlyList<string> ResolveArbitrageWorlds()
+    {
+        if (this.Configuration.ArbitrageWorlds.Count > 0)
+            return this.Configuration.ArbitrageWorlds;
 
         var count = Math.Clamp(this.Configuration.ArbitrageWorldCount, 2, 16);
-        return ordered.Take(count).ToList();
+        return this.DataCenterWorlds().Take(count).ToList();
     }
 
     public void StartArbitrage()
@@ -2390,7 +2388,15 @@ public sealed class Plugin : IDalamudPlugin
                     token).ConfigureAwait(false);
 
                 this.arbitrageReport = report;
-                Log.Information("[SlotYield] Arbitrage: {Rows} rows across {Worlds} worlds", report.Rows.Count, worlds.Count);
+                Log.Information(
+                    "[SlotYield] Arbitrage: {Rows} rows across {Worlds} worlds ({List}), {Requests} requests total",
+                    report.Rows.Count,
+                    report.Worlds.Count,
+                    string.Join(", ", report.Worlds),
+                    this.Client.RequestCount);
+
+                if (report.Warnings.Count > 0)
+                    Log.Warning("[SlotYield] Arbitrage warnings: {Warnings}", string.Join("; ", report.Warnings));
             }
             catch (OperationCanceledException)
             {

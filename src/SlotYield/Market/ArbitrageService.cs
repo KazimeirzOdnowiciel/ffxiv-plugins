@@ -16,7 +16,9 @@ public sealed record ArbitrageRow(
     string SellWorld,
     decimal SellPrice,
     decimal NetPerUnit,
-    double SellVelocity);
+    double SellVelocity,
+    string HomeWorld,
+    decimal HomePrice);
 
 public sealed record ArbitrageReport(
     DateTime ComputedUtc,
@@ -53,10 +55,15 @@ public sealed class ArbitrageService
         if (ids.Count == 0 || worlds.Count == 0)
             return new ArbitrageReport(DateTime.UtcNow, worlds, Array.Empty<ArbitrageRow>(), warnings);
 
+        var home = result.World;
+        var queryWorlds = worlds.Any(world => world.Equals(home, StringComparison.OrdinalIgnoreCase))
+            ? worlds
+            : worlds.Append(home).ToList();
+
         // world -> item id -> the four numbers we care about, per quality.
         var data = new Dictionary<string, Dictionary<uint, WorldSample>>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var world in worlds)
+        foreach (var world in queryWorlds)
         {
             token.ThrowIfCancellationRequested();
 
@@ -127,6 +134,10 @@ public sealed class ArbitrageService
                 if (net <= 0m)
                     continue;
 
+                var homePrice = 0m;
+                if (data.TryGetValue(home, out var homeSamples) && homeSamples.TryGetValue(candidate.ItemId, out var homeSample))
+                    homePrice = hq ? homeSample.HqBuy : homeSample.NqBuy;
+
                 rows.Add(new ArbitrageRow(
                     candidate.ItemId,
                     candidate.Quality,
@@ -135,7 +146,9 @@ public sealed class ArbitrageService
                     sellWorld,
                     sellPrice,
                     net,
-                    sellVelocity));
+                    sellVelocity,
+                    home,
+                    homePrice));
             }
         }
 
