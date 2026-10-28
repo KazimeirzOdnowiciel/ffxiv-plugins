@@ -194,6 +194,7 @@ public sealed class Plugin : IDalamudPlugin
     private CancellationTokenSource? arbitrageCancellation;
     private int arbitrageDone;
     private int arbitrageTotal;
+    private readonly List<ArbitragePulse> arbitrageHistory = new();
 
     public ArbitrageReport? Arbitrage => this.arbitrageReport;
 
@@ -202,6 +203,8 @@ public sealed class Plugin : IDalamudPlugin
     public int ArbitrageDone => this.arbitrageDone;
 
     public int ArbitrageTotal => this.arbitrageTotal;
+
+    public IReadOnlyList<ArbitragePulse> ArbitrageHistory => this.arbitrageHistory;
 
     public void CancelArbitrage() => this.arbitrageCancellation?.Cancel();
 
@@ -2406,6 +2409,30 @@ public sealed class Plugin : IDalamudPlugin
                     token).ConfigureAwait(false);
 
                 this.arbitrageReport = report;
+                this.arbitrageHistory.Add(new ArbitragePulse(
+                    report.ComputedUtc,
+                    report.Rows.Count,
+                    (long)report.Rows.Sum(row => row.NetPerUnit * this.Configuration.DefaultStackSize)));
+
+                if (this.arbitrageHistory.Count > 30)
+                    this.arbitrageHistory.RemoveAt(0);
+
+                foreach (var watched in this.Configuration.Watchlist)
+                {
+                    var row = report.Rows.FirstOrDefault(candidate =>
+                        candidate.ItemId == watched.ItemId &&
+                        candidate.Quality == (watched.Hq ? Quality.Hq : Quality.Nq));
+
+                    if (row is null)
+                        continue;
+
+                    Notifications.AddNotification(new Notification
+                    {
+                        Title = "Slot Yield - arbitrage",
+                        Content = $"{this.Catalog.Name(row.ItemId)}: {row.BuyWorld} {Money.Gil(row.BuyPrice)} -> {row.SellWorld} {Money.Gil(row.SellPrice)} (+{Money.Gil(row.NetPerUnit)})",
+                        Type = NotificationType.Info,
+                    });
+                }
                 Log.Information(
                     "[SlotYield] Arbitrage: {Rows} rows across {Worlds} worlds ({List}), {Requests} requests total",
                     report.Rows.Count,

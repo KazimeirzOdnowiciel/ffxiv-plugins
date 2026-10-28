@@ -26,6 +26,9 @@ public sealed record ArbitrageReport(
     IReadOnlyList<ArbitrageRow> Rows,
     IReadOnlyList<string> Warnings);
 
+/// <summary>One arbitrage run summarised for the trend sparkline.</summary>
+public sealed record ArbitragePulse(DateTime Utc, int Rows, long Potential);
+
 /// <summary>
 /// Cross-world arbitrage: for the scan's best items, asks Universalis for every world in the
 /// chosen set, then reports the cheapest world to buy on against the priciest world to sell on.

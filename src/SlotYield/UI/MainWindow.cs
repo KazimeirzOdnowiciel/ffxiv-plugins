@@ -2385,6 +2385,20 @@ public sealed class MainWindow : Window
 
         Theme.Faint($"{report.Worlds.Count} worlds ({string.Join(", ", report.Worlds)}) - {report.ComputedUtc.ToLocalTime():HH:mm}");
 
+        var history = this.plugin.ArbitrageHistory;
+        if (history.Count >= 2)
+        {
+            ImGui.SameLine();
+            var series = new decimal[history.Count];
+            for (var index = 0; index < history.Count; index++)
+                series[index] = history[index].Rows;
+
+            var sparkPosition = ImGui.GetCursorScreenPos();
+            var sparkSize = new Vector2(150f, 16f);
+            ImGui.Dummy(sparkSize);
+            DrawSparkline(ImGui.GetWindowDrawList(), sparkPosition, sparkSize, series, Theme.U32(Theme.Accent));
+        }
+
         if (report.Warnings.Count > 0)
             Theme.Colored(Theme.Warn, string.Join("; ", report.Warnings));
 
