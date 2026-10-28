@@ -2228,10 +2228,11 @@ public sealed class MainWindow : Window
 
         foreach (var group in rows.GroupBy(row => row.BuyWorld, StringComparer.OrdinalIgnoreCase).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
         {
-            UiKit.SectionHeader(group.Key);
-            ImGui.SameLine();
             if (ImGui.SmallButton("go##" + group.Key))
                 this.plugin.TravelToWorld(group.Key);
+
+            ImGui.SameLine(0f, 8f);
+            Theme.Colored(Theme.Accent, group.Key);
 
             decimal total = 0m;
             var count = 0;
@@ -2243,7 +2244,8 @@ public sealed class MainWindow : Window
                 Theme.Faint($"{this.plugin.Catalog.Name(row.ItemId)}  x{stackSize}  @ {Money.Gil(row.BuyPrice)}  = {Money.Gil(cost)}");
             }
 
-            Theme.Colored(Theme.Accent, $"{count} item(s), {Money.Gil(total)} to spend");
+            Theme.Colored(Theme.TextDim, $"{count} item(s), {Money.Gil(total)} to spend");
+            ImGui.Separator();
         }
     }
 
@@ -2706,7 +2708,9 @@ public sealed class MainWindow : Window
 
         if (ImGui.BeginPopup("##arbbuylist"))
         {
+            ImGui.BeginChild("##buylistscroll", new Vector2(560f, 420f), true);
             this.DrawArbitrageBuyList(visible, stackSize);
+            ImGui.EndChild();
             ImGui.EndPopup();
         }
 
