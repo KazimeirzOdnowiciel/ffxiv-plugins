@@ -2576,6 +2576,9 @@ public sealed class Plugin : IDalamudPlugin
                             });
                     }
 
+                    if (Configuration.ArbitrageEnabled)
+                        this.StartArbitrage();
+
                     foreach (var watched in Configuration.Watchlist)
                     {
                         var watchedCandidate = result.Candidates.FirstOrDefault(c => c.ItemId == watched.ItemId && c.Quality == (watched.Hq ? Quality.Hq : Quality.Nq));

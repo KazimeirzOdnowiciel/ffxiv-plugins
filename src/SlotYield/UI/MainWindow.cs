@@ -2265,6 +2265,17 @@ public sealed class MainWindow : Window
         }
 
         ImGui.SameLine();
+        var autoArbitrage = config.ArbitrageEnabled;
+        if (ImGui.Checkbox("after scan", ref autoArbitrage))
+        {
+            config.ArbitrageEnabled = autoArbitrage;
+            this.plugin.SaveConfig();
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Run compare worlds automatically when a scan finishes.");
+
+        ImGui.SameLine();
         if (this.plugin.ArbitrageRunning)
             Theme.Colored(Theme.Gold, "comparing worlds...");
         else if (ImGui.Button("compare worlds"))
