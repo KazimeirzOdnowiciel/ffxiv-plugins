@@ -123,6 +123,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Mark arbitrage rows whose whole-stack profit reaches this as worth the trip.</summary>
     public long ArbitrageTripThreshold { get; set; } = 100_000;
 
+    /// <summary>After a world change, walk to the market board with vnavmesh.</summary>
+    public bool TravelWalk { get; set; } = true;
+
     /// <summary>Explicit world set; empty means "every world in my data center".</summary>
     public List<string> ArbitrageWorlds { get; set; } = new();
 

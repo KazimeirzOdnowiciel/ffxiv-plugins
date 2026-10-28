@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
+using Dalamud.Game.ClientState.Objects.Enums;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui.Dtr;
 using Dalamud.Interface.Windowing;
@@ -177,6 +179,12 @@ public sealed class Plugin : IDalamudPlugin
     internal static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
 
     [PluginService]
+    internal static IObjectTable ObjectTable { get; private set; } = null!;
+
+    [PluginService]
+    internal static IClientState ClientState { get; private set; } = null!;
+
+    [PluginService]
     internal static INotificationManager Notifications { get; private set; } = null!;
 
     [PluginService]
@@ -195,6 +203,8 @@ public sealed class Plugin : IDalamudPlugin
     private int arbitrageDone;
     private int arbitrageTotal;
     private readonly List<ArbitragePulse> arbitrageHistory = new();
+    private string? pendingWorldWalk;
+    private DateTime pendingWorldWalkDeadline;
 
     public ArbitrageReport? Arbitrage => this.arbitrageReport;
 
@@ -208,18 +218,108 @@ public sealed class Plugin : IDalamudPlugin
 
     public void CancelArbitrage() => this.arbitrageCancellation?.Cancel();
 
-    /// <summary>Ask Lifestream to change worlds; harmless when it is not installed.</summary>
+    /// <summary>Ask Lifestream to change worlds, then walk to the market board on arrival.</summary>
     public void TravelToWorld(string world)
     {
         try
         {
             CommandManager.ProcessCommand($"/li {world}");
             Log.Information("[SlotYield] Travel requested: {World}", world);
+
+            if (this.Configuration.TravelWalk)
+            {
+                this.pendingWorldWalk = world;
+                this.pendingWorldWalkDeadline = DateTime.UtcNow.AddSeconds(120);
+            }
         }
         catch (Exception exception)
         {
             Log.Warning(exception, "[SlotYield] Travel command failed.");
         }
+    }
+
+    /// <summary>Path to the nearest market board on the current map using vnavmesh.</summary>
+    public bool WalkToMarketBoard()
+    {
+        if (!this.TryFindMarketBoard(out var board))
+        {
+            Log.Warning("[SlotYield] No market board on this map.");
+            return false;
+        }
+
+        try
+        {
+            var subscriber = PluginInterface.GetIpcSubscriber<Vector3, bool, object>("vnavmesh.PathfindAndMoveTo");
+            subscriber.InvokeAction(board, false);
+            Log.Information("[SlotYield] Walking to the market board at {Board}.", board);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Log.Warning(exception, "[SlotYield] vnavmesh is not available.");
+            return false;
+        }
+    }
+
+    private bool TryFindMarketBoard(out Vector3 board)
+    {
+        board = default;
+        var best = float.MaxValue;
+        var found = false;
+        var origin = ObjectTable.LocalPlayer?.Position ?? Vector3.Zero;
+
+        foreach (var obj in ObjectTable)
+        {
+            if (obj.ObjectKind is not (ObjectKind.EventObj or ObjectKind.EventNpc))
+                continue;
+
+            var name = obj.Name.ToString();
+            if (!name.Contains("Market Board", StringComparison.OrdinalIgnoreCase) &&
+                !name.Contains("Summoning Bell", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var distance = Vector3.Distance(obj.Position, origin);
+            if (distance >= best)
+                continue;
+
+            best = distance;
+            board = obj.Position;
+            found = true;
+        }
+
+        return found;
+    }
+
+    private void UpdatePendingWorldWalk()
+    {
+        if (this.pendingWorldWalk is not { } target)
+            return;
+
+        if (DateTime.UtcNow > this.pendingWorldWalkDeadline)
+        {
+            this.pendingWorldWalk = null;
+            return;
+        }
+
+        if (!PlayerState.IsLoaded)
+            return;
+
+        if (!this.CurrentWorldName().Equals(target, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        this.pendingWorldWalk = null;
+
+        if (!this.WalkToMarketBoard())
+            return;
+
+        Notifications.AddNotification(new Notification
+        {
+            Title = "Slot Yield",
+            Content = $"Arrived on {target} - walking to the market board.",
+            Type = NotificationType.Info,
+        });
     }
 
     public ItemCatalog Catalog { get; }
@@ -2260,6 +2360,8 @@ public sealed class Plugin : IDalamudPlugin
     private void OnFrameworkUpdateCore(IFramework framework)
     {
         var now = DateTime.UtcNow;
+
+        this.UpdatePendingWorldWalk();
 
         if (this.Configuration.AutoScanHours > 0 && !this.State.IsScanning && PlayerState.IsLoaded)
         {

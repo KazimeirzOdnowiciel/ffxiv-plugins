@@ -2462,6 +2462,17 @@ public sealed class MainWindow : Window
             ImGui.SetTooltip("Run compare worlds automatically when a scan finishes.");
 
         ImGui.SameLine();
+        var walkOnArrival = config.TravelWalk;
+        if (ImGui.Checkbox("walk on arrival", ref walkOnArrival))
+        {
+            config.TravelWalk = walkOnArrival;
+            this.plugin.SaveConfig();
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("After a world change, use vnavmesh to walk to the market board.");
+
+        ImGui.SameLine();
         if (this.plugin.ArbitrageRunning)
         {
             Theme.Colored(Theme.Gold, $"comparing worlds... {this.plugin.ArbitrageDone}/{this.plugin.ArbitrageTotal}");
@@ -2668,6 +2679,9 @@ public sealed class MainWindow : Window
 
                 if (ImGui.MenuItem($"Travel to {row.BuyWorld}"))
                     this.plugin.TravelToWorld(row.BuyWorld);
+
+                if (ImGui.MenuItem("Walk to market board"))
+                    this.plugin.WalkToMarketBoard();
 
                 if (ImGui.MenuItem("Flip calculator..."))
                 {
