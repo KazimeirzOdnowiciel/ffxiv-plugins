@@ -209,6 +209,7 @@ public sealed class Plugin : IDalamudPlugin
     private DateTime pendingWorldWalkDeadline;
     private string? pendingCityThenWorld;
     private DateTime pendingCityDeadline;
+    private bool vnavmeshWarned;
 
     public ArbitrageReport? Arbitrage => this.arbitrageReport;
 
@@ -344,12 +345,18 @@ public sealed class Plugin : IDalamudPlugin
         {
             var subscriber = PluginInterface.GetIpcSubscriber<Vector3, bool, object>("vnavmesh.PathfindAndMoveTo");
             subscriber.InvokeAction(board.Position, false);
+            this.vnavmeshWarned = false;
             Log.Information("[SlotYield] Walking to the market board at {Board}.", board.Position);
             return true;
         }
         catch (Exception exception)
         {
-            Log.Warning(exception, "[SlotYield] vnavmesh is not available.");
+            if (!this.vnavmeshWarned)
+            {
+                this.vnavmeshWarned = true;
+                Log.Warning(exception, "[SlotYield] vnavmesh is not available.");
+            }
+
             return false;
         }
     }
@@ -572,8 +579,19 @@ public sealed class Plugin : IDalamudPlugin
                     return;
                 }
 
+                if (!this.WalkToMarketBoard())
+                {
+                    if (DateTime.UtcNow - this.buyRunPhaseUtc > TimeSpan.FromSeconds(90))
+                    {
+                        this.BuyRunStatus = "vnavmesh is not ready";
+                        this.buyRunActive = false;
+                        this.buyRun = null;
+                    }
+
+                    return;
+                }
+
                 this.BuyRunStatus = "walking to the market board";
-                this.WalkToMarketBoard();
                 this.buyRunPhase = BuyRunPhase.Approach;
                 this.buyRunPhaseUtc = DateTime.UtcNow;
                 return;
@@ -721,6 +739,15 @@ public sealed class Plugin : IDalamudPlugin
         // The character world updates before the zone finishes loading, so wait for real objects.
         if (ObjectTable.LocalPlayer is null || this.FindMarketBoard() is null)
             return;
+
+        // vnavmesh registers its IPC only once the zone's navmesh is up, so retry until it is.
+        if (!this.WalkToMarketBoard())
+        {
+            if (DateTime.UtcNow > this.pendingWorldWalkDeadline)
+                this.pendingWorldWalk = null;
+
+            return;
+        }
 
         this.pendingWorldWalk = null;
 
