@@ -114,6 +114,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Hide arbitrage rows whose per-unit profit is below this.</summary>
     public long ArbitrageMinNet { get; set; }
 
+    /// <summary>Hide arbitrage rows whose whole-stack profit is below this ("worth the trip").</summary>
+    public long ArbitrageMinStack { get; set; }
+
     /// <summary>Explicit world set; empty means "every world in my data center".</summary>
     public List<string> ArbitrageWorlds { get; set; } = new();
 

@@ -2256,6 +2256,15 @@ public sealed class MainWindow : Window
         }
 
         ImGui.SameLine();
+        ImGui.SetNextItemWidth(150f);
+        var minStack = (int)Math.Clamp(config.ArbitrageMinStack, 0, 5_000_000);
+        if (ImGui.SliderInt("##arbstack", ref minStack, 0, 5_000_000, minStack <= 0 ? "any stack" : "stack >= %d"))
+        {
+            config.ArbitrageMinStack = minStack;
+            this.plugin.SaveConfig();
+        }
+
+        ImGui.SameLine();
         if (this.plugin.ArbitrageRunning)
             Theme.Colored(Theme.Gold, "comparing worlds...");
         else if (ImGui.Button("compare worlds"))
@@ -2319,6 +2328,11 @@ public sealed class MainWindow : Window
         if (minNetValue > 0m)
             visible = visible.Where(row => row.NetPerUnit >= minNetValue).ToList();
 
+        var stackSize = Math.Max(1, this.Config.DefaultStackSize);
+        var minStackValue = (decimal)config.ArbitrageMinStack;
+        if (minStackValue > 0m)
+            visible = visible.Where(row => row.NetPerUnit * stackSize >= minStackValue).ToList();
+
         visible.Sort((left, right) => this.CompareArbitrage(left, right, this.arbitrageSortColumn));
         if (this.arbitrageSortAscending)
             visible.Reverse();
@@ -2328,6 +2342,12 @@ public sealed class MainWindow : Window
 
         ImGui.SameLine();
         Theme.Faint($"{visible.Count} of {report.Rows.Count} rows");
+
+        if (visible.Count > 0)
+        {
+            ImGui.SameLine();
+            Theme.Colored(Theme.Profit, $"total +{Money.Gil(visible.Sum(row => row.NetPerUnit * stackSize))}");
+        }
 
         if (!ImGui.BeginTable(
                 "##arbitrage",
