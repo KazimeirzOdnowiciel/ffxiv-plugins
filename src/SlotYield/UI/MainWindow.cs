@@ -2190,6 +2190,32 @@ public sealed class MainWindow : Window
         return CsvExport.Build(header, lines);
     }
 
+    private void DrawArbitrageBuyList(IReadOnlyList<ArbitrageRow> rows, int stackSize)
+    {
+        if (rows.Count == 0)
+        {
+            Theme.Faint("nothing to buy");
+            return;
+        }
+
+        foreach (var group in rows.GroupBy(row => row.BuyWorld, StringComparer.OrdinalIgnoreCase).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            UiKit.SectionHeader(group.Key);
+
+            decimal total = 0m;
+            var count = 0;
+            foreach (var row in group)
+            {
+                var cost = row.BuyPrice * stackSize;
+                total += cost;
+                count++;
+                Theme.Faint($"{this.plugin.Catalog.Name(row.ItemId)}  x{stackSize}  @ {Money.Gil(row.BuyPrice)}  = {Money.Gil(cost)}");
+            }
+
+            Theme.Colored(Theme.Accent, $"{count} item(s), {Money.Gil(total)} to spend");
+        }
+    }
+
     private void ArbitrageHeader(string label, int column)
     {
         ImGui.TableNextColumn();
@@ -2304,9 +2330,16 @@ public sealed class MainWindow : Window
 
         ImGui.SameLine();
         if (this.plugin.ArbitrageRunning)
-            Theme.Colored(Theme.Gold, "comparing worlds...");
+        {
+            Theme.Colored(Theme.Gold, $"comparing worlds... {this.plugin.ArbitrageDone}/{this.plugin.ArbitrageTotal}");
+            ImGui.SameLine();
+            if (ImGui.SmallButton("cancel"))
+                this.plugin.CancelArbitrage();
+        }
         else if (ImGui.Button("compare worlds"))
+        {
             this.plugin.StartArbitrage();
+        }
 
         ImGui.SameLine();
         if (ImGui.SmallButton("worlds"))
@@ -2379,6 +2412,16 @@ public sealed class MainWindow : Window
             ImGui.SetClipboardText(this.BuildArbitrageCsv(visible));
 
         ImGui.SameLine();
+        if (ImGui.SmallButton("buy list"))
+            ImGui.OpenPopup("##arbbuylist");
+
+        if (ImGui.BeginPopup("##arbbuylist"))
+        {
+            this.DrawArbitrageBuyList(visible, stackSize);
+            ImGui.EndPopup();
+        }
+
+        ImGui.SameLine();
         Theme.Faint($"{visible.Count} of {report.Rows.Count} rows");
 
         if (visible.Count > 0)
@@ -2423,6 +2466,12 @@ public sealed class MainWindow : Window
             ImGui.TableNextRow();
 
             ImGui.TableNextColumn();
+            if (row.NetPerUnit * stackSize >= (decimal)config.ArbitrageTripThreshold)
+            {
+                Theme.Colored(Theme.Gold, "*");
+                ImGui.SameLine(0f, 4f);
+            }
+
             UiKit.ItemIcon(UiKit.IconIdForItem(row.ItemId), row.Quality == Quality.Hq, 16f);
             ImGui.SameLine(0f, 6f);
             Theme.Colored(Theme.Text, this.plugin.Catalog.Name(row.ItemId));

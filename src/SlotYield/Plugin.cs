@@ -191,10 +191,19 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ArbitrageService? arbitrageService;
     private ArbitrageReport? arbitrageReport;
     private volatile bool arbitrageRunning;
+    private CancellationTokenSource? arbitrageCancellation;
+    private int arbitrageDone;
+    private int arbitrageTotal;
 
     public ArbitrageReport? Arbitrage => this.arbitrageReport;
 
     public bool ArbitrageRunning => this.arbitrageRunning;
+
+    public int ArbitrageDone => this.arbitrageDone;
+
+    public int ArbitrageTotal => this.arbitrageTotal;
+
+    public void CancelArbitrage() => this.arbitrageCancellation?.Cancel();
 
     public ItemCatalog Catalog { get; }
 
@@ -2373,7 +2382,10 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         this.arbitrageRunning = true;
+        this.arbitrageDone = 0;
+        this.arbitrageTotal = worlds.Count;
         var cancellation = new CancellationTokenSource();
+        this.arbitrageCancellation = cancellation;
         var token = cancellation.Token;
 
         _ = Task.Run(async () =>
@@ -2386,6 +2398,11 @@ public sealed class Plugin : IDalamudPlugin
                     this.Configuration.ArbitrageTopItems,
                     this.Configuration.TaxRate,
                     Math.Clamp(this.Configuration.ArbitrageMinVelocity, 0d, 20d),
+                    (done, total) =>
+                    {
+                        this.arbitrageDone = done;
+                        this.arbitrageTotal = total;
+                    },
                     token).ConfigureAwait(false);
 
                 this.arbitrageReport = report;
@@ -2410,6 +2427,9 @@ public sealed class Plugin : IDalamudPlugin
             finally
             {
                 this.arbitrageRunning = false;
+                if (ReferenceEquals(this.arbitrageCancellation, cancellation))
+                    this.arbitrageCancellation = null;
+
                 cancellation.Dispose();
             }
         });

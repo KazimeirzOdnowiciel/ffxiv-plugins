@@ -120,6 +120,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Hide craft ideas whose batch profit is below this.</summary>
     public long CraftMinProfit { get; set; }
 
+    /// <summary>Mark arbitrage rows whose whole-stack profit reaches this as worth the trip.</summary>
+    public long ArbitrageTripThreshold { get; set; } = 100_000;
+
     /// <summary>Explicit world set; empty means "every world in my data center".</summary>
     public List<string> ArbitrageWorlds { get; set; } = new();
 

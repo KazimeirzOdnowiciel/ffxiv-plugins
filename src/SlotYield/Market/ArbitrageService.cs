@@ -42,6 +42,7 @@ public sealed class ArbitrageService
         int topItems,
         decimal tax,
         double minVelocity,
+        Action<int, int>? progress,
         CancellationToken token)
     {
         var warnings = new List<string>();
@@ -63,6 +64,7 @@ public sealed class ArbitrageService
 
         // world -> item id -> the four numbers we care about, per quality.
         var data = new Dictionary<string, Dictionary<uint, WorldSample>>(StringComparer.OrdinalIgnoreCase);
+        var done = 0;
 
         foreach (var world in queryWorlds)
         {
@@ -89,6 +91,8 @@ public sealed class ArbitrageService
             {
                 warnings.Add($"{world}: {exception.Message}");
             }
+
+            progress?.Invoke(++done, queryWorlds.Count);
         }
 
         var rows = new List<ArbitrageRow>();
