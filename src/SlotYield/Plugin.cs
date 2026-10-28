@@ -207,6 +207,8 @@ public sealed class Plugin : IDalamudPlugin
     private readonly List<ArbitragePulse> arbitrageHistory = new();
     private string? pendingWorldWalk;
     private DateTime pendingWorldWalkDeadline;
+    private string? pendingCityThenWorld;
+    private DateTime pendingCityDeadline;
 
     public ArbitrageReport? Arbitrage => this.arbitrageReport;
 
@@ -226,6 +228,27 @@ public sealed class Plugin : IDalamudPlugin
         if (string.IsNullOrWhiteSpace(world))
             return false;
 
+        // Lifestream only honours a gateway that exists in your current zone, so get to the
+        // gateway city first and change worlds from there.
+        if (!this.IsInGatewayCity())
+        {
+            if (!this.TeleportToGatewayCity())
+            {
+                Log.Warning("[SlotYield] Could not teleport to the gateway city.");
+                return false;
+            }
+
+            this.pendingCityThenWorld = world;
+            this.pendingCityDeadline = DateTime.UtcNow.AddMinutes(3);
+            Log.Information("[SlotYield] Travelling to the gateway city before changing to {World}.", world);
+            return true;
+        }
+
+        return this.ChangeWorldNow(world);
+    }
+
+    private bool ChangeWorldNow(string world)
+    {
         var crossDc = false;
 
         try
@@ -250,7 +273,7 @@ public sealed class Plugin : IDalamudPlugin
             if (this.Configuration.TravelWalk)
             {
                 this.pendingWorldWalk = world;
-                this.pendingWorldWalkDeadline = DateTime.UtcNow.AddSeconds(120);
+                this.pendingWorldWalkDeadline = DateTime.UtcNow.AddSeconds(180);
             }
 
             return true;
@@ -260,6 +283,48 @@ public sealed class Plugin : IDalamudPlugin
             Log.Warning(exception, "[SlotYield] Lifestream IPC is not available.");
             return false;
         }
+    }
+
+    private static ushort GatewayTerritory(int gateway) => gateway switch
+    {
+        8 => 129,  // Limsa Lominsa Lower Decks
+        2 => 132,  // Gridania
+        9 => 130,  // Ul'dah
+        _ => 129,
+    };
+
+    private bool IsInGatewayCity() => ClientState.TerritoryType == GatewayTerritory(this.Configuration.TravelGateway);
+
+    private bool TeleportToGatewayCity()
+    {
+        try
+        {
+            var teleport = PluginInterface.GetIpcSubscriber<uint, byte, bool>("Lifestream.Teleport");
+            return teleport.InvokeFunc((uint)Math.Clamp(this.Configuration.TravelGateway, 2, 9), 0);
+        }
+        catch (Exception exception)
+        {
+            Log.Warning(exception, "[SlotYield] Lifestream teleport is not available.");
+            return false;
+        }
+    }
+
+    private void UpdatePendingCityTravel()
+    {
+        if (this.pendingCityThenWorld is not { } world)
+            return;
+
+        if (DateTime.UtcNow > this.pendingCityDeadline)
+        {
+            this.pendingCityThenWorld = null;
+            return;
+        }
+
+        if (!PlayerState.IsLoaded || !this.IsInGatewayCity())
+            return;
+
+        this.pendingCityThenWorld = null;
+        this.ChangeWorldNow(world);
     }
 
     /// <summary>Path to the nearest market board on the current map using vnavmesh.</summary>
@@ -2691,6 +2756,8 @@ public sealed class Plugin : IDalamudPlugin
         var now = DateTime.UtcNow;
 
         this.UpdatePendingWorldWalk();
+
+        this.UpdatePendingCityTravel();
 
         this.StepBuy();
 
