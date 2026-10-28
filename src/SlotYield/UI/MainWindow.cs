@@ -55,6 +55,10 @@ public sealed class MainWindow : Window
     private int levelCap;
     private int arbitrageSortColumn = 5;
     private bool arbitrageSortAscending;
+    private uint flipItemId;
+    private Quality flipQuality;
+    private int flipQty = 99;
+    private bool flipOpen;
     private PinnedSlot? undoSlot;
     private DateTime undoUtc;
     private bool watchedOnly;
@@ -2216,6 +2220,44 @@ public sealed class MainWindow : Window
         }
     }
 
+    private void DrawFlipPopup()
+    {
+        if (this.flipOpen)
+        {
+            ImGui.OpenPopup("##flip");
+            this.flipOpen = false;
+        }
+
+        if (!ImGui.BeginPopup("##flip"))
+            return;
+
+        var report = this.plugin.Arbitrage;
+        var row = report?.Rows.FirstOrDefault(candidate => candidate.ItemId == this.flipItemId && candidate.Quality == this.flipQuality);
+        if (row is null)
+        {
+            Theme.Faint("That pair is no longer in the report.");
+            ImGui.EndPopup();
+            return;
+        }
+
+        Theme.Colored(Theme.Text, this.plugin.Catalog.Name(row.ItemId));
+        Theme.Faint($"{row.BuyWorld} {Money.Gil(row.BuyPrice)}  ->  {row.SellWorld} {Money.Gil(row.SellPrice)}");
+
+        ImGui.SetNextItemWidth(190f);
+        var quantity = Math.Clamp(this.flipQty, 1, 999);
+        if (ImGui.SliderInt("##flipqty", ref quantity, 1, 999, "%d units"))
+            this.flipQty = quantity;
+
+        var cost = row.BuyPrice * this.flipQty;
+        var revenue = row.SellPrice * this.flipQty * (1m - this.Config.TaxRate);
+        var net = revenue - cost;
+
+        Theme.Faint($"cost {Money.Gil(cost)}   revenue {Money.Gil(revenue)}");
+        Theme.Colored(net > 0m ? Theme.Profit : Theme.Danger, $"net {Money.Gil(net)}");
+
+        ImGui.EndPopup();
+    }
+
     private void ArbitrageHeader(string label, int column)
     {
         ImGui.TableNextColumn();
@@ -2533,12 +2575,27 @@ public sealed class MainWindow : Window
                 if (ImGui.MenuItem("Open on Universalis"))
                     OpenUrl($"https://universalis.app/market/{row.ItemId}");
 
+                if (ImGui.MenuItem($"Travel to {row.BuyWorld}"))
+                    this.plugin.TravelToWorld(row.BuyWorld);
+
+                if (ImGui.MenuItem("Flip calculator..."))
+                {
+                    this.flipItemId = row.ItemId;
+                    this.flipQuality = row.Quality;
+                    this.flipQty = Math.Max(1, this.Config.DefaultStackSize);
+                    this.flipOpen = true;
+                }
+
                 ImGui.EndPopup();
             }
         }
 
         ImGui.EndTable();
+
+        this.DrawFlipPopup();
     }
+
+    // ---------------------------------------------------------------- scan ----
 
     private void DrawScanTab()
     {

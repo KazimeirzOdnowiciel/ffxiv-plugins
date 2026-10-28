@@ -208,6 +208,20 @@ public sealed class Plugin : IDalamudPlugin
 
     public void CancelArbitrage() => this.arbitrageCancellation?.Cancel();
 
+    /// <summary>Ask Lifestream to change worlds; harmless when it is not installed.</summary>
+    public void TravelToWorld(string world)
+    {
+        try
+        {
+            CommandManager.ProcessCommand($"/li {world}");
+            Log.Information("[SlotYield] Travel requested: {World}", world);
+        }
+        catch (Exception exception)
+        {
+            Log.Warning(exception, "[SlotYield] Travel command failed.");
+        }
+    }
+
     public ItemCatalog Catalog { get; }
 
     private RecipeCatalog? recipes;
