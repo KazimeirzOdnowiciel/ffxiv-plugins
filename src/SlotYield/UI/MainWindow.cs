@@ -2476,6 +2476,27 @@ public sealed class MainWindow : Window
             ImGui.SetTooltip("After a world change, use vnavmesh to walk to the market board.");
 
         ImGui.SameLine();
+        ImGui.SetNextItemWidth(105f);
+        var gateway = this.Config.TravelGateway;
+        var gatewayLabel = gateway switch { 8 => "Limsa", 2 => "Gridania", 9 => "Ul'dah", _ => "gateway" };
+        if (ImGui.BeginCombo("##gateway", gatewayLabel))
+        {
+            foreach (var (id, name) in new[] { (8, "Limsa"), (2, "Gridania"), (9, "Ul'dah") })
+            {
+                if (!ImGui.Selectable(name, gateway == id))
+                    continue;
+
+                this.Config.TravelGateway = id;
+                this.plugin.SaveConfig();
+            }
+
+            ImGui.EndCombo();
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Which city Lifestream should change worlds through.");
+
+        ImGui.SameLine();
         if (this.plugin.ArbitrageRunning)
         {
             Theme.Colored(Theme.Gold, $"comparing worlds... {this.plugin.ArbitrageDone}/{this.plugin.ArbitrageTotal}");

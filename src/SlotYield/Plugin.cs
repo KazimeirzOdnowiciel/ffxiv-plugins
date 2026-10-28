@@ -218,22 +218,32 @@ public sealed class Plugin : IDalamudPlugin
 
     public void CancelArbitrage() => this.arbitrageCancellation?.Cancel();
 
-    /// <summary>Ask Lifestream (via IPC) to change worlds, then walk to the market board on arrival.</summary>
+    /// <summary>Ask Lifestream (via IPC) to change worlds with the chosen gateway, then walk to the market board.</summary>
     public bool TravelToWorld(string world)
     {
         if (string.IsNullOrWhiteSpace(world))
             return false;
 
+        var crossDc = false;
+
         try
         {
-            var changeWorld = PluginInterface.GetIpcSubscriber<string, bool>("Lifestream.ChangeWorld");
-            if (!changeWorld.InvokeFunc(world))
-            {
-                Log.Warning("[SlotYield] Lifestream refused the world change to {World}.", world);
-                return false;
-            }
+            var canCross = PluginInterface.GetIpcSubscriber<string, bool>("Lifestream.CanVisitCrossDC");
+            crossDc = canCross.InvokeFunc(world);
+        }
+        catch
+        {
+            // Lifestream without the cross-DC helper: assume same-DC
+        }
 
-            Log.Information("[SlotYield] Lifestream changing world to {World}.", world);
+        try
+        {
+            var changeWorld = PluginInterface.GetIpcSubscriber<string, bool, string, bool, int?, bool?, bool?, object>("Lifestream.TPAndChangeWorld");
+            changeWorld.InvokeAction(world, crossDc, null!, false, Math.Clamp(this.Configuration.TravelGateway, 2, 9), null, null);
+            Log.Information(
+                "[SlotYield] Lifestream changing world to {World} via gateway {Gateway}.",
+                world,
+                this.Configuration.TravelGateway);
 
             if (this.Configuration.TravelWalk)
             {

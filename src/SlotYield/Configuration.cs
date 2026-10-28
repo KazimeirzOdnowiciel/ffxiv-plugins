@@ -126,6 +126,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>After a world change, walk to the market board with vnavmesh.</summary>
     public bool TravelWalk { get; set; } = true;
 
+    /// <summary>Lifestream world-change gateway: 8 = Limsa, 2 = Gridania, 9 = Ul'dah.</summary>
+    public int TravelGateway { get; set; } = 8;
+
     /// <summary>Explicit world set; empty means "every world in my data center".</summary>
     public List<string> ArbitrageWorlds { get; set; } = new();
 
