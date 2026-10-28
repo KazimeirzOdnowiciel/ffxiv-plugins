@@ -2246,10 +2246,24 @@ public sealed class MainWindow : Window
             var count = 0;
             foreach (var entry in group)
             {
+                count++;
+                var name = this.plugin.Catalog.Name(entry.ItemId) + (entry.Hq ? " HQ" : string.Empty);
+
+                Theme.Faint(name);
+                ImGui.SameLine(0f, 10f);
+                ImGui.SetNextItemWidth(72f);
+                var quantity = entry.Quantity;
+                if (ImGui.InputInt("##qty" + entry.ItemId + (entry.Hq ? "h" : "n"), ref quantity))
+                {
+                    entry.Quantity = Math.Clamp(quantity, 1, 999);
+                    this.plugin.SaveConfig();
+                }
+
                 var cost = entry.BuyPrice * entry.Quantity;
                 total += cost;
-                count++;
-                Theme.Faint($"{this.plugin.Catalog.Name(entry.ItemId)}{(entry.Hq ? " HQ" : string.Empty)}  x{entry.Quantity}  @ {Money.Gil(entry.BuyPrice)}  = {Money.Gil(cost)}");
+
+                ImGui.SameLine(0f, 10f);
+                Theme.Faint($"@ {Money.Gil(entry.BuyPrice)}  =  {Money.Gil(cost)}");
             }
 
             Theme.Colored(Theme.TextDim, $"{count} item(s), {Money.Gil(total)} to spend");
