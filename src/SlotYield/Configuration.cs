@@ -111,6 +111,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>The sell world must move at least this many units per day.</summary>
     public double ArbitrageMinVelocity { get; set; } = 0.5;
 
+    /// <summary>0 = sell against the cheapest listing, 1 = against the average sale price.</summary>
+    public int ArbitrageSellBasis { get; set; }
+
     /// <summary>Hide arbitrage rows whose per-unit profit is below this.</summary>
     public long ArbitrageMinNet { get; set; }
 

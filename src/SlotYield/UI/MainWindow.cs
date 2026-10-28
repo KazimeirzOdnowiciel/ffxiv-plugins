@@ -2518,6 +2518,29 @@ public sealed class MainWindow : Window
         }
 
         ImGui.SameLine();
+        ImGui.SetNextItemWidth(140f);
+        var sellBasis = this.Config.ArbitrageSellBasis;
+        if (ImGui.BeginCombo("##sellbasis", sellBasis == 1 ? "sell: average" : "sell: listing"))
+        {
+            if (ImGui.Selectable("sell: listing (undercut)", sellBasis == 0))
+            {
+                this.Config.ArbitrageSellBasis = 0;
+                this.plugin.SaveConfig();
+            }
+
+            if (ImGui.Selectable("sell: average sale", sellBasis == 1))
+            {
+                this.Config.ArbitrageSellBasis = 1;
+                this.plugin.SaveConfig();
+            }
+
+            ImGui.EndCombo();
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Listing basis sells against the other world's cheapest listing, so a single weird sale cannot inflate the numbers. Average uses the average sale price instead.");
+
+        ImGui.SameLine();
         ImGui.SetNextItemWidth(135f);
         var minNet = (int)Math.Clamp(config.ArbitrageMinNet, 0, 500_000);
         if (ImGui.SliderInt("##arbnet", ref minNet, 0, 500_000, minNet <= 0 ? "any profit" : "net >= %d"))

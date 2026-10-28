@@ -45,6 +45,7 @@ public sealed class ArbitrageService
         int topItems,
         decimal tax,
         double minVelocity,
+        bool useAverageSale,
         Action<int, int>? progress,
         CancellationToken token)
     {
@@ -118,7 +119,9 @@ public sealed class ArbitrageService
                         continue;
 
                     var candidateBuy = hq ? sample.HqBuy : sample.NqBuy;
-                    var candidateSell = hq ? sample.HqSell : sample.NqSell;
+                    var candidateSell = useAverageSale
+                        ? (hq ? sample.HqSell : sample.NqSell)
+                        : candidateBuy;
                     var candidateVelocity = hq ? sample.HqVelocity : sample.NqVelocity;
 
                     if (candidateBuy > 0m && candidateBuy < buyPrice)
