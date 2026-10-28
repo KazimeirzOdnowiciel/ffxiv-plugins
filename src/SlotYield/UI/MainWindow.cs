@@ -53,6 +53,8 @@ public sealed class MainWindow : Window
     private readonly Dictionary<uint, string> categoryNames = new();
     private readonly Dictionary<uint, int> requiredLevels = new();
     private int levelCap;
+    private int arbitrageSortColumn = 5;
+    private bool arbitrageSortAscending;
     private PinnedSlot? undoSlot;
     private DateTime undoUtc;
     private bool watchedOnly;
@@ -2137,6 +2139,56 @@ public sealed class MainWindow : Window
 
     // ---------------------------------------------------------------- arbitrage ----
 
+    private void ArbitrageHeader(string label, int column)
+    {
+        ImGui.TableNextColumn();
+        if (ImGui.SmallButton(label + "##arbh" + column))
+        {
+            if (this.arbitrageSortColumn == column)
+                this.arbitrageSortAscending = !this.arbitrageSortAscending;
+            else
+            {
+                this.arbitrageSortColumn = column;
+                this.arbitrageSortAscending = false;
+            }
+        }
+
+        if (this.arbitrageSortColumn == column)
+        {
+            var drawList = ImGui.GetWindowDrawList();
+            var min = ImGui.GetItemRectMin();
+            var max = ImGui.GetItemRectMax();
+            var centerX = max.X + 6f;
+            var centerY = (min.Y + max.Y) * 0.5f;
+            if (this.arbitrageSortAscending)
+                drawList.AddTriangleFilled(
+                    new Vector2(centerX - 4f, centerY + 2f),
+                    new Vector2(centerX + 4f, centerY + 2f),
+                    new Vector2(centerX, centerY - 3f),
+                    Theme.U32(Theme.Accent));
+            else
+                drawList.AddTriangleFilled(
+                    new Vector2(centerX - 4f, centerY - 2f),
+                    new Vector2(centerX + 4f, centerY - 2f),
+                    new Vector2(centerX, centerY + 3f),
+                    Theme.U32(Theme.Accent));
+        }
+    }
+
+    private int CompareArbitrage(ArbitrageRow left, ArbitrageRow right, int column) => column switch
+    {
+        0 => string.Compare(this.plugin.Catalog.Name(left.ItemId), this.plugin.Catalog.Name(right.ItemId), StringComparison.OrdinalIgnoreCase),
+        1 => string.Compare(left.BuyWorld, right.BuyWorld, StringComparison.OrdinalIgnoreCase),
+        2 => left.BuyPrice.CompareTo(right.BuyPrice),
+        3 => string.Compare(left.SellWorld, right.SellWorld, StringComparison.OrdinalIgnoreCase),
+        4 => left.SellPrice.CompareTo(right.SellPrice),
+        5 => left.NetPerUnit.CompareTo(right.NetPerUnit),
+        6 => left.NetPerUnit.CompareTo(right.NetPerUnit),
+        7 => left.HomePrice.CompareTo(right.HomePrice),
+        8 => left.SellVelocity.CompareTo(right.SellVelocity),
+        _ => left.ItemId.CompareTo(right.ItemId),
+    };
+
     private void DrawArbitrageTab()
     {
         var config = this.Config;
@@ -2167,6 +2219,15 @@ public sealed class MainWindow : Window
         if (ImGui.SliderFloat("##arbvel", ref minVelocity, 0f, 10f, minVelocity <= 0f ? "any demand" : "sell >= %.1f/d"))
         {
             config.ArbitrageMinVelocity = Math.Round(minVelocity, 1);
+            this.plugin.SaveConfig();
+        }
+
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(135f);
+        var minNet = (int)Math.Clamp(config.ArbitrageMinNet, 0, 500_000);
+        if (ImGui.SliderInt("##arbnet", ref minNet, 0, 500_000, minNet <= 0 ? "any profit" : "net >= %d"))
+        {
+            config.ArbitrageMinNet = minNet;
             this.plugin.SaveConfig();
         }
 
@@ -2229,9 +2290,18 @@ public sealed class MainWindow : Window
             return;
         }
 
+        var visible = report.Rows.ToList();
+        var minNetValue = (decimal)config.ArbitrageMinNet;
+        if (minNetValue > 0m)
+            visible = visible.Where(row => row.NetPerUnit >= minNetValue).ToList();
+
+        visible.Sort((left, right) => this.CompareArbitrage(left, right, this.arbitrageSortColumn));
+        if (this.arbitrageSortAscending)
+            visible.Reverse();
+
         if (!ImGui.BeginTable(
                 "##arbitrage",
-                8,
+                9,
                 ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings,
                 new Vector2(0f, TableHeight())))
         {
@@ -2244,18 +2314,23 @@ public sealed class MainWindow : Window
         ImGui.TableSetupColumn("Sell on", ImGuiTableColumnFlags.WidthFixed, 110f, 3);
         ImGui.TableSetupColumn("Sell", ImGuiTableColumnFlags.WidthFixed, 80f, 4);
         ImGui.TableSetupColumn("Net/unit", ImGuiTableColumnFlags.WidthFixed, 90f, 5);
-        ImGui.TableSetupColumn("My world", ImGuiTableColumnFlags.WidthFixed, 80f, 6);
-        ImGui.TableSetupColumn("Sales/d", ImGuiTableColumnFlags.WidthFixed, 60f, 7);
+        ImGui.TableSetupColumn("Stack", ImGuiTableColumnFlags.WidthFixed, 90f, 6);
+        ImGui.TableSetupColumn("My world", ImGuiTableColumnFlags.WidthFixed, 80f, 7);
+        ImGui.TableSetupColumn("Sales/d", ImGuiTableColumnFlags.WidthFixed, 60f, 8);
 
         ImGui.TableSetupScrollFreeze(0, 1);
         ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
-        foreach (var label in new[] { "Item", "Buy on", "Buy", "Sell on", "Sell", "Net/unit", "My world", "Sales/d" })
-        {
-            ImGui.TableNextColumn();
-            Theme.Faint(label);
-        }
+        this.ArbitrageHeader("Item", 0);
+        this.ArbitrageHeader("Buy on", 1);
+        this.ArbitrageHeader("Buy", 2);
+        this.ArbitrageHeader("Sell on", 3);
+        this.ArbitrageHeader("Sell", 4);
+        this.ArbitrageHeader("Net/unit", 5);
+        this.ArbitrageHeader("Stack", 6);
+        this.ArbitrageHeader("My world", 7);
+        this.ArbitrageHeader("Sales/d", 8);
 
-        foreach (var row in report.Rows)
+        foreach (var row in visible)
         {
             ImGui.TableNextRow();
 
@@ -2283,6 +2358,9 @@ public sealed class MainWindow : Window
 
             ImGui.TableNextColumn();
             Theme.Colored(Theme.Profit, "+" + Money.Gil(row.NetPerUnit));
+
+            ImGui.TableNextColumn();
+            Theme.Colored(Theme.Profit, "+" + Money.Gil(row.NetPerUnit * this.Config.DefaultStackSize));
 
             ImGui.TableNextColumn();
             if (row.HomePrice > 0m)
