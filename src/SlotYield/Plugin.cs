@@ -343,7 +343,11 @@ public sealed class Plugin : IDalamudPlugin
 
         try
         {
-            var subscriber = PluginInterface.GetIpcSubscriber<Vector3, bool, object>("vnavmesh.PathfindAndMoveTo");
+            var ready = PluginInterface.GetIpcSubscriber<bool>("vnavmesh.Nav.IsReady");
+            if (!ready.InvokeFunc())
+                return false;
+
+            var subscriber = PluginInterface.GetIpcSubscriber<Vector3, bool, object>("vnavmesh.SimpleMove.PathfindAndMoveTo");
             subscriber.InvokeAction(board.Position, false);
             this.vnavmeshWarned = false;
             Log.Information("[SlotYield] Walking to the market board at {Board}.", board.Position);
