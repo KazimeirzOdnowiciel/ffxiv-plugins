@@ -335,25 +335,60 @@ public sealed class Plugin : IDalamudPlugin
     public bool WalkToMarketBoard()
     {
         var board = this.FindMarketBoard();
-        if (board is null)
+        var player = ObjectTable.LocalPlayer;
+        if (board is null || player is null)
         {
             Log.Warning("[SlotYield] No market board on this map.");
             return false;
         }
+
+        // Aim for a point just short of the board instead of its centre, or we run into it.
+        var target = board.Position;
+        var towardPlayer = player.Position - board.Position;
+        if (towardPlayer.LengthSquared() > 0.01f)
+            target += Vector3.Normalize(towardPlayer) * 1.5f;
 
         try
         {
             var ready = PluginInterface.GetIpcSubscriber<bool>("vnavmesh.Nav.IsReady");
             if (!ready.InvokeFunc())
                 return false;
+        }
+        catch (Exception exception)
+        {
+            if (!this.vnavmeshWarned)
+            {
+                this.vnavmeshWarned = true;
+                Log.Warning(exception, "[SlotYield] vnavmesh is not available.");
+            }
 
+            return false;
+        }
+
+        try
+        {
+            var close = PluginInterface.GetIpcSubscriber<Vector3, bool, float, bool>("vnavmesh.SimpleMove.PathfindAndMoveCloseTo");
+            if (close.InvokeFunc(target, false, 1.5f))
+            {
+                this.vnavmeshWarned = false;
+                Log.Information("[SlotYield] Walking near the market board at {Board}.", target);
+                return true;
+            }
+        }
+        catch
+        {
+            // older vnavmesh builds lack the "close to" variant
+        }
+
+        try
+        {
             // Lifestream's VnavmeshIPC: "SimpleMove.PathfindAndMoveTo" is Func<Vector3, bool, bool>.
             var move = PluginInterface.GetIpcSubscriber<Vector3, bool, bool>("vnavmesh.SimpleMove.PathfindAndMoveTo");
-            if (!move.InvokeFunc(board.Position, false))
+            if (!move.InvokeFunc(target, false))
                 return false;
 
             this.vnavmeshWarned = false;
-            Log.Information("[SlotYield] Walking to the market board at {Board}.", board.Position);
+            Log.Information("[SlotYield] Walking near the market board at {Board}.", target);
             return true;
         }
         catch (Exception exception)
