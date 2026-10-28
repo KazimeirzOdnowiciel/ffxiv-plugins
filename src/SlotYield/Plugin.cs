@@ -210,6 +210,8 @@ public sealed class Plugin : IDalamudPlugin
     private string? pendingCityThenWorld;
     private DateTime pendingCityDeadline;
     private bool vnavmeshWarned;
+    private bool pendingBoardInteract;
+    private DateTime pendingBoardInteractDeadline;
 
     public ArbitrageReport? Arbitrage => this.arbitrageReport;
 
@@ -313,8 +315,30 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    private void UpdatePendingCityTravel()
+    private void UpdateBoardInteract()
     {
+        if (!this.pendingBoardInteract)
+            return;
+
+        if (DateTime.UtcNow > this.pendingBoardInteractDeadline)
+        {
+            this.pendingBoardInteract = false;
+            return;
+        }
+
+        var board = this.FindMarketBoard();
+        var player = ObjectTable.LocalPlayer;
+        if (board is null || player is null)
+            return;
+
+        if (Vector3.Distance(board.Position, player.Position) > 5f)
+            return;
+
+        this.pendingBoardInteract = false;
+        this.InteractWithMarketBoard();
+    }
+
+    private void UpdatePendingCityTravel()    {
         if (this.pendingCityThenWorld is not { } world)
             return;
 
@@ -714,10 +738,17 @@ public sealed class Plugin : IDalamudPlugin
         var board = this.FindMarketBoard();
         var player = ObjectTable.LocalPlayer;
         if (board is null || player is null)
+        {
+            Log.Debug("[SlotYield] Market board interact skipped: no board or player.");
             return false;
+        }
 
-        if (Vector3.Distance(board.Position, player.Position) > 5f)
+        var distance = Vector3.Distance(board.Position, player.Position);
+        if (distance > 5f)
+        {
+            Log.Debug("[SlotYield] Market board interact skipped: {Distance:0.0} yalms away.", distance);
             return false;
+        }
 
         try
         {
@@ -792,9 +823,8 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         this.pendingWorldWalk = null;
-
-        if (!this.WalkToMarketBoard())
-            return;
+        this.pendingBoardInteract = true;
+        this.pendingBoardInteractDeadline = DateTime.UtcNow.AddSeconds(60);
 
         Notifications.AddNotification(new Notification
         {
@@ -2846,6 +2876,8 @@ public sealed class Plugin : IDalamudPlugin
         this.UpdatePendingWorldWalk();
 
         this.UpdatePendingCityTravel();
+
+        this.UpdateBoardInteract();
 
         this.StepBuy();
 
