@@ -218,23 +218,35 @@ public sealed class Plugin : IDalamudPlugin
 
     public void CancelArbitrage() => this.arbitrageCancellation?.Cancel();
 
-    /// <summary>Ask Lifestream to change worlds, then walk to the market board on arrival.</summary>
-    public void TravelToWorld(string world)
+    /// <summary>Ask Lifestream (via IPC) to change worlds, then walk to the market board on arrival.</summary>
+    public bool TravelToWorld(string world)
     {
+        if (string.IsNullOrWhiteSpace(world))
+            return false;
+
         try
         {
-            CommandManager.ProcessCommand($"/li {world}");
-            Log.Information("[SlotYield] Travel requested: {World}", world);
+            var changeWorld = PluginInterface.GetIpcSubscriber<string, bool>("Lifestream.ChangeWorld");
+            if (!changeWorld.InvokeFunc(world))
+            {
+                Log.Warning("[SlotYield] Lifestream refused the world change to {World}.", world);
+                return false;
+            }
+
+            Log.Information("[SlotYield] Lifestream changing world to {World}.", world);
 
             if (this.Configuration.TravelWalk)
             {
                 this.pendingWorldWalk = world;
                 this.pendingWorldWalkDeadline = DateTime.UtcNow.AddSeconds(120);
             }
+
+            return true;
         }
         catch (Exception exception)
         {
-            Log.Warning(exception, "[SlotYield] Travel command failed.");
+            Log.Warning(exception, "[SlotYield] Lifestream IPC is not available.");
+            return false;
         }
     }
 

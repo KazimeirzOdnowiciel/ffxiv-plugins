@@ -2229,6 +2229,9 @@ public sealed class MainWindow : Window
         foreach (var group in rows.GroupBy(row => row.BuyWorld, StringComparer.OrdinalIgnoreCase).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
         {
             UiKit.SectionHeader(group.Key);
+            ImGui.SameLine();
+            if (ImGui.SmallButton("go##" + group.Key))
+                this.plugin.TravelToWorld(group.Key);
 
             decimal total = 0m;
             var count = 0;
@@ -2576,6 +2579,32 @@ public sealed class MainWindow : Window
         if (ImGui.BeginPopup("##arbbuylist"))
         {
             this.DrawArbitrageBuyList(visible, stackSize);
+            ImGui.EndPopup();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton("travel"))
+        {
+            var best = visible.FirstOrDefault();
+            if (best is not null)
+                this.plugin.TravelToWorld(best.BuyWorld);
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip(visible.Count > 0 ? $"Ask Lifestream to change to {visible[0].BuyWorld}" : "No rows to travel for.");
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton("go to..."))
+            ImGui.OpenPopup("##arbtravel");
+
+        if (ImGui.BeginPopup("##arbtravel"))
+        {
+            foreach (var world in this.plugin.DataCenterWorlds())
+            {
+                if (ImGui.MenuItem(world))
+                    this.plugin.TravelToWorld(world);
+            }
+
             ImGui.EndPopup();
         }
 
