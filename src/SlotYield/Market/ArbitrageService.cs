@@ -46,6 +46,7 @@ public sealed class ArbitrageService
         decimal tax,
         double minVelocity,
         bool useAverageSale,
+        bool sellHomeOnly,
         Action<int, int>? progress,
         CancellationToken token)
     {
@@ -130,7 +131,8 @@ public sealed class ArbitrageService
                         buyWorld = world;
                     }
 
-                    if (candidateVelocity >= minVelocity && candidateSell > sellPrice)
+                    var canSellHere = !sellHomeOnly || world.Equals(home, StringComparison.OrdinalIgnoreCase);
+                    if (canSellHere && candidateVelocity >= minVelocity && candidateSell > sellPrice)
                     {
                         sellPrice = candidateSell;
                         sellWorld = world;

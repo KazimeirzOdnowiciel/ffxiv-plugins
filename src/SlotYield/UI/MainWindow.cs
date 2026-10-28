@@ -2543,6 +2543,17 @@ public sealed class MainWindow : Window
             ImGui.SetTooltip("Listing basis sells against the other world's cheapest listing, so a single weird sale cannot inflate the numbers. Average uses the average sale price instead.");
 
         ImGui.SameLine();
+        var sellHomeOnly = this.Config.ArbitrageSellHomeOnly;
+        if (ImGui.Checkbox("sell on my world", ref sellHomeOnly))
+        {
+            this.Config.ArbitrageSellHomeOnly = sellHomeOnly;
+            this.plugin.SaveConfig();
+        }
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Buy anywhere, sell only back on the world you scanned.");
+
+        ImGui.SameLine();
         ImGui.SetNextItemWidth(135f);
         var minNet = (int)Math.Clamp(config.ArbitrageMinNet, 0, 500_000);
         if (ImGui.SliderInt("##arbnet", ref minNet, 0, 500_000, minNet <= 0 ? "any profit" : "net >= %d"))

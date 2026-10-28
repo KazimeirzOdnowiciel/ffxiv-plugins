@@ -114,6 +114,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>0 = sell against the cheapest listing, 1 = against the average sale price.</summary>
     public int ArbitrageSellBasis { get; set; }
 
+    /// <summary>Only count flips that sell back on your own world.</summary>
+    public bool ArbitrageSellHomeOnly { get; set; } = true;
+
     /// <summary>Hide arbitrage rows whose per-unit profit is below this.</summary>
     public long ArbitrageMinNet { get; set; }
 

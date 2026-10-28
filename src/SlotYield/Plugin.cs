@@ -2540,6 +2540,7 @@ public sealed class Plugin : IDalamudPlugin
                     this.Configuration.TaxRate,
                     Math.Clamp(this.Configuration.ArbitrageMinVelocity, 0d, 20d),
                     this.Configuration.ArbitrageSellBasis == 1,
+                    this.Configuration.ArbitrageSellHomeOnly,
                     (done, total) =>
                     {
                         this.arbitrageDone = done;
