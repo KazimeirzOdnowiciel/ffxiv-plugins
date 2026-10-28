@@ -51,6 +51,8 @@ public sealed class MainWindow : Window
     private string shareInput = string.Empty;
     private string categoryFilter = string.Empty;
     private readonly Dictionary<uint, string> categoryNames = new();
+    private readonly Dictionary<uint, int> requiredLevels = new();
+    private int levelCap;
     private PinnedSlot? undoSlot;
     private DateTime undoUtc;
     private bool watchedOnly;
@@ -703,6 +705,19 @@ public sealed class MainWindow : Window
 
             ImGui.EndCombo();
         }
+
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(110f);
+        var levelCap = Math.Clamp(this.levelCap, 0, 100);
+        if (ImGui.SliderInt("##level", ref levelCap, 0, 100, levelCap <= 0 ? "any level" : "level %d"))
+            this.levelCap = levelCap;
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Hide items whose craft or equip level is above this. 0 shows everything.");
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton("my level"))
+            this.levelCap = Plugin.PlayerState.Level;
 
         ImGui.SameLine();
         UiKit.ToggleChip("pinned", ref this.pinnedOnly);
@@ -2631,6 +2646,41 @@ public sealed class MainWindow : Window
         return set.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
+    /// <summary>The level you would need to craft or equip an item; 0 when the plugin cannot tell.</summary>
+    private int RequiredLevel(uint itemId)
+    {
+        if (this.requiredLevels.TryGetValue(itemId, out var cached))
+            return cached;
+
+        var level = 0;
+
+        var recipe = this.plugin.Recipes.GetRecipe(itemId);
+        if (recipe is { CraftLevel: > 0 })
+        {
+            level = recipe.CraftLevel;
+        }
+        else
+        {
+            Plugin.SuppressTracer = true;
+            try
+            {
+                var item = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Item>().GetRow(itemId);
+                level = item.LevelEquip;
+            }
+            catch
+            {
+                level = 0;
+            }
+            finally
+            {
+                Plugin.SuppressTracer = false;
+            }
+        }
+
+        this.requiredLevels[itemId] = level;
+        return level;
+    }
+
     private List<SlotCandidate> Filter(IReadOnlyList<SlotCandidate> source)
     {
         IEnumerable<SlotCandidate> rows = source;
@@ -2657,6 +2707,9 @@ public sealed class MainWindow : Window
 
         if (this.categoryFilter.Length > 0)
             rows = rows.Where(c => this.CategoryName(c.ItemId).Equals(this.categoryFilter, StringComparison.OrdinalIgnoreCase));
+
+        if (this.levelCap > 0)
+            rows = rows.Where(c => this.RequiredLevel(c.ItemId) <= this.levelCap);
 
         // 0 is "no minimum" by design (the slider labels it that way): unprofitable rows stay
         // visible so a slot that loses gil can be found and unpinned.
