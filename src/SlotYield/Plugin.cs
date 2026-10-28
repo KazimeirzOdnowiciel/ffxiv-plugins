@@ -228,6 +228,9 @@ public sealed class Plugin : IDalamudPlugin
         if (string.IsNullOrWhiteSpace(world))
             return false;
 
+        if (this.pendingCityThenWorld is not null)
+            return false;
+
         // Lifestream only honours a gateway that exists in your current zone, so get to the
         // gateway city first and change worlds from there.
         if (!this.IsInGatewayCity())
@@ -557,6 +560,18 @@ public sealed class Plugin : IDalamudPlugin
                 return;
 
             case BuyRunPhase.Walk:
+                if (ObjectTable.LocalPlayer is null || this.FindMarketBoard() is null)
+                {
+                    if (DateTime.UtcNow - this.buyRunPhaseUtc > TimeSpan.FromSeconds(90))
+                    {
+                        this.BuyRunStatus = "no market board on this map";
+                        this.buyRunActive = false;
+                        this.buyRun = null;
+                    }
+
+                    return;
+                }
+
                 this.BuyRunStatus = "walking to the market board";
                 this.WalkToMarketBoard();
                 this.buyRunPhase = BuyRunPhase.Approach;
@@ -701,6 +716,10 @@ public sealed class Plugin : IDalamudPlugin
             return;
 
         if (!this.CurrentWorldName().Equals(target, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        // The character world updates before the zone finishes loading, so wait for real objects.
+        if (ObjectTable.LocalPlayer is null || this.FindMarketBoard() is null)
             return;
 
         this.pendingWorldWalk = null;
