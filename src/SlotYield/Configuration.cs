@@ -117,6 +117,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Only count flips that sell back on your own world.</summary>
     public bool ArbitrageSellHomeOnly { get; set; } = true;
 
+    /// <summary>How many of the best rows the buy list shows.</summary>
+    public int ArbitrageBuyListLimit { get; set; } = 10;
+
     /// <summary>Hide arbitrage rows whose per-unit profit is below this.</summary>
     public long ArbitrageMinNet { get; set; }
 

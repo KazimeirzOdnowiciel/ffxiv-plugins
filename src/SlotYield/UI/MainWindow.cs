@@ -2225,7 +2225,7 @@ public sealed class MainWindow : Window
         return CsvExport.Build(header, lines);
     }
 
-    private void DrawArbitrageBuyList(IReadOnlyList<ArbitrageRow> rows, int stackSize)
+    private void DrawArbitrageBuyList(IReadOnlyList<ArbitrageRow> rows, int stackSize, int limit)
     {
         if (rows.Count == 0)
         {
@@ -2233,7 +2233,9 @@ public sealed class MainWindow : Window
             return;
         }
 
-        foreach (var group in rows.GroupBy(row => row.BuyWorld, StringComparer.OrdinalIgnoreCase).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+        var picked = rows.OrderByDescending(row => row.NetPerUnit).Take(limit).ToList();
+
+        foreach (var group in picked.GroupBy(row => row.BuyWorld, StringComparer.OrdinalIgnoreCase).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
         {
             if (ImGui.SmallButton("go##" + group.Key))
                 this.plugin.TravelToWorld(group.Key);
@@ -2758,8 +2760,16 @@ public sealed class MainWindow : Window
 
         if (ImGui.BeginPopup("##arbbuylist"))
         {
+            ImGui.SetNextItemWidth(160f);
+            var buyLimit = Math.Clamp(this.Config.ArbitrageBuyListLimit, 1, 200);
+            if (ImGui.SliderInt("##buylimit", ref buyLimit, 1, 200, "top %d items"))
+            {
+                this.Config.ArbitrageBuyListLimit = buyLimit;
+                this.plugin.SaveConfig();
+            }
+
             ImGui.BeginChild("##buylistscroll", new Vector2(560f, 420f), true);
-            this.DrawArbitrageBuyList(visible, stackSize);
+            this.DrawArbitrageBuyList(visible, stackSize, buyLimit);
             ImGui.EndChild();
             ImGui.EndPopup();
         }
