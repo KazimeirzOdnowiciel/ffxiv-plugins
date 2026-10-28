@@ -2225,17 +2225,16 @@ public sealed class MainWindow : Window
         return CsvExport.Build(header, lines);
     }
 
-    private void DrawArbitrageBuyList(IReadOnlyList<ArbitrageRow> rows, int stackSize, int limit)
+    /// <summary>Buy plan for exactly the rows that were ticked into the flip cart.</summary>
+    private void DrawCartBuyList(IReadOnlyList<FlipCartEntry> cart)
     {
-        if (rows.Count == 0)
+        if (cart.Count == 0)
         {
-            Theme.Faint("nothing to buy");
+            Theme.Faint("Nothing in the cart - tick rows in the table to add them.");
             return;
         }
 
-        var picked = rows.OrderByDescending(row => row.NetPerUnit).Take(limit).ToList();
-
-        foreach (var group in picked.GroupBy(row => row.BuyWorld, StringComparer.OrdinalIgnoreCase).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+        foreach (var group in cart.GroupBy(entry => entry.BuyWorld, StringComparer.OrdinalIgnoreCase).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
         {
             if (ImGui.SmallButton("go##" + group.Key))
                 this.plugin.TravelToWorld(group.Key);
@@ -2245,12 +2244,12 @@ public sealed class MainWindow : Window
 
             decimal total = 0m;
             var count = 0;
-            foreach (var row in group)
+            foreach (var entry in group)
             {
-                var cost = row.BuyPrice * stackSize;
+                var cost = entry.BuyPrice * entry.Quantity;
                 total += cost;
                 count++;
-                Theme.Faint($"{this.plugin.Catalog.Name(row.ItemId)}  x{stackSize}  @ {Money.Gil(row.BuyPrice)}  = {Money.Gil(cost)}");
+                Theme.Faint($"{this.plugin.Catalog.Name(entry.ItemId)}{(entry.Hq ? " HQ" : string.Empty)}  x{entry.Quantity}  @ {Money.Gil(entry.BuyPrice)}  = {Money.Gil(cost)}");
             }
 
             Theme.Colored(Theme.TextDim, $"{count} item(s), {Money.Gil(total)} to spend");
@@ -2760,16 +2759,8 @@ public sealed class MainWindow : Window
 
         if (ImGui.BeginPopup("##arbbuylist"))
         {
-            ImGui.SetNextItemWidth(160f);
-            var buyLimit = Math.Clamp(this.Config.ArbitrageBuyListLimit, 1, 200);
-            if (ImGui.SliderInt("##buylimit", ref buyLimit, 1, 200, "top %d items"))
-            {
-                this.Config.ArbitrageBuyListLimit = buyLimit;
-                this.plugin.SaveConfig();
-            }
-
             ImGui.BeginChild("##buylistscroll", new Vector2(560f, 420f), true);
-            this.DrawArbitrageBuyList(visible, stackSize, buyLimit);
+            this.DrawCartBuyList(this.Config.FlipCart);
             ImGui.EndChild();
             ImGui.EndPopup();
         }
