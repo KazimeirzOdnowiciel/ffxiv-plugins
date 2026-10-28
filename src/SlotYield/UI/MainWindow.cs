@@ -2727,6 +2727,14 @@ public sealed class MainWindow : Window
 
         this.DrawFlipCart();
 
+        if (this.plugin.BuyRunActive)
+        {
+            Theme.Colored(Theme.Gold, $"buy run: {this.plugin.BuyRunStatus}");
+            ImGui.SameLine();
+            if (ImGui.SmallButton("cancel run"))
+                this.plugin.CancelBuyRun();
+        }
+
         var history = this.plugin.ArbitrageHistory;
         if (history.Count >= 2)
         {
@@ -2773,6 +2781,18 @@ public sealed class MainWindow : Window
 
         if (ImGui.BeginPopup("##arbbuylist"))
         {
+            if (this.plugin.BuyRunActive)
+            {
+                Theme.Colored(Theme.Gold, this.plugin.BuyRunStatus);
+                ImGui.SameLine();
+                if (ImGui.SmallButton("cancel run"))
+                    this.plugin.CancelBuyRun();
+            }
+            else if (ImGui.SmallButton("go and buy"))
+            {
+                this.plugin.StartBuyRun();
+            }
+
             ImGui.BeginChild("##buylistscroll", new Vector2(560f, 420f), true);
             this.DrawCartBuyList(this.Config.FlipCart);
             ImGui.EndChild();

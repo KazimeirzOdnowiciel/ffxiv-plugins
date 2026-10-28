@@ -380,6 +380,161 @@ public sealed class Plugin : IDalamudPlugin
         });
     }
 
+    // ---------------------------------------------------------------- buy run ----
+
+    private enum BuyRunPhase
+    {
+        Travel,
+        Arrive,
+        Walk,
+        Board,
+        Buy,
+        Wait,
+    }
+
+    private List<FlipCartEntry>? buyRun;
+    private int buyRunIndex;
+    private BuyRunPhase buyRunPhase;
+    private DateTime buyRunPhaseUtc;
+    private bool buyRunActive;
+
+    public bool BuyRunActive => this.buyRunActive;
+
+    public string BuyRunStatus { get; private set; } = string.Empty;
+
+    /// <summary>Walks the whole cart: travel to each buy world, walk to the board, buy each entry.</summary>
+    public void StartBuyRun()
+    {
+        if (this.buyRunActive)
+            return;
+
+        var entries = this.Configuration.FlipCart.Where(entry => entry.Quantity > 0).ToList();
+        if (entries.Count == 0)
+        {
+            this.BuyRunStatus = "the cart is empty";
+            return;
+        }
+
+        this.buyRun = entries;
+        this.buyRunIndex = 0;
+        this.buyRunPhase = BuyRunPhase.Travel;
+        this.buyRunPhaseUtc = DateTime.UtcNow;
+        this.buyRunActive = true;
+        this.BuyRunStatus = "starting";
+        Log.Information("[SlotYield] Buy run started for {Count} item(s).", entries.Count);
+    }
+
+    public void CancelBuyRun()
+    {
+        this.buyRunActive = false;
+        this.buyRun = null;
+        this.buyStatus = string.Empty;
+        this.BuyRunStatus = "cancelled";
+    }
+
+    private void StepBuyRun()
+    {
+        if (!this.buyRunActive || this.buyRun is null)
+            return;
+
+        if (this.buyRunIndex >= this.buyRun.Count)
+        {
+            this.buyRunActive = false;
+            this.buyRun = null;
+            this.BuyRunStatus = "done";
+            Notifications.AddNotification(new Notification
+            {
+                Title = "Slot Yield",
+                Content = "Buy run finished.",
+                Type = NotificationType.Success,
+            });
+            return;
+        }
+
+        var entry = this.buyRun[this.buyRunIndex];
+        var world = entry.BuyWorld;
+        var onWorld = this.CurrentWorldName().Equals(world, StringComparison.OrdinalIgnoreCase);
+
+        switch (this.buyRunPhase)
+        {
+            case BuyRunPhase.Travel:
+                if (onWorld)
+                {
+                    this.buyRunPhase = BuyRunPhase.Walk;
+                    return;
+                }
+
+                this.BuyRunStatus = $"travelling to {world}";
+                this.TravelToWorld(world);
+                this.buyRunPhase = BuyRunPhase.Arrive;
+                this.buyRunPhaseUtc = DateTime.UtcNow;
+                return;
+
+            case BuyRunPhase.Arrive:
+                if (onWorld)
+                {
+                    this.buyRunPhase = BuyRunPhase.Walk;
+                    return;
+                }
+
+                if (DateTime.UtcNow - this.buyRunPhaseUtc > TimeSpan.FromMinutes(3))
+                {
+                    this.BuyRunStatus = $"could not reach {world}";
+                    this.buyRunActive = false;
+                    this.buyRun = null;
+                }
+
+                return;
+
+            case BuyRunPhase.Walk:
+                this.BuyRunStatus = "walking to the market board";
+                this.WalkToMarketBoard();
+                this.buyRunPhase = BuyRunPhase.Board;
+                this.buyRunPhaseUtc = DateTime.UtcNow;
+                return;
+
+            case BuyRunPhase.Board:
+            case BuyRunPhase.Wait:
+                if (GameGui.GetAddonByName("MarketBoard", 1) != nint.Zero)
+                {
+                    var name = this.Catalog.Name(entry.ItemId);
+                    this.BuyRunStatus = $"buying {name}";
+                    this.StartBuy(world, entry.ItemId, name, entry.Hq, entry.Quantity, entry.BuyPrice);
+                    this.buyRunPhase = BuyRunPhase.Buy;
+                    this.buyRunPhaseUtc = DateTime.UtcNow;
+                    return;
+                }
+
+                if (this.buyRunPhase == BuyRunPhase.Board)
+                {
+                    if (DateTime.UtcNow - this.buyRunPhaseUtc > TimeSpan.FromSeconds(45))
+                        this.buyRunPhase = BuyRunPhase.Wait;
+
+                    return;
+                }
+
+                this.BuyRunStatus = "open the market board to continue";
+                return;
+
+            case BuyRunPhase.Buy:
+                if (this.pendingBuy is not null)
+                {
+                    if (DateTime.UtcNow - this.buyRunPhaseUtc > TimeSpan.FromSeconds(40))
+                    {
+                        this.pendingBuy = null;
+                        this.buyRunIndex++;
+                        this.buyRunPhase = BuyRunPhase.Travel;
+                    }
+
+                    return;
+                }
+
+                this.buyRunIndex++;
+                this.buyRunPhase = BuyRunPhase.Travel;
+                return;
+        }
+    }
+
     private bool TryFindMarketBoard(out Vector3 board)
     {
         board = default;
@@ -2483,6 +2638,8 @@ public sealed class Plugin : IDalamudPlugin
         this.UpdatePendingWorldWalk();
 
         this.StepBuy();
+
+        this.StepBuyRun();
 
         if (this.Configuration.AutoScanHours > 0 && !this.State.IsScanning && PlayerState.IsLoaded)
         {
