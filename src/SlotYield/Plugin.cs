@@ -335,7 +335,13 @@ public sealed class Plugin : IDalamudPlugin
             return;
 
         this.pendingBoardInteract = false;
-        this.InteractWithMarketBoard();
+
+        if (this.InteractWithMarketBoard()
+            && !this.buyRunActive
+            && this.Configuration.FlipCart.Count > 0)
+        {
+            this.StartBuyRun();
+        }
     }
 
     private void UpdatePendingCityTravel()    {
@@ -554,7 +560,11 @@ public sealed class Plugin : IDalamudPlugin
         if (this.buyRunActive)
             return;
 
-        var entries = this.Configuration.FlipCart.Where(entry => entry.Quantity > 0).ToList();
+        var currentWorld = this.CurrentWorldName();
+        var entries = this.Configuration.FlipCart
+            .Where(entry => entry.Quantity > 0)
+            .OrderBy(entry => entry.BuyWorld.Equals(currentWorld, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ToList();
         if (entries.Count == 0)
         {
             this.BuyRunStatus = "the cart is empty";
