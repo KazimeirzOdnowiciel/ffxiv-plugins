@@ -53,6 +53,7 @@ public sealed class MainWindow : Window
     private readonly Dictionary<uint, string> categoryNames = new();
     private readonly Dictionary<uint, int> requiredLevels = new();
     private int levelCap;
+    private int minStackProfit;
     private int arbitrageSortColumn = 5;
     private bool arbitrageSortAscending;
     private uint flipItemId;
@@ -72,12 +73,12 @@ public sealed class MainWindow : Window
 
     private static readonly string[] ColumnLabels =
     {
-        "Item", "Q", "Price", "Cost", "Revenue/d", "Profit/d", "Sales/d", "Sellers", "Share", "Capital", "Clear", "30d", "",
+        "Item", "Q", "Price", "Cost", "Revenue/d", "Profit/d", "Sales/d", "Sellers", "Share", "Capital", "Clear", "30d", "Stack", "",
     };
 
     private readonly bool[] columnVisible =
     {
-        true, true, true, true, true, true, true, true, true, true, true, true, true,
+        true, true, true, true, true, true, true, true, true, true, true, true, true, true,
     };
     private int minGilPerDay;
     private bool pinnedOnly;
@@ -726,6 +727,15 @@ public sealed class MainWindow : Window
             this.levelCap = Plugin.PlayerState.Level;
 
         ImGui.SameLine();
+        ImGui.SetNextItemWidth(125f);
+        var minStack = Math.Clamp(this.minStackProfit, 0, 5_000_000);
+        if (ImGui.SliderInt("##minstack", ref minStack, 0, 5_000_000, minStack <= 0 ? "any stack" : "stack %d+"))
+            this.minStackProfit = minStack;
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Hide rows whose whole stack would earn less than this before it clears.");
+
+        ImGui.SameLine();
         UiKit.ToggleChip("pinned", ref this.pinnedOnly);
         ImGui.SameLine();
         UiKit.ToggleChip("dead", ref this.showDead);
@@ -875,7 +885,7 @@ public sealed class MainWindow : Window
                     ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings;
 
         ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, this.Config.CompactRows ? new Vector2(6f, 1f) : new Vector2(6f, 6f));
-        if (!ImGui.BeginTable("##slots", 13, flags, new Vector2(0f, TableHeight())))
+        if (!ImGui.BeginTable("##slots", 14, flags, new Vector2(0f, TableHeight())))
         {
             ImGui.PopStyleVar();
             return;
@@ -893,7 +903,8 @@ public sealed class MainWindow : Window
         ImGui.TableSetupColumn("Capital", ImGuiTableColumnFlags.WidthFixed, 72f, 9);
         ImGui.TableSetupColumn("Clear", ImGuiTableColumnFlags.WidthFixed, 52f, 10);
         ImGui.TableSetupColumn("30d", ImGuiTableColumnFlags.WidthFixed, 112f, 11);
-        ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 40f, 12);
+        ImGui.TableSetupColumn("Stack", ImGuiTableColumnFlags.WidthFixed, 84f, 12);
+        ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 40f, 13);
 
         for (var columnIndex = 0; columnIndex < this.columnVisible.Length; columnIndex++)
             ImGui.TableSetColumnEnabled(columnIndex, this.columnVisible[columnIndex]);
@@ -1019,6 +1030,7 @@ public sealed class MainWindow : Window
         this.HeaderButton("Capital", 9, ImGuiTableColumnFlags.WidthFixed);
         this.HeaderButton("Clear", 10, ImGuiTableColumnFlags.WidthFixed);
         this.HeaderButton("30d", 11, ImGuiTableColumnFlags.WidthFixed);
+        this.HeaderButton("Stack", 12, ImGuiTableColumnFlags.WidthFixed);
 
         ImGui.TableNextColumn();
     }
@@ -1280,6 +1292,9 @@ public sealed class MainWindow : Window
         }
 
         ImGui.TableNextColumn();
+        Theme.Colored(dim ? Theme.TextFaint : Theme.TextDim, Money.Gil(score.ProfitPerDay * (decimal)score.DaysToClear));
+
+        ImGui.TableNextColumn();
         ImGui.PushID((int)candidate.ItemId * 2 + (candidate.Quality == Quality.Hq ? 1 : 0));
         if (ImGui.SmallButton(pinned ? "unpin" : "pin"))
             this.TogglePin(candidate.ItemId, candidate.Quality);
@@ -1388,6 +1403,9 @@ public sealed class MainWindow : Window
             Theme.Faint($"using {freshSource.Count} items with fresh data");
         else
             Theme.Colored(Theme.Warn, $"only {freshSource.Count} fresh items for {config.PortfolioSlots} slots; stale data included");
+
+        if (ImGui.SmallButton("copy plan"))
+            ImGui.SetClipboardText(this.BuildPortfolioCsv(plan.Picks));
 
         this.DrawPortfolioSummaryCard(plan);
 
@@ -1680,6 +1698,9 @@ public sealed class MainWindow : Window
             return;
         }
 
+        if (ImGui.SmallButton("copy plan"))
+            ImGui.SetClipboardText(this.BuildCraftCsv(plan));
+
         ImGui.Spacing();
 
         var bestIdea = plan.MaxBy(idea => idea.Profit);
@@ -1866,6 +1887,9 @@ public sealed class MainWindow : Window
 
         if (reviews.Any(review => review.Status == ListingStatus.Unpriced))
             this.plugin.RequestListingQuotes(listings.Select(listing => listing.ItemId));
+
+        if (ImGui.SmallButton("copy"))
+            ImGui.SetClipboardText(this.BuildListingsCsv(reviews));
 
         if (this.listingSortColumn >= 0)
         {
@@ -2256,6 +2280,73 @@ public sealed class MainWindow : Window
         Theme.Colored(net > 0m ? Theme.Profit : Theme.Danger, $"net {Money.Gil(net)}");
 
         ImGui.EndPopup();
+    }
+
+    private string BuildCraftCsv(IReadOnlyList<CraftOpportunity> ideas)
+    {
+        var header = new[]
+        {
+            "item", "job", "craft_level", "crafts", "produced", "revenue", "materials", "profit", "per_unit", "stack_profit", "hq_profit", "owned_profit", "days_to_sell", "materials_priced",
+        };
+
+        var lines = ideas.Select(idea => (IReadOnlyList<string>)new[]
+        {
+            this.plugin.Catalog.Name(idea.ItemId),
+            this.plugin.Catalog.JobAbbreviation(idea.CraftJob),
+            idea.RequiredLevel.ToString(CultureInfo.InvariantCulture),
+            idea.Crafts.ToString(CultureInfo.InvariantCulture),
+            idea.Produced.ToString(CultureInfo.InvariantCulture),
+            idea.Revenue.ToString("0.##", CultureInfo.InvariantCulture),
+            idea.MaterialValue.ToString("0.##", CultureInfo.InvariantCulture),
+            idea.Profit.ToString("0.##", CultureInfo.InvariantCulture),
+            (idea.Produced > 0 ? idea.Profit / idea.Produced : 0m).ToString("0.##", CultureInfo.InvariantCulture),
+            ((idea.Produced > 0 ? idea.Profit / idea.Produced : 0m) * this.Config.DefaultStackSize).ToString("0.##", CultureInfo.InvariantCulture),
+            idea.HqProfit.ToString("0.##", CultureInfo.InvariantCulture),
+            idea.OwnedProfit.ToString("0.##", CultureInfo.InvariantCulture),
+            idea.DaysToSell.ToString("0.#", CultureInfo.InvariantCulture),
+            idea.MaterialsPriced ? "yes" : "partial",
+        });
+
+        return CsvExport.Build(header, lines);
+    }
+
+    private string BuildPortfolioCsv(IReadOnlyList<PortfolioCandidate> picks)
+    {
+        var header = new[] { "item", "quality", "capital", "profit_per_day" };
+
+        var lines = picks.Select(pick => (IReadOnlyList<string>)new[]
+        {
+            this.plugin.Catalog.Name(pick.ItemId),
+            pick.Quality == Quality.Hq ? "HQ" : "NQ",
+            pick.CapitalPerSlot.ToString("0.##", CultureInfo.InvariantCulture),
+            pick.GilPerDay.ToString("0.##", CultureInfo.InvariantCulture),
+        });
+
+        return CsvExport.Build(header, lines);
+    }
+
+    private string BuildListingsCsv(IReadOnlyList<ListingReview> reviews)
+    {
+        var header = new[]
+        {
+            "item", "retainer", "quality", "quantity", "your_price", "market_min", "delta", "days_to_sell", "status", "advice",
+        };
+
+        var lines = reviews.Select(review => (IReadOnlyList<string>)new[]
+        {
+            this.plugin.Catalog.Name(review.Listing.ItemId),
+            review.Listing.RetainerName,
+            review.Listing.Hq ? "HQ" : "NQ",
+            review.Listing.Quantity.ToString(CultureInfo.InvariantCulture),
+            review.Listing.PricePerUnit.ToString("0.##", CultureInfo.InvariantCulture),
+            review.MarketMin.ToString("0.##", CultureInfo.InvariantCulture),
+            review.PriceDeltaPercent.ToString("+0%;-0%;0%", CultureInfo.InvariantCulture),
+            review.DaysToSell.ToString("0.#", CultureInfo.InvariantCulture),
+            review.Status.ToString(),
+            review.Advice,
+        });
+
+        return CsvExport.Build(header, lines);
     }
 
     private void ArbitrageHeader(string label, int column)
@@ -3061,6 +3152,9 @@ public sealed class MainWindow : Window
         if (this.levelCap > 0)
             rows = rows.Where(c => this.RequiredLevel(c.ItemId) <= this.levelCap);
 
+        if (this.minStackProfit > 0)
+            rows = rows.Where(c => c.Score.ProfitPerDay * (decimal)c.Score.DaysToClear >= this.minStackProfit);
+
         // 0 is "no minimum" by design (the slider labels it that way): unprofitable rows stay
         // visible so a slot that loses gil can be found and unpinned.
         if (this.minGilPerDay > 0)
@@ -3088,6 +3182,7 @@ public sealed class MainWindow : Window
             9 => (a, b) => a.Score.CapitalPerSlot.CompareTo(b.Score.CapitalPerSlot),
             10 => (a, b) => a.Score.DaysToClear.CompareTo(b.Score.DaysToClear),
             11 => (a, b) => a.Score.TrendPercent.CompareTo(b.Score.TrendPercent),
+            12 => (a, b) => (a.Score.ProfitPerDay * (decimal)a.Score.DaysToClear).CompareTo(b.Score.ProfitPerDay * (decimal)b.Score.DaysToClear),
             _ => (a, b) => a.Score.ProfitPerDay.CompareTo(b.Score.ProfitPerDay),
         };
 
