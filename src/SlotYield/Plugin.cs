@@ -8,7 +8,9 @@ using System.Threading.Tasks;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Game.ClientState.Objects.Enums;
+using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Game.Command;
+using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using Dalamud.Game.Gui.Dtr;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
@@ -261,8 +263,10 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     /// <summary>Path to the nearest market board on the current map using vnavmesh.</summary>
-    public bool WalkToMarketBoard()    {
-        if (!this.TryFindMarketBoard(out var board))
+    public bool WalkToMarketBoard()
+    {
+        var board = this.FindMarketBoard();
+        if (board is null)
         {
             Log.Warning("[SlotYield] No market board on this map.");
             return false;
@@ -271,8 +275,8 @@ public sealed class Plugin : IDalamudPlugin
         try
         {
             var subscriber = PluginInterface.GetIpcSubscriber<Vector3, bool, object>("vnavmesh.PathfindAndMoveTo");
-            subscriber.InvokeAction(board, false);
-            Log.Information("[SlotYield] Walking to the market board at {Board}.", board);
+            subscriber.InvokeAction(board.Position, false);
+            Log.Information("[SlotYield] Walking to the market board at {Board}.", board.Position);
             return true;
         }
         catch (Exception exception)
@@ -387,6 +391,7 @@ public sealed class Plugin : IDalamudPlugin
         Travel,
         Arrive,
         Walk,
+        Approach,
         Board,
         Buy,
         Wait,
@@ -489,9 +494,37 @@ public sealed class Plugin : IDalamudPlugin
             case BuyRunPhase.Walk:
                 this.BuyRunStatus = "walking to the market board";
                 this.WalkToMarketBoard();
-                this.buyRunPhase = BuyRunPhase.Board;
+                this.buyRunPhase = BuyRunPhase.Approach;
                 this.buyRunPhaseUtc = DateTime.UtcNow;
                 return;
+
+            case BuyRunPhase.Approach:
+                {
+                    var board = this.FindMarketBoard();
+                    var player = ObjectTable.LocalPlayer;
+                    if (board is null || player is null)
+                    {
+                        this.buyRunPhase = BuyRunPhase.Board;
+                        this.buyRunPhaseUtc = DateTime.UtcNow;
+                        return;
+                    }
+
+                    if (Vector3.Distance(board.Position, player.Position) > 4.5f)
+                    {
+                        if (DateTime.UtcNow - this.buyRunPhaseUtc > TimeSpan.FromSeconds(75))
+                        {
+                            this.buyRunPhase = BuyRunPhase.Board;
+                            this.buyRunPhaseUtc = DateTime.UtcNow;
+                        }
+
+                        return;
+                    }
+
+                    this.InteractWithMarketBoard();
+                    this.buyRunPhase = BuyRunPhase.Board;
+                    this.buyRunPhaseUtc = DateTime.UtcNow;
+                    return;
+                }
 
             case BuyRunPhase.Board:
             case BuyRunPhase.Wait:
@@ -535,11 +568,34 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    private bool TryFindMarketBoard(out Vector3 board)
+    /// <summary>Open the market board by interacting with the nearest board object.</summary>
+    public unsafe bool InteractWithMarketBoard()
     {
-        board = default;
-        var best = float.MaxValue;
-        var found = false;
+        var board = this.FindMarketBoard();
+        var player = ObjectTable.LocalPlayer;
+        if (board is null || player is null)
+            return false;
+
+        if (Vector3.Distance(board.Position, player.Position) > 5f)
+            return false;
+
+        try
+        {
+            TargetSystem.Instance()->InteractWithObject((FFXIVClientStructs.FFXIV.Client.Game.Object.GameObject*)board.Address, false);
+            Log.Information("[SlotYield] Interacted with the market board.");
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Log.Warning(exception, "[SlotYield] Market board interaction failed.");
+            return false;
+        }
+    }
+
+    private IGameObject? FindMarketBoard()
+    {
+        IGameObject? best = null;
+        var bestDistance = float.MaxValue;
         var origin = ObjectTable.LocalPlayer?.Position ?? Vector3.Zero;
 
         foreach (var obj in ObjectTable)
@@ -555,15 +611,14 @@ public sealed class Plugin : IDalamudPlugin
             }
 
             var distance = Vector3.Distance(obj.Position, origin);
-            if (distance >= best)
+            if (distance >= bestDistance)
                 continue;
 
-            best = distance;
-            board = obj.Position;
-            found = true;
+            bestDistance = distance;
+            best = obj;
         }
 
-        return found;
+        return best;
     }
 
     private void UpdatePendingWorldWalk()
