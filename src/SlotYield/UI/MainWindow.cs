@@ -2162,6 +2162,15 @@ public sealed class MainWindow : Window
         }
 
         ImGui.SameLine();
+        ImGui.SetNextItemWidth(145f);
+        var minVelocity = (float)Math.Clamp(config.ArbitrageMinVelocity, 0d, 10d);
+        if (ImGui.SliderFloat("##arbvel", ref minVelocity, 0f, 10f, minVelocity <= 0f ? "any demand" : "sell >= %.1f/d"))
+        {
+            config.ArbitrageMinVelocity = Math.Round(minVelocity, 1);
+            this.plugin.SaveConfig();
+        }
+
+        ImGui.SameLine();
         if (this.plugin.ArbitrageRunning)
             Theme.Colored(Theme.Gold, "comparing worlds...");
         else if (ImGui.Button("compare worlds"))

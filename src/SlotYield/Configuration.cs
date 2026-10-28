@@ -108,6 +108,9 @@ public sealed class Configuration : IPluginConfiguration
 
     public int ArbitrageTopItems { get; set; } = 60;
 
+    /// <summary>The sell world must move at least this many units per day.</summary>
+    public double ArbitrageMinVelocity { get; set; } = 0.5;
+
     /// <summary>Explicit world set; empty means "every world in my data center".</summary>
     public List<string> ArbitrageWorlds { get; set; } = new();
 

@@ -2385,6 +2385,7 @@ public sealed class Plugin : IDalamudPlugin
                     worlds,
                     this.Configuration.ArbitrageTopItems,
                     this.Configuration.TaxRate,
+                    Math.Clamp(this.Configuration.ArbitrageMinVelocity, 0d, 20d),
                     token).ConfigureAwait(false);
 
                 this.arbitrageReport = report;

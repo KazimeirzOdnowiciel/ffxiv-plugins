@@ -41,6 +41,7 @@ public sealed class ArbitrageService
         IReadOnlyList<string> worlds,
         int topItems,
         decimal tax,
+        double minVelocity,
         CancellationToken token)
     {
         var warnings = new List<string>();
@@ -119,7 +120,7 @@ public sealed class ArbitrageService
                         buyWorld = world;
                     }
 
-                    if (candidateVelocity >= 0.1 && candidateSell > sellPrice)
+                    if (candidateVelocity >= minVelocity && candidateSell > sellPrice)
                     {
                         sellPrice = candidateSell;
                         sellWorld = world;
