@@ -347,8 +347,11 @@ public sealed class Plugin : IDalamudPlugin
             if (!ready.InvokeFunc())
                 return false;
 
-            var subscriber = PluginInterface.GetIpcSubscriber<Vector3, bool, object>("vnavmesh.SimpleMove.PathfindAndMoveTo");
-            subscriber.InvokeAction(board.Position, false);
+            // Lifestream's VnavmeshIPC: "SimpleMove.PathfindAndMoveTo" is Func<Vector3, bool, bool>.
+            var move = PluginInterface.GetIpcSubscriber<Vector3, bool, bool>("vnavmesh.SimpleMove.PathfindAndMoveTo");
+            if (!move.InvokeFunc(board.Position, false))
+                return false;
+
             this.vnavmeshWarned = false;
             Log.Information("[SlotYield] Walking to the market board at {Board}.", board.Position);
             return true;
