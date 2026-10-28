@@ -261,8 +261,7 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     /// <summary>Path to the nearest market board on the current map using vnavmesh.</summary>
-    public bool WalkToMarketBoard()
-    {
+    public bool WalkToMarketBoard()    {
         if (!this.TryFindMarketBoard(out var board))
         {
             Log.Warning("[SlotYield] No market board on this map.");
@@ -281,6 +280,104 @@ public sealed class Plugin : IDalamudPlugin
             Log.Warning(exception, "[SlotYield] vnavmesh is not available.");
             return false;
         }
+    }
+
+    // ---------------------------------------------------------------- auto buy ----
+
+    private sealed record BuyRequest(string World, uint ItemId, string Name, bool Hq, int Quantity, decimal MaxUnitPrice);
+
+    private BuyRequest? pendingBuy;
+    private DateTime buyRequestUtc;
+    private string buyStatus = string.Empty;
+
+    public string BuyStatus => this.buyStatus;
+
+    /// <summary>
+    /// Start a guarded purchase: the board must be open, then the live listings are checked
+    /// against the limit before anything is sent.
+    /// </summary>
+    public bool StartBuy(string world, uint itemId, string name, bool hq, int quantity, decimal maxUnitPrice)
+    {
+        if (this.pendingBuy is not null)
+            return false;
+
+        if (GameGui.GetAddonByName("MarketBoard", 1) == nint.Zero)
+        {
+            this.buyStatus = $"Open the market board on {world} first.";
+            Notifications.AddNotification(new Notification
+            {
+                Title = "Slot Yield",
+                Content = this.buyStatus,
+                Type = NotificationType.Warning,
+            });
+            return false;
+        }
+
+        if (!MarketBoardBuyer.RequestItem(itemId))
+        {
+            this.buyStatus = "The market board search proxy is not ready.";
+            return false;
+        }
+
+        this.pendingBuy = new BuyRequest(world, itemId, name, hq, Math.Clamp(quantity, 1, 999), maxUnitPrice);
+        this.buyRequestUtc = DateTime.UtcNow;
+        this.buyStatus = $"checking {name}...";
+        Log.Information("[SlotYield] Buy check: {Quantity}x {Name} at <= {Max}", quantity, name, maxUnitPrice);
+        return true;
+    }
+
+    private void StepBuy()
+    {
+        if (this.pendingBuy is not { } request)
+            return;
+
+        if (DateTime.UtcNow - this.buyRequestUtc > TimeSpan.FromSeconds(20))
+        {
+            this.pendingBuy = null;
+            this.buyStatus = "price check timed out";
+            return;
+        }
+
+        if (MarketBoardBuyer.WaitingForListings())
+            return;
+
+        var listings = MarketBoardBuyer.ReadListings(request.ItemId)
+            .Where(listing => listing.Hq == request.Hq && listing.UnitPrice <= request.MaxUnitPrice)
+            .OrderBy(listing => listing.UnitPrice)
+            .ToList();
+
+        if (listings.Count == 0)
+        {
+            this.pendingBuy = null;
+            this.buyStatus = $"no {request.Name} at or below {Money.Gil(request.MaxUnitPrice)}";
+            Notifications.AddNotification(new Notification
+            {
+                Title = "Slot Yield",
+                Content = this.buyStatus,
+                Type = NotificationType.Warning,
+            });
+            return;
+        }
+
+        var best = listings[0];
+        var take = Math.Min(request.Quantity, (int)best.Quantity);
+
+        if (!MarketBoardBuyer.Buy(best, take))
+        {
+            this.pendingBuy = null;
+            this.buyStatus = "the purchase request was rejected";
+            return;
+        }
+
+        this.pendingBuy = null;
+        this.buyStatus = $"bought {take} x {request.Name} at {Money.Gil(best.UnitPrice)}";
+        Log.Information("[SlotYield] {Status}", this.buyStatus);
+        Notifications.AddNotification(new Notification
+        {
+            Title = "Slot Yield",
+            Content = this.buyStatus,
+            Type = NotificationType.Success,
+        });
     }
 
     private bool TryFindMarketBoard(out Vector3 board)
@@ -2384,6 +2481,8 @@ public sealed class Plugin : IDalamudPlugin
         var now = DateTime.UtcNow;
 
         this.UpdatePendingWorldWalk();
+
+        this.StepBuy();
 
         if (this.Configuration.AutoScanHours > 0 && !this.State.IsScanning && PlayerState.IsLoaded)
         {

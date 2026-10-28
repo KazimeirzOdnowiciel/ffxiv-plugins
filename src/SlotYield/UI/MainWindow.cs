@@ -60,6 +60,13 @@ public sealed class MainWindow : Window
     private Quality flipQuality;
     private int flipQty = 99;
     private bool flipOpen;
+    private bool buyOpen;
+    private uint buyItemId;
+    private bool buyHq;
+    private string buyName = string.Empty;
+    private string buyWorld = string.Empty;
+    private int buyQty = 99;
+    private decimal buyMaxPrice;
     private PinnedSlot? undoSlot;
     private DateTime undoUtc;
     private bool watchedOnly;
@@ -2331,6 +2338,38 @@ public sealed class MainWindow : Window
         return CsvExport.Build(header, lines);
     }
 
+    private void DrawBuyPopup()
+    {
+        if (this.buyOpen)
+        {
+            ImGui.OpenPopup("##buyitem");
+            this.buyOpen = false;
+        }
+
+        if (!ImGui.BeginPopup("##buyitem"))
+            return;
+
+        Theme.Colored(Theme.Text, this.buyName);
+        Theme.Faint($"on {this.buyWorld} - open the market board there first");
+
+        ImGui.SetNextItemWidth(195f);
+        var quantity = Math.Clamp(this.buyQty, 1, 999);
+        if (ImGui.SliderInt("##buyqty", ref quantity, 1, 999, "%d units"))
+            this.buyQty = quantity;
+
+        ImGui.SetNextItemWidth(195f);
+        var max = (int)Math.Clamp(this.buyMaxPrice, 0, 5_000_000);
+        if (ImGui.SliderInt("##buymax", ref max, 0, 5_000_000, "max %d / unit"))
+            this.buyMaxPrice = max;
+
+        Theme.Faint(this.plugin.BuyStatus);
+
+        if (ImGui.Button("check and buy"))
+            this.plugin.StartBuy(this.buyWorld, this.buyItemId, this.buyName, this.buyHq, this.buyQty, this.buyMaxPrice);
+
+        ImGui.EndPopup();
+    }
+
     private void DrawFlipPopup()
     {
         if (this.flipOpen)
@@ -2860,6 +2899,17 @@ public sealed class MainWindow : Window
                 if (ImGui.MenuItem("Walk to market board"))
                     this.plugin.WalkToMarketBoard();
 
+                if (ImGui.MenuItem("Buy..."))
+                {
+                    this.buyOpen = true;
+                    this.buyItemId = row.ItemId;
+                    this.buyHq = row.Quality == Quality.Hq;
+                    this.buyName = this.plugin.Catalog.Name(row.ItemId);
+                    this.buyWorld = row.BuyWorld;
+                    this.buyQty = Math.Max(1, this.Config.DefaultStackSize);
+                    this.buyMaxPrice = row.BuyPrice;
+                }
+
                 if (ImGui.MenuItem("Flip calculator..."))
                 {
                     this.flipItemId = row.ItemId;
@@ -2875,6 +2925,7 @@ public sealed class MainWindow : Window
         ImGui.EndTable();
 
         this.DrawFlipPopup();
+        this.DrawBuyPopup();
     }
 
     // ---------------------------------------------------------------- scan ----
