@@ -2247,6 +2247,88 @@ public sealed class MainWindow : Window
         }
     }
 
+    private bool IsInFlipCart(ArbitrageRow row) =>
+        this.Config.FlipCart.Any(entry => entry.ItemId == row.ItemId && entry.Hq == (row.Quality == Quality.Hq));
+
+    private void ToggleFlipCart(ArbitrageRow row, bool add)
+    {
+        var cart = this.Config.FlipCart;
+        cart.RemoveAll(entry => entry.ItemId == row.ItemId && entry.Hq == (row.Quality == Quality.Hq));
+
+        if (add)
+        {
+            cart.Add(new FlipCartEntry
+            {
+                ItemId = row.ItemId,
+                Hq = row.Quality == Quality.Hq,
+                BuyWorld = row.BuyWorld,
+                BuyPrice = row.BuyPrice,
+                SellWorld = row.SellWorld,
+                SellPrice = row.SellPrice,
+                Quantity = Math.Max(1, this.Config.DefaultStackSize),
+            });
+        }
+
+        this.plugin.SaveConfig();
+    }
+
+    private void DrawFlipCart()
+    {
+        var cart = this.Config.FlipCart;
+        if (cart.Count == 0)
+            return;
+
+        var cost = cart.Sum(entry => entry.BuyPrice * entry.Quantity);
+        var revenue = cart.Sum(entry => entry.SellPrice * entry.Quantity * (1m - this.Config.TaxRate));
+        var net = revenue - cost;
+
+        ImGui.Spacing();
+        Theme.Colored(Theme.Gold, $"flip cart: {cart.Count} item(s), {Money.Gil(cost)} to spend, +{Money.Gil(net)} expected");
+
+        if (ImGui.SmallButton("copy cart"))
+            ImGui.SetClipboardText(this.BuildFlipCartCsv(cart));
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton("clear cart"))
+        {
+            cart.Clear();
+            this.plugin.SaveConfig();
+        }
+
+        foreach (var group in cart.GroupBy(entry => entry.BuyWorld, StringComparer.OrdinalIgnoreCase).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            var line = string.Join(", ", group.Select(entry =>
+                $"{this.plugin.Catalog.Name(entry.ItemId)}{(entry.Hq ? " HQ" : string.Empty)} x{entry.Quantity}"));
+
+            Theme.Faint($"{group.Key}: {line}");
+        }
+
+        ImGui.Spacing();
+    }
+
+    private string BuildFlipCartCsv(IReadOnlyList<FlipCartEntry> cart)
+    {
+        var header = new[]
+        {
+            "item", "quality", "buy_world", "buy_price", "quantity", "cost", "sell_world", "sell_price", "expected_net",
+        };
+
+        var lines = cart.Select(entry => (IReadOnlyList<string>)new[]
+        {
+            this.plugin.Catalog.Name(entry.ItemId),
+            entry.Hq ? "HQ" : "NQ",
+            entry.BuyWorld,
+            entry.BuyPrice.ToString("0.##", CultureInfo.InvariantCulture),
+            entry.Quantity.ToString(CultureInfo.InvariantCulture),
+            (entry.BuyPrice * entry.Quantity).ToString("0.##", CultureInfo.InvariantCulture),
+            entry.SellWorld,
+            entry.SellPrice.ToString("0.##", CultureInfo.InvariantCulture),
+            (entry.SellPrice * entry.Quantity * (1m - this.Config.TaxRate) - entry.BuyPrice * entry.Quantity).ToString("0.##", CultureInfo.InvariantCulture),
+        });
+
+        return CsvExport.Build(header, lines);
+    }
+
     private void DrawFlipPopup()
     {
         if (this.flipOpen)
@@ -2553,6 +2635,8 @@ public sealed class MainWindow : Window
 
         Theme.Faint($"{report.Worlds.Count} worlds ({string.Join(", ", report.Worlds)}) - {report.ComputedUtc.ToLocalTime():HH:mm}");
 
+        this.DrawFlipCart();
+
         var history = this.plugin.ArbitrageHistory;
         if (history.Count >= 2)
         {
@@ -2674,6 +2758,11 @@ public sealed class MainWindow : Window
             ImGui.TableNextRow();
 
             ImGui.TableNextColumn();
+            var inCart = this.IsInFlipCart(row);
+            if (ImGui.Checkbox("##flipcart" + row.ItemId + row.Quality, ref inCart))
+                this.ToggleFlipCart(row, inCart);
+
+            ImGui.SameLine(0f, 4f);
             if (row.NetPerUnit * stackSize >= (decimal)config.ArbitrageTripThreshold)
             {
                 Theme.Colored(Theme.Gold, "*");

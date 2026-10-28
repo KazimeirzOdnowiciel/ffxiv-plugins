@@ -129,6 +129,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Lifestream world-change gateway: 8 = Limsa, 2 = Gridania, 9 = Ul'dah.</summary>
     public int TravelGateway { get; set; } = 8;
 
+    /// <summary>Items picked for a flip run: buy on one world, sell on another.</summary>
+    public List<FlipCartEntry> FlipCart { get; set; } = new();
+
     /// <summary>Explicit world set; empty means "every world in my data center".</summary>
     public List<string> ArbitrageWorlds { get; set; } = new();
 
@@ -270,4 +273,22 @@ public sealed class Configuration : IPluginConfiguration
     }
 
     public decimal TaxRate => (decimal)this.TaxPercent / 100m;
+}
+
+/// <summary>One item picked for a flip run: buy on one world, sell on another.</summary>
+public sealed class FlipCartEntry
+{
+    public uint ItemId { get; set; }
+
+    public bool Hq { get; set; }
+
+    public string BuyWorld { get; set; } = string.Empty;
+
+    public decimal BuyPrice { get; set; }
+
+    public string SellWorld { get; set; } = string.Empty;
+
+    public decimal SellPrice { get; set; }
+
+    public int Quantity { get; set; } = 1;
 }
