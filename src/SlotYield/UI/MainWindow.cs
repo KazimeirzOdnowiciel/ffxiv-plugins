@@ -116,6 +116,25 @@ public sealed class MainWindow : GlassWindow
 
     private static readonly string[] QualityFilterLabels = { "NQ+HQ", "NQ", "HQ" };
 
+    /// <summary>One-line meanings of the opportunities columns, for the toolbar's "?" popover.</summary>
+    private static readonly (string Label, string Meaning)[] ColumnMeanings =
+    {
+        ("Item", "The item and its icon; a ! marks quotes older than the freshness window."),
+        ("Q", "NQ or HQ - which version of the item this row prices."),
+        ("Price", "Your listing price: the price this slot would be posted at after undercutting."),
+        ("Cost", "Estimated acquisition cost per unit; a ? means some materials had no price."),
+        ("Revenue/d", "Gil the slot would take per day at your expected share, after tax but before cost."),
+        ("Profit/d", "Net gil per day after tax and acquisition cost."),
+        ("Sales/d", "Units of this item sold per day on your world."),
+        ("Sellers", "Distinct sellers competing with you at your price."),
+        ("Share", "Your expected share of those daily sales."),
+        ("Capital", "Gil tied up in the slot - the listing price times the stack you would hold."),
+        ("Clear", "Days to sell a whole stack at your expected share."),
+        ("30d", "Price history: quantity-weighted daily prices over the last 30 days."),
+        ("Stack", "Whole-stack profit: profit per day times the days to clear."),
+        ("pin", "Pins or unpins the slot, so it counts toward your portfolio."),
+    };
+
     private static readonly PricingStrategy[] StrategyValues = Enum.GetValues<PricingStrategy>();
 
     private static readonly string[] StrategyLabels = StrategyValues.Select(StrategyLabel).ToArray();
@@ -136,6 +155,51 @@ public sealed class MainWindow : GlassWindow
     private int listingSortColumn = -1;
     private bool listingSortAscending;
     private int listingTableFrame = -100;
+    private int portfolioSortColumn;
+    private bool portfolioSortAscending = true;
+    private int portfolioTableFrame = -100;
+    private int craftSortColumn = -1;
+    private bool craftSortAscending;
+    private int craftTableFrame = -100;
+
+    /// <summary>Rows of the portfolio and craft tables, reused so sorting them allocates nothing per frame.</summary>
+    private readonly List<PortfolioCandidate> portfolioRows = new();
+    private readonly List<CraftOpportunity> craftRows = new();
+
+    /// <summary>Comparators per column, built once and picked by the current sort column.</summary>
+    private Comparison<PortfolioCandidate>[]? portfolioComparisons;
+    private Comparison<CraftOpportunity>[]? craftComparisons;
+
+    /// <summary>Quotes for the portfolio frame being sorted, so the sales/day and sellers comparators can read them.</summary>
+    private Dictionary<(uint ItemId, Quality Quality), MarketQuote>? portfolioSortQuotes;
+
+    /// <summary>The filtered+sorted opportunities rows, rebuilt only when the scan or a filter input changes.</summary>
+    private ScanResult? rowsCacheSource;
+    private List<SlotCandidate>? rowsCache;
+    private bool rowsCacheValid;
+    private string rowsCacheSearch = "\0";
+    private int rowsCacheMinGilPerDay;
+    private int rowsCacheQuality;
+    private string rowsCacheCategory = "\0";
+    private int rowsCacheLevelCap;
+    private int rowsCacheMinStack;
+    private bool rowsCachePinnedOnly;
+    private bool rowsCacheShowDead;
+    private bool rowsCacheAffordableOnly;
+    private bool rowsCacheHideStale;
+    private bool rowsCacheWatchedOnly;
+    private int rowsCacheSortColumn;
+    private bool rowsCacheSortAscending;
+    private int rowsCachePinnedCount;
+    private int rowsCacheWatchedCount;
+    private long rowsCacheBudget;
+
+    /// <summary>Category names for the current scan, rebuilt only when the scan changes.</summary>
+    private ScanResult? categoryChoicesSource;
+    private readonly List<string> categoryChoices = new();
+
+    /// <summary>Reused scratch array for the header pulse, resized only when the history grows.</summary>
+    private decimal[] pulseSeries = Array.Empty<decimal>();
 
     public MainWindow(Plugin plugin)
         : base(plugin, "Slot Yield###SlotYieldMain")
@@ -594,10 +658,12 @@ public sealed class MainWindow : GlassWindow
             ImGui.SameLine(pulseX);
             var pulsePos = ImGui.GetCursorScreenPos();
             ImGui.Dummy(new Vector2(pulseWidth, pulseHeight));
-            var pulseSeries = new decimal[history.Count];
+            if (this.pulseSeries.Length != history.Count)
+                this.pulseSeries = new decimal[history.Count];
+
             for (var index = 0; index < history.Count; index++)
-                pulseSeries[index] = history[index].GilPerDay;
-            DrawSparkline(ImGui.GetWindowDrawList(), pulsePos, new Vector2(pulseWidth, pulseHeight), pulseSeries, Theme.U32(Theme.Accent));
+                this.pulseSeries[index] = history[index].GilPerDay;
+            DrawSparkline(ImGui.GetWindowDrawList(), pulsePos, new Vector2(pulseWidth, pulseHeight), this.pulseSeries, Theme.U32(Theme.Accent));
         }
         if (state.IsScanning)
         {
@@ -753,7 +819,7 @@ public sealed class MainWindow : GlassWindow
             this.qualityFilter = quality;
 
         ImGui.SameLine();
-        var categoryChoices = this.CategoryChoices(result.Candidates);
+        var categoryChoices = this.CategoryChoices(result);
         this.categoryItems.Clear();
         this.categoryItems.Add("all");
         this.categoryItems.AddRange(categoryChoices);
@@ -823,14 +889,13 @@ public sealed class MainWindow : GlassWindow
         ImGui.SameLine(0f, 4f);
         UiKit.ToggleChip("watched", ref this.watchedOnly);
 
-        var rows = this.Filter(result.Candidates);
-        this.Sort(rows);
+        var rows = this.FilteredRows(result);
 
         var toolbarWidth =
             ImGui.CalcTextSize($"{rows.Count} shown").X +
             SmallButtonWidth("copy CSV") + SmallButtonWidth("reset") + SmallButtonWidth("save filter") +
-            SmallButtonWidth("presets") + SmallButtonWidth("columns") +
-            (ImGui.GetStyle().ItemSpacing.X * 6f);
+            SmallButtonWidth("presets") + SmallButtonWidth("columns") + SmallButtonWidth("?") +
+            (ImGui.GetStyle().ItemSpacing.X * 7f);
 
         var toolbarX = ImGui.GetWindowContentRegionMax().X - toolbarWidth - (toolbarHasBar ? 6f : 0f);
         if (toolbarX > ImGui.GetCursorPosX() + 24f)
@@ -917,6 +982,35 @@ public sealed class MainWindow : GlassWindow
                 }
             }
 
+            ImGui.EndPopup();
+        }
+
+        ImGui.SameLine();
+        if (Gw.Button("?"u8, ButtonStyle.Plain, ButtonSize.Small))
+            ImGui.OpenPopup("##colshelp");
+        Gw.Tooltip("What each column means"u8);
+
+        if (ImGui.BeginPopup("##colshelp"))
+        {
+            Theme.Colored(Theme.Text, "Column meanings");
+            Theme.Faint("Hover a row for that row's numbers.");
+            ImGui.Separator();
+
+            if (ImGui.BeginChild("##colshelpbody", new Vector2(430f, 380f)))
+            {
+                foreach (var (label, meaning) in ColumnMeanings)
+                {
+                    ImGui.AlignTextToFramePadding();
+                    Theme.Colored(Theme.Accent, label);
+                    ImGui.SameLine(74f);
+                    ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + 310f);
+                    ImGui.TextWrapped(meaning);
+                    ImGui.PopTextWrapPos();
+                    ImGui.Spacing();
+                }
+            }
+
+            ImGui.EndChild();
             ImGui.EndPopup();
         }
 
@@ -1561,24 +1655,61 @@ public sealed class MainWindow : GlassWindow
         // The table still fills the window; Glasswork sizes are logical units, so hand the height back
         // unscaled instead of letting the Look scale it a second time.
         var tableHeight = TableHeight() / MathF.Max(0.01f, Frame.Scale);
-        if (!Gw.BeginTable("plan"u8, 7, GwTableFlags.ScrollY | GwTableFlags.Zebra, new Vector2(0f, tableHeight)))
+        if (!Gw.BeginTable("plan"u8, 7, GwTableFlags.Sortable | GwTableFlags.ScrollY | GwTableFlags.Zebra, new Vector2(0f, tableHeight)))
             return;
 
-        Gw.TableColumn("#", 28f, stretch: false, numeric: true);
-        Gw.TableColumn("Item", 2.4f);
-        Gw.TableColumn("Q", 26f, stretch: false);
-        Gw.TableColumn("Sales/d", 52f, stretch: false, numeric: true);
-        Gw.TableColumn("Sellers", 48f, stretch: false, numeric: true);
-        Gw.TableColumn("Profit/day", 84f, stretch: false, numeric: true);
-        Gw.TableColumn("Capital", 84f, stretch: false, numeric: true);
+        Gw.TableColumn("#", 28f, stretch: false, defaultSort: this.portfolioSortColumn == 0, numeric: true);
+        Gw.TableColumn("Item", 2.4f, defaultSort: this.portfolioSortColumn == 1);
+        Gw.TableColumn("Q", 26f, stretch: false, defaultSort: this.portfolioSortColumn == 2);
+        Gw.TableColumn("Sales/d", 52f, stretch: false, defaultSort: this.portfolioSortColumn == 3, numeric: true);
+        Gw.TableColumn("Sellers", 48f, stretch: false, defaultSort: this.portfolioSortColumn == 4, numeric: true);
+        Gw.TableColumn("Profit/day", 84f, stretch: false, defaultSort: this.portfolioSortColumn == 5, numeric: true);
+        Gw.TableColumn("Capital", 84f, stretch: false, defaultSort: this.portfolioSortColumn == 6, numeric: true);
+
+        // ImGui starts a sortable table on a column of its own and reloads its saved sort when the table
+        // (re)initialises; treat that frame as a re-initialisation, not as a header click, and put the
+        // current direction in before the header row is laid out.
+        var tableFresh = ImGui.GetFrameCount() - this.portfolioTableFrame > 1;
+        this.portfolioTableFrame = ImGui.GetFrameCount();
+
+        if (tableFresh)
+            this.RepairPortfolioSort();
+
         Gw.TableHeaders();
 
-        var tableClipper = new GwTableClipper(plan.Picks.Count);
+        if (Gw.TableSortChanged(out var sortColumn, out var descending))
+        {
+            if (!tableFresh && sortColumn >= 0 && sortColumn < 7)
+            {
+                var ascending = !descending;
+                if (sortColumn != this.portfolioSortColumn || ascending != this.portfolioSortAscending)
+                {
+                    this.portfolioSortColumn = sortColumn;
+                    this.portfolioSortAscending = ascending;
+                }
+            }
+        }
+
+        // The plan is rebuilt every frame; sort a reused copy so the plan's own order is left alone.
+        this.portfolioRows.Clear();
+        for (var index = 0; index < plan.Picks.Count; index++)
+            this.portfolioRows.Add(plan.Picks[index]);
+
+        this.portfolioSortQuotes = planQuotes;
+
+        if (this.portfolioSortColumn != 0)
+            this.portfolioRows.Sort(this.PortfolioComparisons[this.portfolioSortColumn]);
+
+        // Column 0 is the rank, which is the plan's own order; a descending rank is that order reversed.
+        if (!this.portfolioSortAscending)
+            this.portfolioRows.Reverse();
+
+        var tableClipper = new GwTableClipper(this.portfolioRows.Count);
         while (tableClipper.Step(out var first, out var last))
         {
             for (var index = first; index < last; index++)
             {
-                var pick = plan.Picks[index];
+                var pick = this.portfolioRows[index];
                 var quote = planQuotes.GetValueOrDefault((pick.ItemId, pick.Quality));
 
                 Gw.TableRow(index);
@@ -1855,7 +1986,15 @@ public sealed class MainWindow : GlassWindow
 
         if (plan.Count == 0)
         {
-            UiKit.EmptyState("Nothing above the floor", "Every recipe is below the minimum profit - lower the floor or read stock again.");
+            if (UiKit.EmptyState(
+                    "Nothing above the floor",
+                    "Every recipe is below the minimum profit - lower the floor or read stock again.",
+                    "Read stock"))
+            {
+                this.plugin.RefreshCraftPlan();
+                Gw.Toast("Reading stock"u8, ToastKind.Info);
+            }
+
             return;
         }
 
@@ -1871,29 +2010,62 @@ public sealed class MainWindow : GlassWindow
         // The table still fills the window; Glasswork sizes are logical units, so hand the height back
         // unscaled instead of letting the Look scale it a second time.
         var tableHeight = TableHeight() / MathF.Max(0.01f, Frame.Scale);
-        if (!Gw.BeginTable("craft"u8, 12, GwTableFlags.ScrollY | GwTableFlags.Zebra, new Vector2(0f, tableHeight)))
+        if (!Gw.BeginTable("craft"u8, 12, GwTableFlags.Sortable | GwTableFlags.ScrollY | GwTableFlags.Zebra, new Vector2(0f, tableHeight)))
             return;
 
-        Gw.TableColumn("Item", 2.4f);
-        Gw.TableColumn("Job", 64f, stretch: false);
-        Gw.TableColumn("Crafts", 52f, stretch: false, numeric: true);
-        Gw.TableColumn("Qty", 44f, stretch: false, numeric: true);
-        Gw.TableColumn("Revenue", 76f, stretch: false, numeric: true);
-        Gw.TableColumn("Mats", 76f, stretch: false, numeric: true);
-        Gw.TableColumn("Profit", 76f, stretch: false, numeric: true);
-        Gw.TableColumn("Per unit", 78f, stretch: false, numeric: true);
-        Gw.TableColumn("Stack", 84f, stretch: false, numeric: true);
-        Gw.TableColumn("HQ", 72f, stretch: false, numeric: true);
-        Gw.TableColumn("Owned", 76f, stretch: false, numeric: true);
-        Gw.TableColumn("Clear", 52f, stretch: false, numeric: true);
+        Gw.TableColumn("Item", 2.4f, defaultSort: this.craftSortColumn == 0);
+        Gw.TableColumn("Job", 64f, stretch: false, defaultSort: this.craftSortColumn == 1);
+        Gw.TableColumn("Crafts", 52f, stretch: false, defaultSort: this.craftSortColumn == 2, numeric: true);
+        Gw.TableColumn("Qty", 44f, stretch: false, defaultSort: this.craftSortColumn == 3, numeric: true);
+        Gw.TableColumn("Revenue", 76f, stretch: false, defaultSort: this.craftSortColumn == 4, numeric: true);
+        Gw.TableColumn("Mats", 76f, stretch: false, defaultSort: this.craftSortColumn == 5, numeric: true);
+        Gw.TableColumn("Profit", 76f, stretch: false, defaultSort: this.craftSortColumn == 6, numeric: true);
+        Gw.TableColumn("Per unit", 78f, stretch: false, defaultSort: this.craftSortColumn == 7, numeric: true);
+        Gw.TableColumn("Stack", 84f, stretch: false, defaultSort: this.craftSortColumn == 8, numeric: true);
+        Gw.TableColumn("HQ", 72f, stretch: false, defaultSort: this.craftSortColumn == 9, numeric: true);
+        Gw.TableColumn("Owned", 76f, stretch: false, defaultSort: this.craftSortColumn == 10, numeric: true);
+        Gw.TableColumn("Clear", 52f, stretch: false, defaultSort: this.craftSortColumn == 11, numeric: true);
+
+        // Same re-initialisation handling as the other sortable tables.
+        var tableFresh = ImGui.GetFrameCount() - this.craftTableFrame > 1;
+        this.craftTableFrame = ImGui.GetFrameCount();
+
+        if (tableFresh)
+            this.RepairCraftSort();
+
         Gw.TableHeaders();
 
-        var tableClipper = new GwTableClipper(plan.Count);
+        if (Gw.TableSortChanged(out var sortColumn, out var descending))
+        {
+            if (!tableFresh && sortColumn >= 0 && sortColumn < 12)
+            {
+                var ascending = !descending;
+                if (sortColumn != this.craftSortColumn || ascending != this.craftSortAscending)
+                {
+                    this.craftSortColumn = sortColumn;
+                    this.craftSortAscending = ascending;
+                }
+            }
+        }
+
+        // plan may be the plugin's own CraftPlan list, so sort a reused copy and leave that order alone.
+        this.craftRows.Clear();
+        for (var index = 0; index < plan.Count; index++)
+            this.craftRows.Add(plan[index]);
+
+        if (this.craftSortColumn >= 0)
+        {
+            this.craftRows.Sort(this.CraftComparisons[this.craftSortColumn]);
+            if (!this.craftSortAscending)
+                this.craftRows.Reverse();
+        }
+
+        var tableClipper = new GwTableClipper(this.craftRows.Count);
         while (tableClipper.Step(out var first, out var last))
         {
             for (var index = first; index < last; index++)
             {
-                var idea = plan[index];
+                var idea = this.craftRows[index];
 
                 Gw.TableRow(index);
 
@@ -1940,7 +2112,7 @@ public sealed class MainWindow : GlassWindow
                 Gw.TableCell();
                 Gw.TableText(Money.Gil(idea.Profit), TextRole.Body, Theme.ToColor(idea.Profit > 0m ? Theme.Accent : Theme.Danger));
 
-                var perUnit = idea.Produced > 0 ? idea.Profit / idea.Produced : 0m;
+                var perUnit = CraftPerUnit(idea);
 
                 Gw.TableCell();
                 Gw.TableText(Money.Gil(perUnit), TextRole.Body, Theme.ToColor(Theme.TextDim));
@@ -2009,9 +2181,15 @@ public sealed class MainWindow : GlassWindow
 
         if (listings.Count == 0)
         {
-            UiKit.EmptyState(
-                "Nothing captured yet",
-                "Your retainer's listing shows up next to everyone else's when you view that item, and this tab keeps it priced.");
+            if (UiKit.EmptyState(
+                    "Nothing captured yet",
+                    "Your retainer's listing shows up next to everyone else's when you view that item, and this tab keeps it priced.",
+                    "Rescan prices"))
+            {
+                this.plugin.StartScan();
+                Gw.Toast("Scan started"u8, ToastKind.Info);
+            }
+
             return;
         }
 
@@ -2880,7 +3058,15 @@ public sealed class MainWindow : GlassWindow
 
         if (report is null)
         {
-            UiKit.EmptyState("No arbitrage run yet", "Scan your world, then press compare worlds to price the shortlist across your data center.");
+            if (UiKit.EmptyState(
+                    "No arbitrage run yet",
+                    "Scan your world, then press compare worlds to price the shortlist across your data center.",
+                    "Compare worlds"))
+            {
+                this.plugin.StartArbitrage();
+                Gw.Toast("Comparing worlds"u8, ToastKind.Info);
+            }
+
             return;
         }
 
@@ -3566,17 +3752,27 @@ public sealed class MainWindow : GlassWindow
         return name;
     }
 
-    private List<string> CategoryChoices(IReadOnlyList<SlotCandidate> candidates)
+    /// <summary>
+    /// The category combo's items for a scan. The scan is immutable, so the set is built once per scan
+    /// instead of once per frame.
+    /// </summary>
+    private List<string> CategoryChoices(ScanResult result)
     {
+        if (ReferenceEquals(result, this.categoryChoicesSource))
+            return this.categoryChoices;
+
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var candidate in candidates)
+        foreach (var candidate in result.Candidates)
         {
             var name = this.CategoryName(candidate.ItemId);
             if (name.Length > 0)
                 set.Add(name);
         }
 
-        return set.OrderBy(name => name, StringComparer.OrdinalIgnoreCase).ToList();
+        this.categoryChoices.Clear();
+        this.categoryChoices.AddRange(set.OrderBy(name => name, StringComparer.OrdinalIgnoreCase));
+        this.categoryChoicesSource = result;
+        return this.categoryChoices;
     }
 
     /// <summary>The level you would need to craft or equip an item; 0 when the plugin cannot tell.</summary>
@@ -3612,6 +3808,61 @@ public sealed class MainWindow : GlassWindow
 
         this.requiredLevels[itemId] = level;
         return level;
+    }
+
+    /// <summary>
+    /// The filtered, sorted opportunities rows. Filtering thousands of candidates and sorting them every
+    /// frame is wasted work: the scan is immutable, so the list is rebuilt only when the scan or one of
+    /// the filter/output-order inputs changes. Pinned, watchlist and budget edits are part of the key
+    /// because the pinned/affordable/watched chips read them.
+    /// </summary>
+    private List<SlotCandidate> FilteredRows(ScanResult result)
+    {
+        if (this.rowsCacheValid
+            && ReferenceEquals(result, this.rowsCacheSource)
+            && this.rowsCacheSearch == this.search
+            && this.rowsCacheMinGilPerDay == this.minGilPerDay
+            && this.rowsCacheQuality == this.qualityFilter
+            && this.rowsCacheCategory == this.categoryFilter
+            && this.rowsCacheLevelCap == this.levelCap
+            && this.rowsCacheMinStack == this.minStackProfit
+            && this.rowsCachePinnedOnly == this.pinnedOnly
+            && this.rowsCacheShowDead == this.showDead
+            && this.rowsCacheAffordableOnly == this.affordableOnly
+            && this.rowsCacheHideStale == this.hideStale
+            && this.rowsCacheWatchedOnly == this.watchedOnly
+            && this.rowsCacheSortColumn == this.sortColumn
+            && this.rowsCacheSortAscending == this.sortAscending
+            && this.rowsCachePinnedCount == this.Config.Pinned.Count
+            && this.rowsCacheWatchedCount == this.Config.Watchlist.Count
+            && this.rowsCacheBudget == this.Config.PortfolioBudget)
+        {
+            return this.rowsCache!;
+        }
+
+        var rows = this.Filter(result.Candidates);
+        this.Sort(rows);
+
+        this.rowsCache = rows;
+        this.rowsCacheSource = result;
+        this.rowsCacheSearch = this.search;
+        this.rowsCacheMinGilPerDay = this.minGilPerDay;
+        this.rowsCacheQuality = this.qualityFilter;
+        this.rowsCacheCategory = this.categoryFilter;
+        this.rowsCacheLevelCap = this.levelCap;
+        this.rowsCacheMinStack = this.minStackProfit;
+        this.rowsCachePinnedOnly = this.pinnedOnly;
+        this.rowsCacheShowDead = this.showDead;
+        this.rowsCacheAffordableOnly = this.affordableOnly;
+        this.rowsCacheHideStale = this.hideStale;
+        this.rowsCacheWatchedOnly = this.watchedOnly;
+        this.rowsCacheSortColumn = this.sortColumn;
+        this.rowsCacheSortAscending = this.sortAscending;
+        this.rowsCachePinnedCount = this.Config.Pinned.Count;
+        this.rowsCacheWatchedCount = this.Config.Watchlist.Count;
+        this.rowsCacheBudget = this.Config.PortfolioBudget;
+        this.rowsCacheValid = true;
+        return rows;
     }
 
     private List<SlotCandidate> Filter(IReadOnlyList<SlotCandidate> source)
@@ -3736,6 +3987,70 @@ public sealed class MainWindow : GlassWindow
             this.arbitrageSortAscending ? ImGuiSortDirection.Ascending : ImGuiSortDirection.Descending,
             false);
     }
+
+    /// <summary>Puts the portfolio sort back after the table re-initialises, so the chevron matches the rows.</summary>
+    private void RepairPortfolioSort()
+    {
+        ImGuiP.TableSetColumnSortDirection(
+            this.portfolioSortColumn,
+            this.portfolioSortAscending ? ImGuiSortDirection.Ascending : ImGuiSortDirection.Descending,
+            false);
+    }
+
+    /// <summary>
+    /// Puts the craft sort back after the table re-initialises. Until a column is picked the rows keep the
+    /// planner's order (best profit first), and the chevron points at Profit descending so clicking it
+    /// still sorts ascending, the way the hand-rolled header did.
+    /// </summary>
+    private void RepairCraftSort()
+    {
+        var column = this.craftSortColumn >= 0 ? this.craftSortColumn : 6;
+        var ascending = this.craftSortColumn >= 0 && this.craftSortAscending;
+        ImGuiP.TableSetColumnSortDirection(
+            column,
+            ascending ? ImGuiSortDirection.Ascending : ImGuiSortDirection.Descending,
+            false);
+    }
+
+    /// <summary>Portfolio comparators in data-column order; column 0 is the rank, handled as plan order.</summary>
+    private Comparison<PortfolioCandidate>[] PortfolioComparisons => this.portfolioComparisons ??=
+        new Comparison<PortfolioCandidate>[]
+        {
+            (a, b) => 0,
+            (a, b) => string.Compare(this.plugin.Catalog.Name(a.ItemId), this.plugin.Catalog.Name(b.ItemId), StringComparison.OrdinalIgnoreCase),
+            (a, b) => a.Quality.CompareTo(b.Quality),
+            (a, b) => (this.PortfolioQuote(a)?.DailyVelocity ?? 0d).CompareTo(this.PortfolioQuote(b)?.DailyVelocity ?? 0d),
+            (a, b) => (this.PortfolioQuote(a)?.DistinctSellers ?? 0).CompareTo(this.PortfolioQuote(b)?.DistinctSellers ?? 0),
+            (a, b) => a.GilPerDay.CompareTo(b.GilPerDay),
+            (a, b) => a.CapitalPerSlot.CompareTo(b.CapitalPerSlot),
+        };
+
+    private MarketQuote? PortfolioQuote(PortfolioCandidate candidate) =>
+        this.portfolioSortQuotes?.GetValueOrDefault((candidate.ItemId, candidate.Quality));
+
+    /// <summary>Craft comparators in data-column order, matching what each cell shows.</summary>
+    private Comparison<CraftOpportunity>[] CraftComparisons => this.craftComparisons ??=
+        new Comparison<CraftOpportunity>[]
+        {
+            (a, b) => string.Compare(this.plugin.Catalog.Name(a.ItemId), this.plugin.Catalog.Name(b.ItemId), StringComparison.OrdinalIgnoreCase),
+            (a, b) =>
+            {
+                var job = string.Compare(this.plugin.Catalog.JobAbbreviation(a.CraftJob), this.plugin.Catalog.JobAbbreviation(b.CraftJob), StringComparison.OrdinalIgnoreCase);
+                return job != 0 ? job : a.RequiredLevel.CompareTo(b.RequiredLevel);
+            },
+            (a, b) => a.Crafts.CompareTo(b.Crafts),
+            (a, b) => a.Produced.CompareTo(b.Produced),
+            (a, b) => a.Revenue.CompareTo(b.Revenue),
+            (a, b) => a.MaterialValue.CompareTo(b.MaterialValue),
+            (a, b) => a.Profit.CompareTo(b.Profit),
+            (a, b) => CraftPerUnit(a).CompareTo(CraftPerUnit(b)),
+            (a, b) => (CraftPerUnit(a) * this.Config.DefaultStackSize).CompareTo(CraftPerUnit(b) * this.Config.DefaultStackSize),
+            (a, b) => a.HqProfit.CompareTo(b.HqProfit),
+            (a, b) => a.OwnedProfit.CompareTo(b.OwnedProfit),
+            (a, b) => a.DaysToSell.CompareTo(b.DaysToSell),
+        };
+
+    private static decimal CraftPerUnit(CraftOpportunity idea) => idea.Produced > 0 ? idea.Profit / idea.Produced : 0m;
 
     private bool IsSlotPinned(uint itemId, Quality quality) =>
         this.Config.Pinned.Any(p => p.ItemId == itemId && p.Hq == (quality == Quality.Hq));
