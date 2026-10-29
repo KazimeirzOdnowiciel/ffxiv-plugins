@@ -146,6 +146,16 @@ public sealed class MainWindow : GlassWindow
 
     private Configuration Config => this.plugin.Configuration;
 
+    /// <summary>Opens the window on a tab, used by the command palette.</summary>
+    public void OpenTab(int index)
+    {
+        if (index < 0 || index >= TabLabels.Length)
+            return;
+
+        this.activeTab = index;
+        this.IsOpen = true;
+    }
+
     /// <summary>
     /// Puts the window back somewhere visible at a sensible size. Used by the error screen and by
     /// /slotyield reset, because a window that opened off-screen is otherwise unrecoverable.

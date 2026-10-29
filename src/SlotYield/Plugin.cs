@@ -20,6 +20,7 @@ using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using Glasswork;
+using Glasswork.Backend;
 using Glasswork.Dalamud;
 using SlotYield.Core;
 using SlotYield.Game;
@@ -40,6 +41,25 @@ public sealed class Plugin : IDalamudPlugin
     /// frame every <c>Gw</c> widget runs inside (N11).
     /// </summary>
     public GlassworkHost Host { get; }
+
+    /// <summary>Verbs and tab jumps for the host's command palette (Ctrl+P), by palette id.</summary>
+    private static readonly PaletteCommand[] PaletteCommands =
+    {
+        new("scan", "Scan now", "Actions", "/slotyield scan"),
+        new("stop", "Stop the scan", "Actions", "/slotyield stop"),
+        new("worth", "Toggle net worth", "Windows", "/slotyield worth"),
+        new("ticker", "Toggle ticker", "Windows"),
+        new("help", "Toggle help", "Windows"),
+        new("compare", "Toggle compare", "Windows"),
+        new("reset", "Reset the window position", "Actions", "/slotyield reset"),
+        new("tab:opportunities", "Go to Opportunities", "Tabs"),
+        new("tab:changes", "Go to Changes", "Tabs"),
+        new("tab:portfolio", "Go to Portfolio", "Tabs"),
+        new("tab:craft", "Go to Craft", "Tabs"),
+        new("tab:listings", "Go to My listings", "Tabs"),
+        new("tab:arbitrage", "Go to Arbitrage", "Tabs"),
+        new("tab:scan", "Go to Scan settings", "Tabs"),
+    };
 
     private readonly MainWindow mainWindow;
     private readonly WorthWindow worthWindow;
@@ -144,6 +164,9 @@ public sealed class Plugin : IDalamudPlugin
         {
             // Another plugin owns /sy; the long command still works.
         }
+
+        Host.Palette.Chosen += this.OnPaletteCommand;
+        Host.Palette.SetCommands(PaletteCommands);
 
         if (Configuration.WindowOpen)
             this.mainWindow.IsOpen = true;
@@ -896,6 +919,7 @@ public sealed class Plugin : IDalamudPlugin
 
         // Last, and only after Draw is unsubscribed: a glass callback recorded after the layer
         // is gone faults the client (N11).
+        Host.Palette.Chosen -= this.OnPaletteCommand;
         this.Host.Dispose();
 
         this.dtrEntry?.Remove();
@@ -912,6 +936,56 @@ public sealed class Plugin : IDalamudPlugin
     /// around <c>Window.Draw</c>, so an exception here would abort the whole draw pass and skip
     /// <c>Host.EndFrame()</c> (N11). Log it instead.
     /// </summary>
+    /// <summary>What the command palette picked: verbs, windows, and tab jumps.</summary>
+    private void OnPaletteCommand(string? id)
+    {
+        switch (id)
+        {
+            case "scan":
+                this.StartScan();
+                break;
+            case "stop":
+                this.CancelScan();
+                break;
+            case "worth":
+                this.ToggleWorth();
+                break;
+            case "ticker":
+                this.ToggleTicker();
+                break;
+            case "help":
+                this.ToggleHelp();
+                break;
+            case "compare":
+                this.ToggleCompare();
+                break;
+            case "reset":
+                this.mainWindow.ResetWindow();
+                break;
+            case "tab:opportunities":
+                this.mainWindow.OpenTab(0);
+                break;
+            case "tab:changes":
+                this.mainWindow.OpenTab(1);
+                break;
+            case "tab:portfolio":
+                this.mainWindow.OpenTab(2);
+                break;
+            case "tab:craft":
+                this.mainWindow.OpenTab(3);
+                break;
+            case "tab:listings":
+                this.mainWindow.OpenTab(4);
+                break;
+            case "tab:arbitrage":
+                this.mainWindow.OpenTab(5);
+                break;
+            case "tab:scan":
+                this.mainWindow.OpenTab(6);
+                break;
+        }
+    }
+
     public void SaveConfig()
     {
         try
