@@ -287,14 +287,12 @@ public sealed class MainWindow : GlassWindow
     /// <summary>Open a row's full breakdown: ladder, history, explain and actions.</summary>
     private void DrawDetailPopup()
     {
-        if (this.openDetail)
-        {
-            ImGui.SetNextWindowSize(new Vector2(460f, 400f), ImGuiCond.Appearing);
-            ImGui.OpenPopup("##itemdetail");
-            this.openDetail = false;
-        }
+        if (!this.openDetail)
+            return;
 
-        if (!ImGui.BeginPopup("##itemdetail"))
+        // A real modal: the scrim blocks the windows behind, the keyboard stays inside, and
+        // Escape or a scrim click closes it (Gw.Dialog clears openDetail itself).
+        if (!Gw.Dialog("itemdetail"u8, ref this.openDetail, "Item detail"u8, new Vector2(460f, 420f)))
             return;
 
         var result = this.plugin.State.Result;
@@ -302,7 +300,10 @@ public sealed class MainWindow : GlassWindow
         if (candidate is null)
         {
             Theme.Dimmed("Not in the current scan.");
-            ImGui.EndPopup();
+            if (Gw.Button("close"u8, ButtonStyle.Plain, ButtonSize.Small))
+                this.openDetail = false;
+
+            Gw.EndDialog();
             return;
         }
 
@@ -354,10 +355,10 @@ public sealed class MainWindow : GlassWindow
             this.plugin.OpenHistory(candidate.ItemId, candidate.Quality);
 
         ImGui.SameLine();
-        if (Gw.Button("close"u8))
-            ImGui.CloseCurrentPopup();
+        if (Gw.Button("close"u8, ButtonStyle.Plain, ButtonSize.Small))
+            this.openDetail = false;
 
-        ImGui.EndPopup();
+        Gw.EndDialog();
     }
 
     /// <summary>
