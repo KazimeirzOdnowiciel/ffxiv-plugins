@@ -162,6 +162,15 @@ public sealed class MainWindow : GlassWindow
     private int listingSortColumn = -1;
     private bool listingSortAscending;
     private int listingTableFrame = -100;
+
+    /// <summary>The row picked in the split view's table, keyed the way the listing book stores it.</summary>
+    private (uint ItemId, bool Hq, ulong RetainerId)? selectedListing;
+
+    /// <summary>Live split fraction; copied from config at construction and written back after a drag.</summary>
+    private float listingsSplitFraction = 0.62f;
+
+    /// <summary>True while the divider moved this frame and the new fraction still needs saving.</summary>
+    private bool splitFractionDirty;
     private int portfolioSortColumn;
     private bool portfolioSortAscending = true;
     private int portfolioTableFrame = -100;
@@ -223,6 +232,7 @@ public sealed class MainWindow : GlassWindow
 
         this.sortColumn = plugin.Configuration.SortColumn;
         this.sortAscending = plugin.Configuration.SortAscending;
+        this.listingsSplitFraction = Math.Clamp(plugin.Configuration.ListingsSplitFraction, 0.3f, 0.85f);
         if (plugin.Configuration.ColumnVisible.Count == this.columnVisible.Length)
         {
             for (var index = 0; index < this.columnVisible.Length; index++)
@@ -2406,11 +2416,79 @@ public sealed class MainWindow : GlassWindow
 
         ImGui.Spacing();
 
-        // The table still fills the window; Glasswork sizes are logical units, so hand the height back
+        if (!config.SplitListings)
+        {
+            var remove = this.DrawListingsTable(reviews, quotes, split: false);
+            if (remove is not null)
+            {
+                listings.Remove(remove);
+                this.plugin.SaveConfig();
+            }
+
+            return;
+        }
+
+        // The split takes whatever height the toolbar left and each pane scrolls on its own.
+        // BeginSplit returns true on the frames the divider moved, so that is when the fraction is saved.
+        var splitMoved = Gw.BeginSplit("listings-split"u8, ref this.listingsSplitFraction, SplitAxis.Horizontal, 380f);
+        var selectedForRemoval = this.DrawListingsTable(reviews, quotes, split: true);
+        Gw.SplitNext();
+        this.DrawListingInspector(reviews);
+        Gw.EndSplit();
+
+        if (selectedForRemoval is not null)
+        {
+            listings.Remove(selectedForRemoval);
+            if (this.selectedListing is { } selected
+                && selected.ItemId == selectedForRemoval.ItemId
+                && selected.Hq == selectedForRemoval.Hq
+                && selected.RetainerId == selectedForRemoval.RetainerId)
+            {
+                this.selectedListing = null;
+            }
+
+            this.plugin.SaveConfig();
+        }
+
+        if (splitMoved)
+        {
+            var fraction = Math.Clamp(this.listingsSplitFraction, 0.3f, 0.85f);
+            if (this.Config.ListingsSplitFraction != fraction)
+            {
+                this.Config.ListingsSplitFraction = fraction;
+                this.splitFractionDirty = true;
+            }
+        }
+
+        // Write once when the drag is released instead of on every moved frame.
+        if (this.splitFractionDirty && !ImGui.IsMouseDown(ImGuiMouseButton.Left))
+        {
+            this.listingsSplitFraction = Math.Clamp(this.listingsSplitFraction, 0.3f, 0.85f);
+            this.Config.ListingsSplitFraction = this.listingsSplitFraction;
+            this.plugin.SaveConfig();
+            this.splitFractionDirty = false;
+        }
+    }
+
+    /// <summary>
+    /// The captured-listings table. <paramref name="split"/> is true inside the split view's left pane,
+    /// where a row click selects the listing and the selected row is highlighted.
+    /// </summary>
+    /// <returns>The listing whose forget button was clicked, if any.</returns>
+    private CapturedListing? DrawListingsTable(
+        IReadOnlyList<ListingReview> reviews,
+        Dictionary<(uint, Quality), MarketQuote> quotes,
+        bool split)
+    {
+        // The table still fills its pane; Glasswork sizes are logical units, so hand the height back
         // unscaled instead of letting the Look scale it a second time.
         var tableHeight = TableHeight() / MathF.Max(0.01f, Frame.Scale);
-        if (!Gw.BeginTable("mylistings"u8, 10, GwTableFlags.Sortable | GwTableFlags.ScrollY | GwTableFlags.Zebra, new Vector2(0f, tableHeight)))
-            return;
+        var tableFlags = GwTableFlags.Sortable | GwTableFlags.ScrollY | GwTableFlags.Zebra;
+        if (split)
+            tableFlags |= GwTableFlags.Selectable;
+
+        if (!Gw.BeginTable("mylistings"u8, 10, tableFlags, new Vector2(0f, tableHeight)))
+            return null;
 
         Gw.TableColumn("Item", 2.2f, defaultSort: this.listingSortColumn <= 0);
         Gw.TableColumn("Retainer", 96f, stretch: false, defaultSort: this.listingSortColumn == 1);
@@ -2467,7 +2545,9 @@ public sealed class MainWindow : GlassWindow
                 var rowQuote = this.plugin.FindListingQuote(listing.ItemId, quality)
                                ?? quotes.GetValueOrDefault((listing.ItemId, quality));
 
-                Gw.TableRow(index);
+                var clicked = Gw.TableRow(index, split && this.IsSelectedListing(listing));
+                if (split && clicked)
+                    this.selectedListing = (listing.ItemId, listing.Hq, listing.RetainerId);
 
                 Gw.TableCell();
                 UiKit.ItemIcon(UiKit.IconIdForItem(listing.ItemId), listing.Hq, 16f);
@@ -2542,11 +2622,118 @@ public sealed class MainWindow : GlassWindow
         }
 
         Gw.EndTable();
+        return remove;
+    }
 
-        if (remove is not null)
+    /// <summary>True when this listing is the one picked in the split view.</summary>
+    private bool IsSelectedListing(CapturedListing listing) =>
+        this.selectedListing is { } key
+        && key.ItemId == listing.ItemId
+        && key.Hq == listing.Hq
+        && key.RetainerId == listing.RetainerId;
+
+    /// <summary>Read-only details for the row picked in the split view. Nothing here touches the retainer.</summary>
+    private void DrawListingInspector(IReadOnlyList<ListingReview> reviews)
+    {
+        UiKit.SectionHeader("Selected listing");
+
+        if (this.selectedListing is not { } key)
         {
-            listings.Remove(remove);
-            this.plugin.SaveConfig();
+            Theme.Dimmed("Select a listing in the table to inspect it here.");
+            return;
+        }
+
+        ListingReview? review = null;
+        foreach (var candidate in reviews)
+        {
+            var listing = candidate.Listing;
+            if (listing.ItemId == key.ItemId && listing.Hq == key.Hq && listing.RetainerId == key.RetainerId)
+            {
+                review = candidate;
+                break;
+            }
+        }
+
+        if (review is null)
+        {
+            Theme.Dimmed("That listing is no longer captured. Select another.");
+            return;
+        }
+
+        var selected = review.Listing;
+        var slot = RetainerSellSlots.FindSlot(selected.ItemId, selected.Hq);
+        var retainer = string.IsNullOrWhiteSpace(selected.RetainerName) ? "unknown retainer" : selected.RetainerName;
+
+        UiKit.ItemIcon(UiKit.IconIdForItem(selected.ItemId), selected.Hq, 28f);
+        ImGui.SameLine(0f, 8f);
+        Theme.Colored(Theme.Text, this.plugin.Catalog.Name(selected.ItemId));
+        if (selected.Hq)
+        {
+            ImGui.SameLine(0f, 6f);
+            UiKit.Chip("HQ", Theme.Hq);
+        }
+
+        Theme.Faint(slot >= 0 ? $"{retainer}   -   slot {slot}" : retainer);
+        ImGui.Spacing();
+
+        var (status, statusColor) = review.IsProbablySold
+            ? ("probably sold", Theme.Danger)
+            : review.Status switch
+            {
+                ListingStatus.Cheapest => ("cheapest", Theme.Accent),
+                ListingStatus.AtMarket => ("at market", Theme.Text),
+                ListingStatus.AboveMarket => ("above market", Theme.Danger),
+                _ => ("unpriced", Theme.TextFaint),
+            };
+        UiKit.Chip(status, statusColor);
+
+        var deltaText = review.Status == ListingStatus.Unpriced
+            ? "-"
+            : review.PriceDeltaPercent.ToString("+0%;-0%;0%");
+        var deltaColor = review.Status == ListingStatus.Unpriced
+            ? Theme.TextFaint
+            : review.PriceDeltaPercent > 0
+                ? Theme.Danger
+                : review.PriceDeltaPercent < 0
+                    ? Theme.Profit
+                    : Theme.TextDim;
+
+        Gw.BeginRow("Quantity", "units this listing carries");
+        Gw.Text(selected.Quantity.ToString(), TextRole.Body, Theme.ToColor(Theme.Text));
+        Gw.EndRow();
+
+        Gw.BeginRow("Price / unit", "what you are asking");
+        Gw.Text(Money.Gil(selected.PricePerUnit), TextRole.Body, Theme.ToColor(Theme.Text));
+        Gw.EndRow();
+
+        Gw.BeginRow("Market minimum", "cheapest listing on the board");
+        Gw.Text(
+            review.MarketMin > 0m ? Money.Gil(review.MarketMin) : "-",
+            TextRole.Body,
+            Theme.ToColor(Theme.TextDim));
+        Gw.EndRow();
+
+        Gw.BeginRow("Delta vs market", "above (+) or below (-) the minimum");
+        Gw.Text(deltaText, TextRole.Body, Theme.ToColor(deltaColor));
+        Gw.EndRow();
+
+        Gw.BeginRow("Days to sell", "queue model at your current price");
+        Gw.Text(Money.Days(review.DaysToSell), TextRole.Body, Theme.ToColor(Theme.TextDim));
+        Gw.EndRow();
+
+        ImGui.Spacing();
+        var advice = review.Status == ListingStatus.Unpriced && this.plugin.IsPricingListings
+            ? "pricing..."
+            : review.Advice;
+        Gw.TextWrapped(advice, TextRole.Body, Theme.ToColor(statusColor));
+        if (!string.IsNullOrEmpty(review.Explain))
+            Gw.TextWrapped(review.Explain, TextRole.Footnote, Theme.ToColor(Theme.TextFaint));
+
+        ImGui.Spacing();
+        if (Gw.Button("copy price"u8, ButtonStyle.Plain, ButtonSize.Small))
+        {
+            ImGui.SetClipboardText(selected.PricePerUnit.ToString(CultureInfo.InvariantCulture));
+            Gw.Toast("Price copied"u8, ToastKind.Success);
         }
     }
 
@@ -3494,6 +3681,16 @@ public sealed class MainWindow : GlassWindow
                 this.Config.DtrBar = dtrBar;
                 this.plugin.SaveConfig();
                 this.plugin.RefreshDtr();
+            }
+
+            Gw.EndRow();
+
+            Gw.BeginRow("Split listings view", "table plus an inspector for the selected listing");
+            var splitListings = this.Config.SplitListings;
+            if (Gw.Toggle(ref splitListings))
+            {
+                this.Config.SplitListings = splitListings;
+                this.plugin.SaveConfig();
             }
 
             Gw.EndRow();

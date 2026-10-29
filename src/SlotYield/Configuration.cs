@@ -192,6 +192,12 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Your own market listings, discovered while browsing the board.</summary>
     public List<CapturedListing> MyListings { get; set; } = new();
 
+    /// <summary>Draw My listings as a table plus a read-only inspector for the selected row.</summary>
+    public bool SplitListings { get; set; }
+
+    /// <summary>The table's share of the split view's width, 0.3 to 0.85.</summary>
+    public float ListingsSplitFraction { get; set; } = 0.62f;
+
     /// <summary>Listings that vanished between checks, with the price they carried.</summary>
     public List<SoldEntry> SoldLog { get; set; } = new();
 
@@ -291,6 +297,11 @@ public sealed class Configuration : IPluginConfiguration
 
         if (this.MyListings.Count > ListingBook.MaxEntries)
             this.MyListings.RemoveRange(ListingBook.MaxEntries, this.MyListings.Count - ListingBook.MaxEntries);
+
+        if (this.ListingsSplitFraction <= 0f)
+            this.ListingsSplitFraction = 0.62f;
+
+        this.ListingsSplitFraction = Math.Clamp(this.ListingsSplitFraction, 0.3f, 0.85f);
 
         foreach (var slot in this.Pinned)
         {
