@@ -80,6 +80,9 @@ public sealed class MainWindow : GlassWindow
     private DateTime undoUtc;
     private bool watchedOnly;
 
+    /// <summary>True while one of the first-run coach marks was shown this frame.</summary>
+    private bool coachTourShowing;
+
     /// <summary>Pending destructive confirmations, so nothing irreversible fires on one click.</summary>
     private bool confirmUndercutAll;
     private bool confirmForgetListings;
@@ -353,6 +356,8 @@ public sealed class MainWindow : GlassWindow
 
     private void DrawContent()
     {
+        this.coachTourShowing = false;
+
         var deltaTime = ImGui.GetIO().DeltaTime;
         if (Theme.Look.ReduceMotion)
         {
@@ -391,6 +396,12 @@ public sealed class MainWindow : GlassWindow
             default:
                 this.DrawScanTab();
                 break;
+        }
+
+        if (this.activeTab == 0 && !this.Config.CoachTourSeen && !this.coachTourShowing)
+        {
+            this.Config.CoachTourSeen = true;
+            this.plugin.SaveConfig();
         }
 
         this.DrawDetailPopup();
@@ -633,6 +644,16 @@ public sealed class MainWindow : GlassWindow
         UiKit.SlotStrip(ImGui.GetWindowDrawList(), stripOrigin, stripWidth, 26f, slots, filled, out var hovered, pinnedIcons, this.stripPulse);
         ImGui.Dummy(new Vector2(stripWidth, 38f));
 
+        if (!this.Config.CoachTourSeen)
+        {
+            this.coachTourShowing |= Gw.CoachMark(
+                "slotyield-tour"u8,
+                "Your slots"u8,
+                "One cell per retainer slot. Filled cells are your picks - click one to jump to it in Portfolio."u8,
+                0,
+                2);
+        }
+
         if (hovered >= 0)
             ImGui.SetTooltip(hovered < filled ? $"slot {hovered + 1}   pinned" : $"slot {hovered + 1}   free");
 
@@ -817,6 +838,16 @@ public sealed class MainWindow : GlassWindow
         Gw.TextField(ref this.search, "filter by item name..."u8, maxLength: 64);
         if (ImGui.IsItemActive() && ImGui.IsKeyPressed(ImGuiKey.Escape))
             this.search = string.Empty;
+
+        if (!this.Config.CoachTourSeen)
+        {
+            this.coachTourShowing |= Gw.CoachMark(
+                "slotyield-tour"u8,
+                "Finding things"u8,
+                "Filter here; the toolbar's ? explains every column, and the chips narrow the list."u8,
+                1,
+                2);
+        }
         ImGui.SameLine(0f, 8f);
         // 0 means "no minimum" and is deliberate: unprofitable rows stay visible so a losing
         // slot can be spotted. Say that instead of printing "min 0", which read as ">= 0".

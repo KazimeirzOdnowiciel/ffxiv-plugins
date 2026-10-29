@@ -161,6 +161,9 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Follow the player's game window theme instead of a fixed Look.</summary>
     public bool FollowGameTheme { get; set; }
 
+    /// <summary>Set once the first-run tour of the slot strip and toolbar has been seen.</summary>
+    public bool CoachTourSeen { get; set; }
+
     /// <summary>Notify when a scan's best gil/day reaches this value (0 = off).</summary>
     public long ToastThreshold { get; set; }
 
