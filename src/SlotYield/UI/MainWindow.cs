@@ -2096,9 +2096,9 @@ public sealed class MainWindow : GlassWindow
 
         ImGui.Spacing();
 
-        if (ImGui.CollapsingHeader("List from bags"))
+        if (Gw.TreeNode("List from bags"u8, trailing: $"{this.listingCandidates.Count}"))
         {
-            if (ImGui.Button("Refresh candidates"))
+            if (Gw.Button("Refresh candidates"u8, ButtonStyle.Plain, ButtonSize.Small))
                 this.listingCandidates = this.plugin.GetListingCandidates();
 
             ImGui.SameLine();
@@ -2120,6 +2120,8 @@ public sealed class MainWindow : GlassWindow
                     this.plugin.ListOne(candidate.Type, candidate.Slot, candidate.ItemId, candidate.Hq, candidate.Price);
                 ImGui.PopID();
             }
+
+            Gw.TreePop();
         }
 
         ImGui.Spacing();
