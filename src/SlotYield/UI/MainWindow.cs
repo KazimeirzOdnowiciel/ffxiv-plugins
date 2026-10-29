@@ -45,6 +45,10 @@ public sealed class MainWindow : GlassWindow
     private int lastPinnedCount;
     private float stripPulse;
     private uint detailItemId;
+
+    /// <summary>Slot-strip click target: the picked item, flashed in Portfolio until this time.</summary>
+    private uint focusPinnedItemId;
+    private double focusPinnedUntil;
     private Quality detailQuality;
     private bool openDetail;
     private int selectedRow = -1;
@@ -631,6 +635,15 @@ public sealed class MainWindow : GlassWindow
 
         if (hovered >= 0)
             ImGui.SetTooltip(hovered < filled ? $"slot {hovered + 1}   pinned" : $"slot {hovered + 1}   free");
+
+        // The strip is a control, not decoration: a filled cell jumps to Portfolio and flashes
+        // the pick, so "which slot is this?" costs one click.
+        if (hovered >= 0 && hovered < this.Config.Pinned.Count && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+        {
+            this.focusPinnedItemId = this.Config.Pinned[hovered].ItemId;
+            this.focusPinnedUntil = ImGui.GetTime() + 4.0;
+            this.activeTab = 2;
+        }
 
         var budget = (decimal)this.Config.PortfolioBudget;
         var capital = 0m;
@@ -1877,6 +1890,9 @@ public sealed class MainWindow : GlassWindow
                 UiKit.ItemIcon(UiKit.IconIdForItem(slot.ItemId), slot.Hq, 16f);
                 ImGui.SameLine(0f, 6f);
                 var color = score.IsDead || score.ProfitPerDay <= 0m ? Theme.Danger : Theme.Text;
+                if (slot.ItemId == this.focusPinnedItemId && ImGui.GetTime() < this.focusPinnedUntil)
+                    color = Theme.Accent;
+
                 Theme.Colored(color, $"{name,-34} {Money.Gil(score.ProfitPerDay),8}/day  {Money.Days(score.DaysToClear),6}  {score.Verdict}");
             }
 
