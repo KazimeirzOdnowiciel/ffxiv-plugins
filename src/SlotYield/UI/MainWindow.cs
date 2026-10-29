@@ -59,7 +59,8 @@ public sealed class MainWindow : GlassWindow
     private int levelCap;
     private int minStackProfit;
     private int arbitrageSortColumn = 5;
-    private bool arbitrageSortAscending;
+    private bool arbitrageSortAscending = true;
+    private int arbitrageTableFrame = -100;
     private uint flipItemId;
     private Quality flipQuality;
     private int flipQty = 99;
@@ -134,6 +135,7 @@ public sealed class MainWindow : GlassWindow
     private bool drawFailureReported;
     private int listingSortColumn = -1;
     private bool listingSortAscending;
+    private int listingTableFrame = -100;
 
     public MainWindow(Plugin plugin)
         : base(plugin, "Slot Yield###SlotYieldMain")
@@ -239,6 +241,27 @@ public sealed class MainWindow : GlassWindow
 
     /// <summary>Table height that fills the window instead of stranding empty space below.</summary>
     private static float TableHeight() => MathF.Max(220f, ImGui.GetContentRegionAvail().Y - 4f);
+
+    /// <summary>
+    /// A table cell's text with a tooltip over the whole cell. <see cref="Gw.TableText"/> reserves only the
+    /// text's own width, so a right-aligned or shortened cell would otherwise hang its tooltip off to one side.
+    /// </summary>
+    private static void TableCellText(string text, TextRole role, Vector4 color, Func<string>? tooltip = null)
+    {
+        var left = ImGui.GetCursorScreenPos().X;
+        var width = ImGui.GetContentRegionAvail().X;
+
+        Gw.TableText(text, role, Theme.ToColor(color));
+
+        if (tooltip is null)
+            return;
+
+        var top = ImGui.GetItemRectMin().Y;
+        var bottom = ImGui.GetItemRectMax().Y;
+        if (ImGui.IsWindowHovered(ImGuiHoveredFlags.None) &&
+            ImGui.IsMouseHoveringRect(new Vector2(left, top), new Vector2(left + width, bottom)))
+            ImGui.SetTooltip(tooltip());
+    }
 
     /// <summary>Approximate width of a <c>Gw</c> small button, for right-aligning a toolbar.</summary>
     private static float SmallButtonWidth(string label) => ImGui.CalcTextSize(label).X + 24f;
@@ -1518,56 +1541,57 @@ public sealed class MainWindow : GlassWindow
             .GroupBy(c => (c.ItemId, c.Quality))
             .ToDictionary(g => g.Key, g => g.First().Quote);
 
-        if (ImGui.BeginTable("##plan", 7, ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH |
-                                          ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings,
-                new Vector2(0f, TableHeight())))
+        // The table still fills the window; Glasswork sizes are logical units, so hand the height back
+        // unscaled instead of letting the Look scale it a second time.
+        var tableHeight = TableHeight() / MathF.Max(0.01f, Frame.Scale);
+        if (!Gw.BeginTable("plan"u8, 7, GwTableFlags.ScrollY | GwTableFlags.Zebra, new Vector2(0f, tableHeight)))
+            return;
+
+        Gw.TableColumn("#", 28f, stretch: false, numeric: true);
+        Gw.TableColumn("Item", 2.4f);
+        Gw.TableColumn("Q", 26f, stretch: false);
+        Gw.TableColumn("Sales/d", 52f, stretch: false, numeric: true);
+        Gw.TableColumn("Sellers", 48f, stretch: false, numeric: true);
+        Gw.TableColumn("Profit/day", 84f, stretch: false, numeric: true);
+        Gw.TableColumn("Capital", 84f, stretch: false, numeric: true);
+        Gw.TableHeaders();
+
+        var tableClipper = new GwTableClipper(plan.Picks.Count);
+        while (tableClipper.Step(out var first, out var last))
         {
-            ImGui.TableSetupColumn("#", ImGuiTableColumnFlags.WidthFixed, 28f, 0);
-            ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2.4f, 1);
-            ImGui.TableSetupColumn("Q", ImGuiTableColumnFlags.WidthFixed, 26f, 2);
-            ImGui.TableSetupColumn("Sales/d", ImGuiTableColumnFlags.WidthFixed, 52f, 3);
-            ImGui.TableSetupColumn("Sellers", ImGuiTableColumnFlags.WidthFixed, 48f, 4);
-            ImGui.TableSetupColumn("Profit/day", ImGuiTableColumnFlags.WidthFixed, 84f, 5);
-            ImGui.TableSetupColumn("Capital", ImGuiTableColumnFlags.WidthFixed, 84f, 6);
-
-            ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
-            foreach (var label in new[] { "#", "Item", "Q", "Sales/d", "Sellers", "Profit/day", "Capital" })
+            for (var index = first; index < last; index++)
             {
-                ImGui.TableNextColumn();
-                Theme.Faint(label);
-            }
+                var pick = plan.Picks[index];
+                var quote = planQuotes.GetValueOrDefault((pick.ItemId, pick.Quality));
 
-            var rank = 1;
-            foreach (var pick in plan.Picks)
-            {
-                ImGui.TableNextRow();
-                ImGui.TableNextColumn();
-                Theme.Faint(rank++ + ".");
+                Gw.TableRow(index);
 
-                ImGui.TableNextColumn();
+                Gw.TableCell();
+                Gw.TableText($"{index + 1}.", TextRole.Body, Theme.ToColor(Theme.TextFaint));
+
+                Gw.TableCell();
                 UiKit.ItemIcon(UiKit.IconIdForItem(pick.ItemId), pick.Quality == Quality.Hq, 16f);
                 ImGui.SameLine(0f, 6f);
                 Theme.Colored(Theme.Text, this.plugin.Catalog.Name(pick.ItemId));
 
-                ImGui.TableNextColumn();
-                Theme.Colored(pick.Quality == Quality.Hq ? Theme.Hq : Theme.TextDim, pick.Quality == Quality.Hq ? "HQ" : "NQ");
+                Gw.TableCell();
+                Gw.TableText(pick.Quality == Quality.Hq ? "HQ" : "NQ", TextRole.Body, Theme.ToColor(pick.Quality == Quality.Hq ? Theme.Hq : Theme.TextDim));
 
-                var quote = planQuotes.GetValueOrDefault((pick.ItemId, pick.Quality));
-                ImGui.TableNextColumn();
-                Theme.Colored(Theme.TextDim, quote is null ? "-" : quote.DailyVelocity.ToString("0.0"));
+                Gw.TableCell();
+                Gw.TableText(quote is null ? "-" : quote.DailyVelocity.ToString("0.0"), TextRole.Body, Theme.ToColor(Theme.TextDim));
 
-                ImGui.TableNextColumn();
-                Theme.Colored(Theme.TextDim, quote is null ? "-" : quote.DistinctSellers.ToString());
+                Gw.TableCell();
+                Gw.TableText(quote is null ? "-" : quote.DistinctSellers.ToString(), TextRole.Body, Theme.ToColor(Theme.TextDim));
 
-                ImGui.TableNextColumn();
-                Theme.Colored(Theme.Profit, Money.Gil(pick.GilPerDay));
+                Gw.TableCell();
+                Gw.TableText(Money.Gil(pick.GilPerDay), TextRole.Body, Theme.ToColor(Theme.Profit));
 
-                ImGui.TableNextColumn();
-                Theme.Dimmed(Money.Gil(pick.CapitalPerSlot));
+                Gw.TableCell();
+                Gw.TableText(Money.Gil(pick.CapitalPerSlot), TextRole.Body, Theme.ToColor(Theme.TextDim));
             }
-
-            ImGui.EndTable();
         }
+
+        Gw.EndTable();
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -1807,110 +1831,109 @@ public sealed class MainWindow : GlassWindow
         if (bestIdea is not null && bestIdea.Profit > 0m)
             this.DrawCraftSummaryCard(bestIdea, plan.Count);
 
-        if (!ImGui.BeginTable(
-                "##craft",
-                12,
-                ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY |
-                ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings,
-                new Vector2(0f, TableHeight())))
-        {
+        // The table still fills the window; Glasswork sizes are logical units, so hand the height back
+        // unscaled instead of letting the Look scale it a second time.
+        var tableHeight = TableHeight() / MathF.Max(0.01f, Frame.Scale);
+        if (!Gw.BeginTable("craft"u8, 12, GwTableFlags.ScrollY | GwTableFlags.Zebra, new Vector2(0f, tableHeight)))
             return;
-        }
 
-        ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2.4f, 0);
-        ImGui.TableSetupColumn("Job", ImGuiTableColumnFlags.WidthFixed, 64f, 1);
-        ImGui.TableSetupColumn("Crafts", ImGuiTableColumnFlags.WidthFixed, 52f, 2);
-        ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, 44f, 3);
-        ImGui.TableSetupColumn("Revenue", ImGuiTableColumnFlags.WidthFixed, 76f, 4);
-        ImGui.TableSetupColumn("Mats", ImGuiTableColumnFlags.WidthFixed, 76f, 5);
-        ImGui.TableSetupColumn("Profit", ImGuiTableColumnFlags.WidthFixed, 76f, 6);
-        ImGui.TableSetupColumn("Per unit", ImGuiTableColumnFlags.WidthFixed, 78f, 7);
-        ImGui.TableSetupColumn("Stack", ImGuiTableColumnFlags.WidthFixed, 84f, 8);
-        ImGui.TableSetupColumn("HQ", ImGuiTableColumnFlags.WidthFixed, 72f, 9);
-        ImGui.TableSetupColumn("Owned", ImGuiTableColumnFlags.WidthFixed, 76f, 10);
-        ImGui.TableSetupColumn("Clear", ImGuiTableColumnFlags.WidthFixed, 52f, 11);
+        Gw.TableColumn("Item", 2.4f);
+        Gw.TableColumn("Job", 64f, stretch: false);
+        Gw.TableColumn("Crafts", 52f, stretch: false, numeric: true);
+        Gw.TableColumn("Qty", 44f, stretch: false, numeric: true);
+        Gw.TableColumn("Revenue", 76f, stretch: false, numeric: true);
+        Gw.TableColumn("Mats", 76f, stretch: false, numeric: true);
+        Gw.TableColumn("Profit", 76f, stretch: false, numeric: true);
+        Gw.TableColumn("Per unit", 78f, stretch: false, numeric: true);
+        Gw.TableColumn("Stack", 84f, stretch: false, numeric: true);
+        Gw.TableColumn("HQ", 72f, stretch: false, numeric: true);
+        Gw.TableColumn("Owned", 76f, stretch: false, numeric: true);
+        Gw.TableColumn("Clear", 52f, stretch: false, numeric: true);
+        Gw.TableHeaders();
 
-        ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
-
-        foreach (var label in new[] { "Item", "Job", "Crafts", "Qty", "Revenue", "Mats", "Profit", "Per unit", "Stack", "HQ", "Owned", "Clear" })
+        var tableClipper = new GwTableClipper(plan.Count);
+        while (tableClipper.Step(out var first, out var last))
         {
-            ImGui.TableNextColumn();
-            Theme.Faint(label);
+            for (var index = first; index < last; index++)
+            {
+                var idea = plan[index];
+
+                Gw.TableRow(index);
+
+                Gw.TableCell();
+                Theme.Colored(Theme.Text, this.plugin.Catalog.Name(idea.ItemId));
+                if (idea.UsesIntermediates)
+                {
+                    ImGui.SameLine();
+                    Theme.Faint("+sub");
+                    if (ImGui.IsItemHovered())
+                        ImGui.SetTooltip("At least one ingredient has to be crafted first, from the same materials.");
+                }
+
+                Gw.TableCell();
+                var job = this.plugin.Catalog.JobAbbreviation(idea.CraftJob);
+                Gw.TableText(
+                    job.Length > 0 ? $"{job} {idea.RequiredLevel}" : idea.RequiredLevel.ToString(),
+                    TextRole.Body,
+                    Theme.ToColor(Theme.TextDim));
+
+                Gw.TableCell();
+                Gw.TableText(idea.Crafts.ToString(), TextRole.Body, Theme.ToColor(Theme.TextDim));
+
+                Gw.TableCell();
+                Gw.TableText(idea.Produced.ToString(), TextRole.Body, Theme.ToColor(Theme.TextDim));
+
+                Gw.TableCell();
+                Gw.TableText(Money.Gil(idea.Revenue), TextRole.Body, Theme.ToColor(Theme.TextDim));
+
+                Gw.TableCell();
+                if (idea.MaterialsPriced)
+                {
+                    Gw.TableText(Money.Gil(idea.MaterialValue), TextRole.Body, Theme.ToColor(Theme.TextDim));
+                }
+                else
+                {
+                    TableCellText(
+                        "partial",
+                        TextRole.Body,
+                        Theme.Warn,
+                        () => "Some materials have no price, so the profit is optimistic.");
+                }
+
+                Gw.TableCell();
+                Gw.TableText(Money.Gil(idea.Profit), TextRole.Body, Theme.ToColor(idea.Profit > 0m ? Theme.Accent : Theme.Danger));
+
+                var perUnit = idea.Produced > 0 ? idea.Profit / idea.Produced : 0m;
+
+                Gw.TableCell();
+                Gw.TableText(Money.Gil(perUnit), TextRole.Body, Theme.ToColor(Theme.TextDim));
+
+                Gw.TableCell();
+                Gw.TableText(Money.Gil(perUnit * this.Config.DefaultStackSize), TextRole.Body, Theme.ToColor(Theme.TextDim));
+
+                Gw.TableCell();
+                if (idea.HqAvailable)
+                {
+                    TableCellText(
+                        Money.Gil(idea.HqProfit),
+                        TextRole.Body,
+                        idea.HqProfit > idea.Profit ? Theme.Accent : Theme.TextDim,
+                        () => $"HQ revenue {Money.Gil(idea.HqRevenue)} at the HQ minimum.");
+                }
+                else
+                {
+                    Gw.TableText("-", TextRole.Body, Theme.ToColor(Theme.TextFaint));
+                }
+
+                Gw.TableCell();
+                Gw.TableText(Money.Gil(idea.OwnedProfit), TextRole.Body, Theme.ToColor(Theme.TextDim));
+
+                Gw.TableCell();
+                Gw.TableText(Money.Days(idea.DaysToSell), TextRole.Body, Theme.ToColor(Theme.TextDim));
+            }
         }
 
-        foreach (var idea in plan)
-        {
-            ImGui.TableNextRow();
-
-            ImGui.TableNextColumn();
-            Theme.Colored(Theme.Text, this.plugin.Catalog.Name(idea.ItemId));
-
-            if (idea.UsesIntermediates)
-            {
-                ImGui.SameLine();
-                Theme.Faint("+sub");
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("At least one ingredient has to be crafted first, from the same materials.");
-            }
-
-            ImGui.TableNextColumn();
-            var job = this.plugin.Catalog.JobAbbreviation(idea.CraftJob);
-            Theme.Colored(
-                Theme.TextDim,
-                job.Length > 0 ? $"{job} {idea.RequiredLevel}" : idea.RequiredLevel.ToString());
-
-            ImGui.TableNextColumn();
-            Theme.Dimmed(idea.Crafts.ToString());
-
-            ImGui.TableNextColumn();
-            Theme.Dimmed(idea.Produced.ToString());
-
-            ImGui.TableNextColumn();
-            Theme.Dimmed(Money.Gil(idea.Revenue));
-
-            ImGui.TableNextColumn();
-            if (idea.MaterialsPriced)
-            {
-                Theme.Dimmed(Money.Gil(idea.MaterialValue));
-            }
-            else
-            {
-                Theme.Colored(Theme.Warn, "partial");
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Some materials have no price, so the profit is optimistic.");
-            }
-
-            ImGui.TableNextColumn();
-            Theme.Colored(idea.Profit > 0m ? Theme.Accent : Theme.Danger, Money.Gil(idea.Profit));
-
-            var perUnit = idea.Produced > 0 ? idea.Profit / idea.Produced : 0m;
-            ImGui.TableNextColumn();
-            Theme.Dimmed(Money.Gil(perUnit));
-
-            ImGui.TableNextColumn();
-            Theme.Dimmed(Money.Gil(perUnit * this.Config.DefaultStackSize));
-
-            ImGui.TableNextColumn();
-            if (idea.HqAvailable)
-            {
-                Theme.Colored(idea.HqProfit > idea.Profit ? Theme.Accent : Theme.TextDim, Money.Gil(idea.HqProfit));
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip($"HQ revenue {Money.Gil(idea.HqRevenue)} at the HQ minimum.");
-            }
-            else
-            {
-                Theme.Faint("-");
-            }
-
-            ImGui.TableNextColumn();
-            Theme.Dimmed(Money.Gil(idea.OwnedProfit));
-
-            ImGui.TableNextColumn();
-            Theme.Dimmed(Money.Days(idea.DaysToSell));
-        }
-
-        ImGui.EndTable();
+        Gw.EndTable();
     }
 
     // -------------------------------------------------------------- my listings ----
@@ -2121,135 +2144,142 @@ public sealed class MainWindow : GlassWindow
 
         ImGui.Spacing();
 
-        if (!ImGui.BeginTable(
-                "##mylistings",
-                10,
-                ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY |
-                ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.NoSavedSettings,
-                new Vector2(0f, TableHeight())))
-        {
+        // The table still fills the window; Glasswork sizes are logical units, so hand the height back
+        // unscaled instead of letting the Look scale it a second time.
+        var tableHeight = TableHeight() / MathF.Max(0.01f, Frame.Scale);
+        if (!Gw.BeginTable("mylistings"u8, 10, GwTableFlags.Sortable | GwTableFlags.ScrollY | GwTableFlags.Zebra, new Vector2(0f, tableHeight)))
             return;
-        }
 
-        ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2.2f, 0);
-        ImGui.TableSetupColumn("Retainer", ImGuiTableColumnFlags.WidthFixed, 96f, 1);
-        ImGui.TableSetupColumn("Q", ImGuiTableColumnFlags.WidthFixed, 24f, 2);
-        ImGui.TableSetupColumn("Qty", ImGuiTableColumnFlags.WidthFixed, 36f, 3);
-        ImGui.TableSetupColumn("Yours", ImGuiTableColumnFlags.WidthFixed, 72f, 4);
-        ImGui.TableSetupColumn("Market", ImGuiTableColumnFlags.WidthFixed, 72f, 5);
-        ImGui.TableSetupColumn("Delta", ImGuiTableColumnFlags.WidthFixed, 52f, 6);
-        ImGui.TableSetupColumn("Clear", ImGuiTableColumnFlags.WidthFixed, 52f, 9);
-        ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthStretch, 1.5f, 8);
-        ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 30f, 9);
+        Gw.TableColumn("Item", 2.2f, defaultSort: this.listingSortColumn <= 0);
+        Gw.TableColumn("Retainer", 96f, stretch: false, defaultSort: this.listingSortColumn == 1);
+        Gw.TableColumn("Q", 24f, stretch: false, defaultSort: this.listingSortColumn == 2);
+        Gw.TableColumn("Qty", 36f, stretch: false, defaultSort: this.listingSortColumn == 3, numeric: true);
+        Gw.TableColumn("Yours", 72f, stretch: false, defaultSort: this.listingSortColumn == 4, numeric: true);
+        Gw.TableColumn("Market", 72f, stretch: false, defaultSort: this.listingSortColumn == 5, numeric: true);
+        Gw.TableColumn("Delta", 52f, stretch: false, defaultSort: this.listingSortColumn == 6, numeric: true);
+        Gw.TableColumn("Clear", 52f, stretch: false, defaultSort: this.listingSortColumn == 7, numeric: true);
+        Gw.TableColumn("Status", 1.5f, defaultSort: this.listingSortColumn == 8);
+        Gw.TableColumn("##actions", 30f, stretch: false);
 
-        ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
+        // ImGui starts a sortable table on a column and direction of its own, and reloads the sort saved in its
+        // settings when the table (re)initialises. Treat that frame as a re-initialisation instead of a click on a
+        // header, and put the saved sort in before the header row is laid out so its chevron is right on the first
+        // frame too.
+        var tableFresh = ImGui.GetFrameCount() - this.listingTableFrame > 1;
+        this.listingTableFrame = ImGui.GetFrameCount();
 
-        var labels = new[] { "Item", "Retainer", "Q", "Qty", "Yours", "Market", "Delta", "Clear", "Status" };
+        if (tableFresh)
+            this.RepairListingSort();
 
-        for (var column = 0; column < labels.Length; column++)
+        Gw.TableHeaders();
+
+        if (Gw.TableSortChanged(out var sortColumn, out var descending))
         {
-            ImGui.TableNextColumn();
-
-            var header = labels[column];
-
-            if (this.listingSortColumn == column)
-                header += this.listingSortAscending ? "  ^" : "  v";
-
-            ImGui.TableHeader(header);
-
-            if (!ImGui.IsItemClicked())
-                continue;
-
-            if (this.listingSortColumn == column)
-                this.listingSortAscending = !this.listingSortAscending;
-            else
+            if (!tableFresh && sortColumn >= 0 && sortColumn < 9)
             {
-                this.listingSortColumn = column;
-                this.listingSortAscending = true;
+                // A declared column index is the data column: the action column sits past them.
+                var ascending = !descending;
+                if (sortColumn != this.listingSortColumn || ascending != this.listingSortAscending)
+                {
+                    this.listingSortColumn = sortColumn;
+                    this.listingSortAscending = ascending;
+                }
+            }
+            else if (!tableFresh)
+            {
+                // The trailing action column never had a sort of its own; keep the current order.
+                this.RepairListingSort();
             }
         }
 
-        ImGui.TableNextColumn();
-
         CapturedListing? remove = null;
 
-        foreach (var review in reviews)
+        var tableClipper = new GwTableClipper(reviews.Count);
+        while (tableClipper.Step(out var first, out var last))
         {
-            var listing = review.Listing;
-            var quality = listing.Hq ? Quality.Hq : Quality.Nq;
-            var rowQuote = this.plugin.FindListingQuote(listing.ItemId, quality)
-                           ?? quotes.GetValueOrDefault((listing.ItemId, quality));
+            for (var index = first; index < last; index++)
+            {
+                var review = reviews[index];
+                var listing = review.Listing;
+                var quality = listing.Hq ? Quality.Hq : Quality.Nq;
+                var rowQuote = this.plugin.FindListingQuote(listing.ItemId, quality)
+                               ?? quotes.GetValueOrDefault((listing.ItemId, quality));
 
-            ImGui.TableNextRow();
+                Gw.TableRow(index);
 
-            ImGui.TableNextColumn();
-            UiKit.ItemIcon(UiKit.IconIdForItem(listing.ItemId), listing.Hq, 16f);
-            ImGui.SameLine(0f, 6f);
-            Theme.Colored(Theme.Text, this.plugin.Catalog.Name(listing.ItemId));
+                Gw.TableCell();
+                UiKit.ItemIcon(UiKit.IconIdForItem(listing.ItemId), listing.Hq, 16f);
+                ImGui.SameLine(0f, 6f);
+                Theme.Colored(Theme.Text, this.plugin.Catalog.Name(listing.ItemId));
 
-            ImGui.TableNextColumn();
-            Theme.Colored(
-                Theme.TextDim,
-                string.IsNullOrWhiteSpace(listing.RetainerName) ? "?" : listing.RetainerName);
+                Gw.TableCell();
+                Gw.TableText(
+                    string.IsNullOrWhiteSpace(listing.RetainerName) ? "?" : listing.RetainerName,
+                    TextRole.Body,
+                    Theme.ToColor(Theme.TextDim));
 
-            ImGui.TableNextColumn();
-            Theme.Colored(quality == Quality.Hq ? Theme.Hq : Theme.TextDim, quality == Quality.Hq ? "HQ" : "NQ");
+                Gw.TableCell();
+                Gw.TableText(
+                    quality == Quality.Hq ? "HQ" : "NQ",
+                    TextRole.Body,
+                    Theme.ToColor(quality == Quality.Hq ? Theme.Hq : Theme.TextDim));
 
-            ImGui.TableNextColumn();
-            Theme.Dimmed(listing.Quantity.ToString());
+                Gw.TableCell();
+                Gw.TableText(listing.Quantity.ToString(), TextRole.Body, Theme.ToColor(Theme.TextDim));
 
-            ImGui.TableNextColumn();
-            Theme.Colored(Theme.Text, Money.Gil(listing.PricePerUnit));
+                Gw.TableCell();
+                Gw.TableText(Money.Gil(listing.PricePerUnit), TextRole.Body, Theme.ToColor(Theme.Text));
 
-            ImGui.TableNextColumn();
-            Theme.Dimmed(review.MarketMin > 0 ? Money.Gil(review.MarketMin) : "-");
+                Gw.TableCell();
+                Func<string>? ladder = rowQuote is null ? null : () => this.PriceLadder(rowQuote, listing);
+                TableCellText(
+                    review.MarketMin > 0 ? Money.Gil(review.MarketMin) : "-",
+                    TextRole.Body,
+                    Theme.TextDim,
+                    ladder);
 
-            if (ImGui.IsItemHovered() && rowQuote is not null)
-                ImGui.SetTooltip(this.PriceLadder(rowQuote, listing));
+                Gw.TableCell();
+                var deltaColor = review.Status == ListingStatus.AboveMarket ? Theme.Danger : Theme.Accent;
+                Gw.TableText(
+                    review.Status == ListingStatus.Unpriced ? "-" : review.PriceDeltaPercent.ToString("+0%;-0%;0%"),
+                    TextRole.Body,
+                    Theme.ToColor(deltaColor));
 
-            ImGui.TableNextColumn();
-            var deltaColor = review.Status == ListingStatus.AboveMarket ? Theme.Danger : Theme.Accent;
-            Theme.Colored(
-                deltaColor,
-                review.Status == ListingStatus.Unpriced
-                    ? "-"
-                    : review.PriceDeltaPercent.ToString("+0%;-0%;0%"));
+                Gw.TableCell();
+                Gw.TableText(Money.Days(review.DaysToSell), TextRole.Body, Theme.ToColor(Theme.TextDim));
 
-            ImGui.TableNextColumn();
-            Theme.Dimmed(Money.Days(review.DaysToSell));
+                Gw.TableCell();
+                var statusColor = review.IsProbablySold
+                    ? Theme.Danger
+                    : review.Status switch
+                    {
+                        ListingStatus.Cheapest => Theme.Accent,
+                        ListingStatus.AtMarket => Theme.Text,
+                        ListingStatus.AboveMarket => Theme.Danger,
+                        _ => Theme.TextFaint,
+                    };
+                var advice = review.Status == ListingStatus.Unpriced && this.plugin.IsPricingListings
+                    ? "pricing..."
+                    : review.Advice;
 
-            ImGui.TableNextColumn();
-            var statusColor = review.IsProbablySold
-                ? Theme.Danger
-                : review.Status switch
-                {
-                    ListingStatus.Cheapest => Theme.Accent,
-                    ListingStatus.AtMarket => Theme.Text,
-                    ListingStatus.AboveMarket => Theme.Danger,
-                    _ => Theme.TextFaint,
-                };
-            var advice = review.Status == ListingStatus.Unpriced && this.plugin.IsPricingListings
-                ? "pricing..."
-                : review.Advice;
+                var dotOrigin = ImGui.GetCursorScreenPos();
+                ImGui.GetWindowDrawList().AddCircleFilled(
+                    new Vector2(dotOrigin.X + 4f, dotOrigin.Y + (ImGui.GetTextLineHeight() * 0.5f)),
+                    2.6f,
+                    Theme.U32(statusColor));
+                ImGui.Dummy(new Vector2(12f, ImGui.GetTextLineHeight()));
+                ImGui.SameLine(0f, 0f);
+                Theme.Colored(statusColor, advice);
 
-            var dotOrigin = ImGui.GetCursorScreenPos();
-            ImGui.GetWindowDrawList().AddCircleFilled(
-                new Vector2(dotOrigin.X + 4f, dotOrigin.Y + (ImGui.GetTextLineHeight() * 0.5f)),
-                2.6f,
-                Theme.U32(statusColor));
-            ImGui.Dummy(new Vector2(12f, ImGui.GetTextLineHeight()));
-            ImGui.SameLine(0f, 0f);
-            Theme.Colored(statusColor, advice);
-
-            ImGui.TableNextColumn();
-            ImGui.PushID($"forget{listing.ItemId}{listing.RetainerId}");
-            if (ImGui.SmallButton("x"))
-                remove = listing;
-            ImGui.PopID();
+                Gw.TableCell();
+                ImGui.PushID($"forget{listing.ItemId}{listing.RetainerId}");
+                if (ImGui.SmallButton("x"))
+                    remove = listing;
+                ImGui.PopID();
+            }
         }
 
-        ImGui.EndTable();
+        Gw.EndTable();
 
         if (remove is not null)
         {
@@ -2624,42 +2654,6 @@ public sealed class MainWindow : GlassWindow
         return CsvExport.Build(header, lines);
     }
 
-    private void ArbitrageHeader(string label, int column)
-    {
-        ImGui.TableNextColumn();
-        if (ImGui.SmallButton(label + "##arbh" + column))
-        {
-            if (this.arbitrageSortColumn == column)
-                this.arbitrageSortAscending = !this.arbitrageSortAscending;
-            else
-            {
-                this.arbitrageSortColumn = column;
-                this.arbitrageSortAscending = false;
-            }
-        }
-
-        if (this.arbitrageSortColumn == column)
-        {
-            var drawList = ImGui.GetWindowDrawList();
-            var min = ImGui.GetItemRectMin();
-            var max = ImGui.GetItemRectMax();
-            var centerX = max.X + 6f;
-            var centerY = (min.Y + max.Y) * 0.5f;
-            if (this.arbitrageSortAscending)
-                drawList.AddTriangleFilled(
-                    new Vector2(centerX - 4f, centerY + 2f),
-                    new Vector2(centerX + 4f, centerY + 2f),
-                    new Vector2(centerX, centerY - 3f),
-                    Theme.U32(Theme.Accent));
-            else
-                drawList.AddTriangleFilled(
-                    new Vector2(centerX - 4f, centerY - 2f),
-                    new Vector2(centerX + 4f, centerY - 2f),
-                    new Vector2(centerX, centerY + 3f),
-                    Theme.U32(Theme.Accent));
-        }
-    }
-
     private int CompareArbitrage(ArbitrageRow left, ArbitrageRow right, int column) => column switch
     {
         0 => string.Compare(this.plugin.Catalog.Name(left.ItemId), this.plugin.Catalog.Name(right.ItemId), StringComparison.OrdinalIgnoreCase),
@@ -2903,7 +2897,10 @@ public sealed class MainWindow : GlassWindow
             visible = visible.Where(row => row.NetPerUnit * stackSize >= minStackValue).ToList();
 
         visible.Sort((left, right) => this.CompareArbitrage(left, right, this.arbitrageSortColumn));
-        if (this.arbitrageSortAscending)
+
+        // The comparators above are ascending, so a descending header reverses them. This was inverted: the
+        // field used to mean "descending" while the chevron drawn beside it pointed up.
+        if (!this.arbitrageSortAscending)
             visible.Reverse();
 
         if (Gw.Button("copy list"u8, ButtonStyle.Plain, ButtonSize.Small))
@@ -2968,130 +2965,157 @@ public sealed class MainWindow : GlassWindow
             Theme.Colored(Theme.Profit, $"total +{Money.Gil(visible.Sum(row => row.NetPerUnit * stackSize))}");
         }
 
-        if (!ImGui.BeginTable(
-                "##arbitrage",
+        // The table still fills the window; Glasswork sizes are logical units, so hand the height back
+        // unscaled instead of letting the Look scale it a second time.
+        var tableHeight = TableHeight() / MathF.Max(0.01f, Frame.Scale);
+        if (!Gw.BeginTable(
+                "arbitrage"u8,
                 9,
-                ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings,
-                new Vector2(0f, TableHeight())))
+                GwTableFlags.Sortable | GwTableFlags.Resizable | GwTableFlags.ScrollY | GwTableFlags.Zebra | GwTableFlags.Selectable,
+                new Vector2(0f, tableHeight)))
         {
             return;
         }
 
-        ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2.2f, 0);
-        ImGui.TableSetupColumn("Buy on", ImGuiTableColumnFlags.WidthFixed, 110f, 1);
-        ImGui.TableSetupColumn("Buy", ImGuiTableColumnFlags.WidthFixed, 80f, 2);
-        ImGui.TableSetupColumn("Sell on", ImGuiTableColumnFlags.WidthFixed, 110f, 3);
-        ImGui.TableSetupColumn("Sell", ImGuiTableColumnFlags.WidthFixed, 80f, 4);
-        ImGui.TableSetupColumn("Net/unit", ImGuiTableColumnFlags.WidthFixed, 90f, 5);
-        ImGui.TableSetupColumn("Stack", ImGuiTableColumnFlags.WidthFixed, 90f, 6);
-        ImGui.TableSetupColumn("My world", ImGuiTableColumnFlags.WidthFixed, 80f, 7);
-        ImGui.TableSetupColumn("Sales/d", ImGuiTableColumnFlags.WidthFixed, 60f, 8);
+        Gw.TableColumn("Item", 2.2f, defaultSort: this.arbitrageSortColumn == 0);
+        Gw.TableColumn("Buy on", 110f, stretch: false, defaultSort: this.arbitrageSortColumn == 1);
+        Gw.TableColumn("Buy", 80f, stretch: false, defaultSort: this.arbitrageSortColumn == 2, numeric: true);
+        Gw.TableColumn("Sell on", 110f, stretch: false, defaultSort: this.arbitrageSortColumn == 3);
+        Gw.TableColumn("Sell", 80f, stretch: false, defaultSort: this.arbitrageSortColumn == 4, numeric: true);
+        Gw.TableColumn("Net/unit", 90f, stretch: false, defaultSort: this.arbitrageSortColumn == 5, numeric: true);
+        Gw.TableColumn("Stack", 90f, stretch: false, defaultSort: this.arbitrageSortColumn == 6, numeric: true);
+        Gw.TableColumn("My world", 80f, stretch: false, defaultSort: this.arbitrageSortColumn == 7, numeric: true);
+        Gw.TableColumn("Sales/d", 60f, stretch: false, defaultSort: this.arbitrageSortColumn == 8, numeric: true);
 
-        ImGui.TableSetupScrollFreeze(0, 1);
-        ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
-        this.ArbitrageHeader("Item", 0);
-        this.ArbitrageHeader("Buy on", 1);
-        this.ArbitrageHeader("Buy", 2);
-        this.ArbitrageHeader("Sell on", 3);
-        this.ArbitrageHeader("Sell", 4);
-        this.ArbitrageHeader("Net/unit", 5);
-        this.ArbitrageHeader("Stack", 6);
-        this.ArbitrageHeader("My world", 7);
-        this.ArbitrageHeader("Sales/d", 8);
+        // ImGui starts a sortable table on a column and direction of its own, and reloads the sort saved in its
+        // settings when the table (re)initialises. Treat that frame as a re-initialisation instead of a click on a
+        // header, and put the saved sort in before the header row is laid out so its chevron is right on the first
+        // frame too.
+        var tableFresh = ImGui.GetFrameCount() - this.arbitrageTableFrame > 1;
+        this.arbitrageTableFrame = ImGui.GetFrameCount();
 
-        foreach (var row in visible)
+        if (tableFresh)
+            this.RepairArbitrageSort();
+
+        Gw.TableHeaders();
+
+        if (Gw.TableSortChanged(out var sortColumn, out var descending))
         {
-            ImGui.TableNextRow();
-
-            ImGui.TableNextColumn();
-            var inCart = this.IsInFlipCart(row);
-            if (ImGui.Checkbox("##flipcart" + row.ItemId + row.Quality, ref inCart))
-                this.ToggleFlipCart(row, inCart);
-
-            ImGui.SameLine(0f, 4f);
-            if (row.NetPerUnit * stackSize >= (decimal)config.ArbitrageTripThreshold)
+            if (!tableFresh && sortColumn >= 0 && sortColumn < 9)
             {
-                Theme.Colored(Theme.Gold, "*");
-                ImGui.SameLine(0f, 4f);
-            }
-
-            UiKit.ItemIcon(UiKit.IconIdForItem(row.ItemId), row.Quality == Quality.Hq, 16f);
-            ImGui.SameLine(0f, 6f);
-            Theme.Colored(Theme.Text, this.plugin.Catalog.Name(row.ItemId));
-            if (row.Quality == Quality.Hq)
-            {
-                ImGui.SameLine(0f, 6f);
-                Theme.Colored(Theme.Hq, "HQ");
-            }
-
-            ImGui.TableNextColumn();
-            Theme.Colored(Theme.Accent, row.BuyWorld);
-
-            ImGui.TableNextColumn();
-            Theme.Dimmed(Money.Gil(row.BuyPrice));
-
-            ImGui.TableNextColumn();
-            Theme.Colored(Theme.Accent, row.SellWorld);
-
-            ImGui.TableNextColumn();
-            Theme.Dimmed(Money.Gil(row.SellPrice));
-
-            ImGui.TableNextColumn();
-            Theme.Colored(Theme.Profit, "+" + Money.Gil(row.NetPerUnit));
-
-            ImGui.TableNextColumn();
-            Theme.Colored(Theme.Profit, "+" + Money.Gil(row.NetPerUnit * this.Config.DefaultStackSize));
-
-            ImGui.TableNextColumn();
-            if (row.HomePrice > 0m)
-                Theme.Dimmed(Money.Gil(row.HomePrice));
-            else
-                Theme.Faint("-");
-
-            ImGui.TableNextColumn();
-            Theme.Faint(row.SellVelocity.ToString("0.0"));
-
-            if (ImGui.BeginPopupContextItem($"##arbctx{row.ItemId}{row.Quality}"))
-            {
-                if (ImGui.MenuItem("Copy item name"))
-                    ImGui.SetClipboardText(this.plugin.Catalog.Name(row.ItemId));
-
-                if (ImGui.MenuItem("Copy pair"))
-                    ImGui.SetClipboardText($"{row.BuyWorld} {Money.Gil(row.BuyPrice)} -> {row.SellWorld} {Money.Gil(row.SellPrice)} (+{Money.Gil(row.NetPerUnit)})");
-
-                if (ImGui.MenuItem("Open on Universalis"))
-                    OpenUrl($"https://universalis.app/market/{row.ItemId}");
-
-                if (ImGui.MenuItem($"Travel to {row.BuyWorld}"))
-                    this.plugin.TravelToWorld(row.BuyWorld);
-
-                if (ImGui.MenuItem("Walk to market board"))
-                    this.plugin.WalkToMarketBoard();
-
-                if (ImGui.MenuItem("Buy..."))
+                // A declared column index is the data column: the comparators take the same numbers.
+                var ascending = !descending;
+                if (sortColumn != this.arbitrageSortColumn || ascending != this.arbitrageSortAscending)
                 {
-                    this.buyOpen = true;
-                    this.buyItemId = row.ItemId;
-                    this.buyHq = row.Quality == Quality.Hq;
-                    this.buyName = this.plugin.Catalog.Name(row.ItemId);
-                    this.buyWorld = row.BuyWorld;
-                    this.buyQty = Math.Max(1, this.Config.DefaultStackSize);
-                    this.buyMaxPrice = row.BuyPrice;
+                    this.arbitrageSortColumn = sortColumn;
+                    this.arbitrageSortAscending = ascending;
                 }
-
-                if (ImGui.MenuItem("Flip calculator..."))
-                {
-                    this.flipItemId = row.ItemId;
-                    this.flipQuality = row.Quality;
-                    this.flipQty = Math.Max(1, this.Config.DefaultStackSize);
-                    this.flipOpen = true;
-                }
-
-                ImGui.EndPopup();
             }
         }
 
-        ImGui.EndTable();
+        var tableClipper = new GwTableClipper(visible.Count);
+        while (tableClipper.Step(out var first, out var last))
+        {
+            for (var index = first; index < last; index++)
+            {
+                var row = visible[index];
+                var inCart = this.IsInFlipCart(row);
+
+                Gw.TableRow(index);
+
+                if (ImGui.BeginPopupContextItem($"##arbctx{row.ItemId}{row.Quality}"))
+                {
+                    if (ImGui.MenuItem("Copy item name"))
+                        ImGui.SetClipboardText(this.plugin.Catalog.Name(row.ItemId));
+
+                    if (ImGui.MenuItem("Copy pair"))
+                        ImGui.SetClipboardText($"{row.BuyWorld} {Money.Gil(row.BuyPrice)} -> {row.SellWorld} {Money.Gil(row.SellPrice)} (+{Money.Gil(row.NetPerUnit)})");
+
+                    if (ImGui.MenuItem("Open on Universalis"))
+                        OpenUrl($"https://universalis.app/market/{row.ItemId}");
+
+                    if (ImGui.MenuItem($"Travel to {row.BuyWorld}"))
+                        this.plugin.TravelToWorld(row.BuyWorld);
+
+                    if (ImGui.MenuItem("Walk to market board"))
+                        this.plugin.WalkToMarketBoard();
+
+                    if (ImGui.MenuItem("Buy..."))
+                    {
+                        this.buyOpen = true;
+                        this.buyItemId = row.ItemId;
+                        this.buyHq = row.Quality == Quality.Hq;
+                        this.buyName = this.plugin.Catalog.Name(row.ItemId);
+                        this.buyWorld = row.BuyWorld;
+                        this.buyQty = Math.Max(1, this.Config.DefaultStackSize);
+                        this.buyMaxPrice = row.BuyPrice;
+                    }
+
+                    if (ImGui.MenuItem("Flip calculator..."))
+                    {
+                        this.flipItemId = row.ItemId;
+                        this.flipQuality = row.Quality;
+                        this.flipQty = Math.Max(1, this.Config.DefaultStackSize);
+                        this.flipOpen = true;
+                    }
+
+                    ImGui.EndPopup();
+                }
+
+                Gw.TableCell();
+                if (ImGui.Checkbox("##flipcart" + row.ItemId + row.Quality, ref inCart))
+                    this.ToggleFlipCart(row, inCart);
+
+                ImGui.SameLine(0f, 4f);
+                if (row.NetPerUnit * stackSize >= (decimal)config.ArbitrageTripThreshold)
+                {
+                    Theme.Colored(Theme.Gold, "*");
+                    ImGui.SameLine(0f, 4f);
+                }
+
+                UiKit.ItemIcon(UiKit.IconIdForItem(row.ItemId), row.Quality == Quality.Hq, 16f);
+                ImGui.SameLine(0f, 6f);
+                Theme.Colored(Theme.Text, this.plugin.Catalog.Name(row.ItemId));
+                if (row.Quality == Quality.Hq)
+                {
+                    ImGui.SameLine(0f, 6f);
+                    Theme.Colored(Theme.Hq, "HQ");
+                }
+
+                Gw.TableCell();
+                Gw.TableText(row.BuyWorld, TextRole.Body, Theme.ToColor(Theme.Accent));
+
+                Gw.TableCell();
+                Gw.TableText(Money.Gil(row.BuyPrice), TextRole.Body, Theme.ToColor(Theme.TextDim));
+
+                Gw.TableCell();
+                Gw.TableText(row.SellWorld, TextRole.Body, Theme.ToColor(Theme.Accent));
+
+                Gw.TableCell();
+                Gw.TableText(Money.Gil(row.SellPrice), TextRole.Body, Theme.ToColor(Theme.TextDim));
+
+                Gw.TableCell();
+                Gw.TableText("+" + Money.Gil(row.NetPerUnit), TextRole.Body, Theme.ToColor(Theme.Profit));
+
+                Gw.TableCell();
+                Gw.TableText("+" + Money.Gil(row.NetPerUnit * this.Config.DefaultStackSize), TextRole.Body, Theme.ToColor(Theme.Profit));
+
+                Gw.TableCell();
+                if (row.HomePrice > 0m)
+                {
+                    Gw.TableText(Money.Gil(row.HomePrice), TextRole.Body, Theme.ToColor(Theme.TextDim));
+                }
+                else
+                {
+                    Gw.TableText("-", TextRole.Body, Theme.ToColor(Theme.TextFaint));
+                }
+
+                Gw.TableCell();
+                Gw.TableText(row.SellVelocity.ToString("0.0"), TextRole.Body, Theme.ToColor(Theme.TextFaint));
+            }
+        }
+
+        Gw.EndTable();
 
         this.DrawFlipPopup();
         this.DrawBuyPopup();
@@ -3651,6 +3675,31 @@ public sealed class MainWindow : GlassWindow
         ImGuiP.TableSetColumnSortDirection(
             visible,
             this.sortAscending ? ImGuiSortDirection.Ascending : ImGuiSortDirection.Descending,
+            false);
+    }
+
+    /// <summary>
+    /// Puts the saved my-listings sort back into the table after it (re)initialises: ImGui would otherwise keep
+    /// its own default column, or a sort restored from its saved settings. Until a column is picked the rows stay
+    /// grouped by retainer, and the chevron points at Item descending so that clicking it still sorts ascending,
+    /// the way the hand-rolled header did.
+    /// </summary>
+    private void RepairListingSort()
+    {
+        var column = this.listingSortColumn >= 0 ? this.listingSortColumn : 0;
+        var ascending = this.listingSortColumn >= 0 && this.listingSortAscending;
+        ImGuiP.TableSetColumnSortDirection(
+            column,
+            ascending ? ImGuiSortDirection.Ascending : ImGuiSortDirection.Descending,
+            false);
+    }
+
+    /// <summary>Puts the saved arbitrage sort back into the table after it (re)initialises, like the others.</summary>
+    private void RepairArbitrageSort()
+    {
+        ImGuiP.TableSetColumnSortDirection(
+            this.arbitrageSortColumn,
+            this.arbitrageSortAscending ? ImGuiSortDirection.Ascending : ImGuiSortDirection.Descending,
             false);
     }
 
