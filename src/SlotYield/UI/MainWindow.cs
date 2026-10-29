@@ -3155,7 +3155,7 @@ public sealed class MainWindow : GlassWindow
 
             Gw.BeginRow("Theme", "any Glasswork Look, or a theme in the config folder");
             ImGui.SetNextItemWidth(170f);
-            if (lookNames.Length > 0 && Gw.ComboBox(ref lookIndex, this.plugin.LookLabels))
+            if (lookNames.Length > 0 && Gw.ComboBox(ref lookIndex, this.plugin.LookLabels, "look"u8))
                 this.plugin.SetLook(lookNames[lookIndex]);
 
             ImGui.SameLine();
@@ -3224,7 +3224,7 @@ public sealed class MainWindow : GlassWindow
             Gw.BeginRow("World", "your current world unless you pin another");
             var worldIndex = Array.IndexOf(this.worldChoices, world);
             ImGui.SetNextItemWidth(240f);
-            if (this.worldChoices.Length > 0 && Gw.ComboBox(ref worldIndex, this.worldChoices))
+            if (this.worldChoices.Length > 0 && Gw.ComboBox(ref worldIndex, this.worldChoices, "world"u8))
             {
                 config.WorldOverride = this.worldChoices[worldIndex];
                 this.plugin.SaveConfig();
@@ -3310,7 +3310,7 @@ public sealed class MainWindow : GlassWindow
             Gw.BeginRow("Price strategy", "where you sit in the price ladder");
             var strategyIndex = Array.IndexOf(StrategyValues, config.Strategy);
             ImGui.SetNextItemWidth(220f);
-            if (Gw.ComboBox(ref strategyIndex, StrategyLabels))
+            if (Gw.ComboBox(ref strategyIndex, StrategyLabels, "strategy"u8))
             {
                 config.Strategy = StrategyValues[strategyIndex];
                 this.plugin.SaveConfig();
@@ -3321,7 +3321,7 @@ public sealed class MainWindow : GlassWindow
             Gw.BeginRow("Cost basis", "revenue, buy, craft, or the cheaper of the two");
             var costIndex = Array.IndexOf(CostValues, config.CostMode);
             ImGui.SetNextItemWidth(220f);
-            if (Gw.ComboBox(ref costIndex, CostLabels))
+            if (Gw.ComboBox(ref costIndex, CostLabels, "cost"u8))
             {
                 config.CostMode = CostValues[costIndex];
                 this.plugin.SaveConfig();
