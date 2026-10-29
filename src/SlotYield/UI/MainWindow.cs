@@ -516,10 +516,8 @@ public sealed class MainWindow : GlassWindow
             }
         }
 
-        var ringPos = ImGui.GetCursorScreenPos();
         var ringFraction = budget > 0m ? Math.Clamp((float)(capital / budget), 0f, 1f) : 0f;
-        UiKit.Ring(ImGui.GetWindowDrawList(), ringPos + new Vector2(11f, 11f), 11f, 3.5f, ringFraction, capital > budget ? Theme.Warn : Theme.Accent);
-        ImGui.Dummy(new Vector2(26f, 22f));
+        Gw.Gauge(ringFraction, 22f, default, Theme.ToColor(capital > budget ? Theme.Warn : Theme.Accent));
         ImGui.SameLine(0f, 4f);
         Theme.Faint($"{filled} pinned   -   {slots} slots   -   budget {Money.Gil(budget)}   ({Money.Gil(capital)} in)");
 
