@@ -628,6 +628,17 @@ public sealed class MainWindow : GlassWindow
         if (result is null || result.Candidates.Count == 0)
         {
             ImGui.Spacing();
+
+            if (this.plugin.State.IsScanning)
+            {
+                Gw.Text("Scanning - the table fills in as results arrive."u8, TextRole.Subheadline);
+                Gw.SkeletonText(1, 0.72f, TextRole.Body);
+                Gw.SkeletonText(1, 0.55f, TextRole.Body);
+                Gw.SkeletonText(1, 0.81f, TextRole.Body);
+                Gw.SkeletonText(1, 0.64f, TextRole.Body);
+                return;
+            }
+
             var startScan = UiKit.EmptyState(
                 "No scan yet",
                 "A scan walks every marketable item on your world, ranks them by how much gil a slot could realistically earn, and prices the shortlist exactly. It takes one to three minutes and stays cached for a few hours.",
