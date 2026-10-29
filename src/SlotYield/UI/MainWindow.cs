@@ -3196,16 +3196,6 @@ public sealed class MainWindow : GlassWindow
 
         if (Gw.BeginSection("Window"u8))
         {
-            Gw.BeginRow("Compact rows", "tighter rows in the opportunity table");
-            var compactRows = this.Config.CompactRows;
-            if (Gw.Toggle(ref compactRows))
-            {
-                this.Config.CompactRows = compactRows;
-                this.plugin.SaveConfig();
-            }
-
-            Gw.EndRow();
-
             Gw.BeginRow("DTR bar", "the gil/day readout on the server bar");
             var dtrBar = this.Config.DtrBar;
             if (Gw.Toggle(ref dtrBar))
