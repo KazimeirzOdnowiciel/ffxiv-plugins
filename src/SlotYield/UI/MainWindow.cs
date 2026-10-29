@@ -28,6 +28,8 @@ public sealed class MainWindow : GlassWindow
     private string search = string.Empty;
     private int sortColumn = 5;
     private bool sortAscending;
+    private int opportunityTableFrame = -100;
+    private int opportunityVisibleMask;
     private bool showDead;
     private int qualityFilter;
     private decimal maxProfitMagnitude = 1m;
@@ -99,6 +101,17 @@ public sealed class MainWindow : GlassWindow
     {
         "Item", "Q", "Price", "Cost", "Revenue/d", "Profit/d", "Sales/d", "Sellers", "Share", "Capital", "Clear", "30d", "Stack", "",
     };
+
+    /// <summary>Data-column index of the trailing per-row pin action, which never sorted on its own.</summary>
+    private const int PinColumn = 13;
+
+    /// <summary>Fixed widths, or a stretch weight for the name, in data order.</summary>
+    private static readonly float[] ColumnWidths = { 2.4f, 26f, 70f, 70f, 78f, 78f, 58f, 52f, 48f, 72f, 52f, 112f, 84f, 40f };
+
+    private static readonly bool[] ColumnStretch = { true, false, false, false, false, false, false, false, false, false, false, false, false, false };
+
+    /// <summary>Columns whose cells are numbers, so the header and text right-align.</summary>
+    private static readonly bool[] ColumnNumeric = { false, false, true, true, true, true, true, true, false, true, true, false, true, false };
 
     private static readonly string[] QualityFilterLabels = { "NQ+HQ", "NQ", "HQ" };
 
@@ -944,36 +957,79 @@ public sealed class MainWindow : GlassWindow
                 this.TogglePin(rows[this.selectedRow].ItemId, rows[this.selectedRow].Quality);
         }
 
-        var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY |
-                    ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable | ImGuiTableFlags.NoSavedSettings;
-
-        ImGui.PushStyleVar(ImGuiStyleVar.CellPadding, this.Config.CompactRows ? new Vector2(6f, 1f) : new Vector2(6f, 6f));
-        if (!ImGui.BeginTable("##slots", 14, flags, new Vector2(0f, TableHeight())))
+        Span<int> visibleColumns = stackalloc int[ColumnLabels.Length];
+        var visibleCount = 0;
+        for (var columnIndex = 0; columnIndex < ColumnLabels.Length; columnIndex++)
         {
-            ImGui.PopStyleVar();
+            if (this.columnVisible[columnIndex])
+                visibleColumns[visibleCount++] = columnIndex;
+        }
+
+        if (visibleCount == 0)
+        {
+            Theme.Faint("every column is hidden - tick one in \"columns\"");
             return;
         }
 
-        ImGui.TableSetupColumn("Item", ImGuiTableColumnFlags.WidthStretch, 2.4f, 0);
-        ImGui.TableSetupColumn("Q", ImGuiTableColumnFlags.WidthFixed, 26f, 1);
-        ImGui.TableSetupColumn("Price", ImGuiTableColumnFlags.WidthFixed, 70f, 2);
-        ImGui.TableSetupColumn("Cost", ImGuiTableColumnFlags.WidthFixed, 70f, 3);
-        ImGui.TableSetupColumn("Revenue/d", ImGuiTableColumnFlags.WidthFixed, 78f, 4);
-        ImGui.TableSetupColumn("Profit/d", ImGuiTableColumnFlags.WidthFixed, 78f, 5);
-        ImGui.TableSetupColumn("Sales/d", ImGuiTableColumnFlags.WidthFixed, 58f, 6);
-        ImGui.TableSetupColumn("Sellers", ImGuiTableColumnFlags.WidthFixed, 52f, 7);
-        ImGui.TableSetupColumn("Share", ImGuiTableColumnFlags.WidthFixed, 48f, 8);
-        ImGui.TableSetupColumn("Capital", ImGuiTableColumnFlags.WidthFixed, 72f, 9);
-        ImGui.TableSetupColumn("Clear", ImGuiTableColumnFlags.WidthFixed, 52f, 10);
-        ImGui.TableSetupColumn("30d", ImGuiTableColumnFlags.WidthFixed, 112f, 11);
-        ImGui.TableSetupColumn("Stack", ImGuiTableColumnFlags.WidthFixed, 84f, 12);
-        ImGui.TableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 40f, 13);
+        var tableFlags = GwTableFlags.Sortable | GwTableFlags.Resizable | GwTableFlags.ScrollY |
+                         GwTableFlags.Zebra | GwTableFlags.Selectable;
 
-        for (var columnIndex = 0; columnIndex < this.columnVisible.Length; columnIndex++)
-            ImGui.TableSetColumnEnabled(columnIndex, this.columnVisible[columnIndex]);
+        // The table still fills the window; Glasswork sizes are logical units, so hand the height back
+        // unscaled instead of letting the Look scale it a second time.
+        var tableHeight = TableHeight() / MathF.Max(0.01f, Frame.Scale);
+        if (!Gw.BeginTable("opportunities"u8, visibleCount, tableFlags, new Vector2(0f, tableHeight)))
+            return;
 
-        ImGui.TableSetupScrollFreeze(0, 1);
-        this.DrawHeaderRow();
+        for (var index = 0; index < visibleCount; index++)
+        {
+            var column = visibleColumns[index];
+            Gw.TableColumn(
+                column == PinColumn ? "##pin" : ColumnLabels[column],
+                ColumnWidths[column],
+                ColumnStretch[column],
+                column == this.sortColumn,
+                ColumnNumeric[column]);
+        }
+
+        var visibleMask = 0;
+        for (var index = 0; index < visibleCount; index++)
+            visibleMask |= 1 << visibleColumns[index];
+
+        // ImGui starts a sortable table on a column and direction of its own, and reloads its saved column
+        // settings (including a stale sort column) when the visible set changes. Treat those frames as a
+        // re-initialisation instead of a click on a header, and put the saved sort in before the header
+        // row is laid out so its chevron is right on the first frame too.
+        var tableFresh = ImGui.GetFrameCount() - this.opportunityTableFrame > 1 ||
+                         visibleMask != this.opportunityVisibleMask;
+        this.opportunityTableFrame = ImGui.GetFrameCount();
+        this.opportunityVisibleMask = visibleMask;
+
+        if (tableFresh)
+            this.RepairTableSort(visibleColumns, visibleCount);
+
+        Gw.TableHeaders();
+
+        if (Gw.TableSortChanged(out var visibleColumn, out var descending))
+        {
+            if (!tableFresh && visibleColumn >= 0 && visibleColumn < visibleCount)
+            {
+                var dataColumn = visibleColumns[visibleColumn];
+                var ascending = !descending;
+                if (dataColumn == PinColumn)
+                {
+                    // The trailing action column never had a sort of its own; keep the current order.
+                    this.RepairTableSort(visibleColumns, visibleCount);
+                }
+                else if (dataColumn != this.sortColumn || ascending != this.sortAscending)
+                {
+                    this.sortColumn = dataColumn;
+                    this.sortAscending = ascending;
+                    this.Config.SortColumn = this.sortColumn;
+                    this.Config.SortAscending = this.sortAscending;
+                    this.plugin.SaveConfig();
+                }
+            }
+        }
 
         var limit = Math.Min(rows.Count, 250);
         var maxMagnitude = 1m;
@@ -986,11 +1042,14 @@ public sealed class MainWindow : GlassWindow
 
         this.maxProfitMagnitude = maxMagnitude;
 
-        for (var i = 0; i < limit; i++)
-            this.DrawRow(rows[i], i);
+        var tableClipper = new GwTableClipper(limit);
+        while (tableClipper.Step(out var first, out var last))
+        {
+            for (var i = first; i < last; i++)
+                this.DrawRow(rows[i], i, visibleColumns);
+        }
 
-        ImGui.EndTable();
-        ImGui.PopStyleVar();
+        Gw.EndTable();
 
         if (rows.Count > limit)
             Theme.Faint($"showing the first {limit} of {rows.Count} - narrow the filter to see the rest");
@@ -1077,111 +1136,6 @@ public sealed class MainWindow : GlassWindow
         ImGui.Spacing();
     }
 
-    private void DrawHeaderRow()
-    {
-        ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
-
-        this.HeaderButton("Item", 0, ImGuiTableColumnFlags.WidthStretch);
-        this.HeaderButton("Q", 1, ImGuiTableColumnFlags.WidthFixed);
-        this.HeaderButton("Price", 2, ImGuiTableColumnFlags.WidthFixed);
-        this.HeaderButton("Cost", 3, ImGuiTableColumnFlags.WidthFixed);
-        this.HeaderButton("Revenue/d", 4, ImGuiTableColumnFlags.WidthFixed);
-        this.HeaderButton("Profit/d", 5, ImGuiTableColumnFlags.WidthFixed);
-        this.HeaderButton("Sales/d", 6, ImGuiTableColumnFlags.WidthFixed);
-        this.HeaderButton("Sellers", 7, ImGuiTableColumnFlags.WidthFixed);
-        this.HeaderButton("Share", 8, ImGuiTableColumnFlags.WidthFixed);
-        this.HeaderButton("Capital", 9, ImGuiTableColumnFlags.WidthFixed);
-        this.HeaderButton("Clear", 10, ImGuiTableColumnFlags.WidthFixed);
-        this.HeaderButton("30d", 11, ImGuiTableColumnFlags.WidthFixed);
-        this.HeaderButton("Stack", 12, ImGuiTableColumnFlags.WidthFixed);
-
-        ImGui.TableNextColumn();
-    }
-
-    /// <summary>
-    /// A Glasswork-style table header: a flat semibold footnote that brightens on hover, with the
-    /// sorted column's chevron at its trailing edge. The whole cell is the hit target, so sorting
-    /// behaves exactly as the old small buttons did without a button body (N9).
-    /// </summary>
-    private void HeaderButton(string label, int column, ImGuiTableColumnFlags flags)
-    {
-        ImGui.TableNextColumn();
-
-        var width = MathF.Max(24f, ImGui.GetContentRegionAvail().X);
-        var height = ImGui.GetFrameHeight();
-        var min = ImGui.GetCursorScreenPos();
-
-        if (ImGui.InvisibleButton("##h" + column, new Vector2(width, height)))
-        {
-            if (this.sortColumn == column)
-            {
-                this.sortAscending = !this.sortAscending;
-            }
-            else
-            {
-                this.sortColumn = column;
-                this.sortAscending = false;
-            }
-
-            this.Config.SortColumn = this.sortColumn;
-            this.Config.SortAscending = this.sortAscending;
-            this.plugin.SaveConfig();
-        }
-
-        var drawList = ImGui.GetWindowDrawList();
-        var isSorted = this.sortColumn == column;
-        var textColor = isSorted || ImGui.IsItemHovered() ? Theme.Text : Theme.TextDim;
-        var textSize = ImGui.GetFontSize() * 0.85f;
-
-        if (ImGui.IsItemHovered())
-            Gw.Tooltip(HeaderHint(label));
-
-        drawList.AddText(
-            ImGui.GetFont(),
-            textSize,
-            new Vector2(min.X + 2f, min.Y + ((height - textSize) * 0.5f)),
-            Theme.U32(textColor),
-            label);
-
-        if (isSorted)
-        {
-            var centerX = min.X + width - 8f;
-            var centerY = min.Y + (height * 0.5f);
-            if (this.sortAscending)
-            {
-                drawList.AddTriangleFilled(
-                    new Vector2(centerX - 3.5f, centerY + 2f),
-                    new Vector2(centerX + 3.5f, centerY + 2f),
-                    new Vector2(centerX, centerY - 3f),
-                    Theme.U32(Theme.Accent));
-            }
-            else
-            {
-                drawList.AddTriangleFilled(
-                    new Vector2(centerX - 3.5f, centerY - 2f),
-                    new Vector2(centerX + 3.5f, centerY - 2f),
-                    new Vector2(centerX, centerY + 3f),
-                    Theme.U32(Theme.Accent));
-            }
-        }
-    }
-
-    /// <summary>Plain-language meaning of the short table headers, shown as a delayed Look tooltip.</summary>
-    private static string HeaderHint(string label) => label switch
-    {
-        "Q" => "NQ or HQ for this row.",
-        "Revenue/d" => "Gross gil per day for this slot.",
-        "Profit/d" => "Net gil per day after cost and tax.",
-        "Sales/d" => "Units the market moves per day.",
-        "Sellers" => "Distinct sellers at or below your price.",
-        "Share" => "Your expected share of the daily sales at this price.",
-        "Capital" => "Gil tied up per slot at this price.",
-        "Clear" => "Days for a full stack to sell at your price.",
-        "30d" => "Price history, oldest first.",
-        "Stack" => "Profit for the whole stack before it clears.",
-        _ => "Sort by this column.",
-    };
-
     private static (string Label, Vector4 Color) VerdictChip(string verdict)
     {
         if (verdict.Contains("fast"))
@@ -1218,80 +1172,42 @@ public sealed class MainWindow : GlassWindow
         this.hideStale = preset.HideStale;
     }
 
-    private void DrawRow(SlotCandidate candidate, int index)
+    private void DrawRow(SlotCandidate candidate, int index, ReadOnlySpan<int> visibleColumns)
     {
         var score = candidate.Score;
         var info = this.plugin.Catalog.Get(candidate.ItemId);
         var pinned = this.IsSlotPinned(candidate.ItemId, candidate.Quality);
         var dim = score.IsDead;
+        var key = (candidate.ItemId, candidate.Quality);
+        var rowHeight = Frame.Look.RowHeight * Frame.Scale;
 
-        ImGui.TableNextRow();
+        var rowClicked = Gw.TableRow(index, index == this.selectedRow);
+        var rowHovered = ImGui.IsItemHovered();
+        var rowOrigin = ImGui.GetCursorScreenPos();
 
-        var rowTop = ImGui.GetCursorScreenPos().Y;
-        var rowBottom = rowTop + MathF.Max(ImGui.GetTextLineHeight(), 20f) + 8f;
-        var mouseY = ImGui.GetMousePos().Y;
-        if (mouseY >= rowTop && mouseY <= rowBottom)
+        // The row selectable paints hover and selection itself; a multi-selection is ours to tint.
+        if (this.multiSelected.Contains(key))
         {
-            var rowMin = new Vector2(ImGui.GetCursorScreenPos().X, rowTop);
-            var rowMax = new Vector2(rowMin.X + ImGui.GetContentRegionAvail().X, rowBottom);
-            ImGui.GetWindowDrawList().AddRectFilled(rowMin, rowMax, Theme.WithAlpha(Theme.Accent, 0.10f), 2f);
+            ImGui.GetWindowDrawList().AddRectFilled(
+                rowOrigin,
+                rowOrigin + new Vector2(ImGui.GetContentRegionAvail().X, rowHeight),
+                Theme.WithAlpha(Theme.Accent, 0.16f),
+                2f);
         }
 
-        if (index == this.selectedRow)
+        if (rowClicked && rowHovered)
         {
-            var barMin = new Vector2(ImGui.GetCursorScreenPos().X - 2f, rowTop);
-            ImGui.GetWindowDrawList().AddRectFilled(barMin, barMin + new Vector2(3f, rowBottom - rowTop), Theme.U32(Theme.Accent));
-        }
-
-        if (this.multiSelected.Contains((candidate.ItemId, candidate.Quality)))
-        {
-            var selMin = new Vector2(ImGui.GetCursorScreenPos().X, rowTop);
-            var selMax = new Vector2(selMin.X + ImGui.GetContentRegionAvail().X, rowBottom);
-            ImGui.GetWindowDrawList().AddRectFilled(selMin, selMax, Theme.WithAlpha(Theme.Accent, 0.16f), 2f);
-        }
-        ImGui.TableNextColumn();
-
-        var nameColor = dim ? Theme.TextFaint : Theme.Text;
-        UiKit.ItemIcon(UiKit.IconIdForItem(candidate.ItemId), candidate.Quality == Quality.Hq, 18f);
-        ImGui.SameLine(0f, 6f);
-        Theme.Colored(nameColor, info.Name);
-        var nameHovered = ImGui.IsItemHovered();
-
-        if (ImGui.IsItemClicked(ImGuiMouseButton.Left) && ImGui.GetIO().KeyCtrl)
-        {
-            var key = (candidate.ItemId, candidate.Quality);
-            if (!this.multiSelected.Add(key))
-                this.multiSelected.Remove(key);
-        }
-
-        if (score.IsStale)
-        {
-            ImGui.SameLine();
-            Theme.Colored(Theme.Warn, "!");
-        }
-
-        if (score.Verdict.Length > 0 && ImGui.GetContentRegionAvail().X > 80f)
-        {
-            ImGui.SameLine(0f, 8f);
-            var (verdictLabel, verdictColor) = VerdictChip(score.Verdict);
-            UiKit.Chip(verdictLabel, verdictColor);
-
-            ImGui.SameLine(0f, 6f);
-            UiKit.ConfidenceDots(score.Confidence);
-        }
-
-        if (nameHovered)
-        {            var tip = score.Explain;
-            if (score.CostPerUnit is { } tipCost)
-                tip += $"\ncost {Money.Exact(tipCost)} / unit ({score.CostSource})";
-                if (score.CostDetail.Length > 0)
-                    tip += $"\n{score.CostDetail}";
-            if (score.CostIsPartial)
-                tip += "\ncost is a lower bound: some materials had no price";
-            if (score.Quote.PriceHistory.Length >= 2)
-                tip += $"\n30-day trend {score.TrendPercent:+0.0%;-0.0%;0%}";
-            tip += $"\ndata {score.Quote.DataAgeMinutes:0} min old, {score.Quote.HistorySamples} sales sampled, confidence {score.Confidence:P0}";
-            ImGui.SetTooltip(tip);
+            if (ImGui.GetIO().KeyCtrl)
+            {
+                if (!this.multiSelected.Add(key))
+                    this.multiSelected.Remove(key);
+            }
+            else
+            {
+                this.detailItemId = candidate.ItemId;
+                this.detailQuality = candidate.Quality;
+                this.openDetail = true;
+            }
         }
 
         if (ImGui.BeginPopupContextItem($"##ctx{candidate.ItemId}{candidate.Quality}"))
@@ -1318,92 +1234,171 @@ public sealed class MainWindow : GlassWindow
             ImGui.EndPopup();
         }
 
-        ImGui.TableNextColumn();
-        Theme.Colored(candidate.Quality == Quality.Hq ? Theme.Hq : Theme.TextDim, candidate.Quality == Quality.Hq ? "HQ" : "NQ");
-
-        ImGui.TableNextColumn();
-        Theme.Colored(dim ? Theme.TextFaint : Theme.Text, Money.Gil(score.ListPrice));
-
-        ImGui.TableNextColumn();
-        var costText = score.CostPerUnit is { } unitCost
-            ? Money.Gil(unitCost) + (score.CostIsPartial ? "?" : string.Empty)
-            : "-";
-        Theme.Colored(dim ? Theme.TextFaint : score.CostIsPartial ? Theme.Warn : Theme.TextDim, costText);
-
-        ImGui.TableNextColumn();
-        Theme.Colored(dim ? Theme.TextFaint : Theme.TextDim, dim ? "-" : Money.Gil(score.GilPerDay));
-
-        ImGui.TableNextColumn();
-        var profit = score.ProfitPerDay;
-        // Profit is the one figure that leads a row; every other number stays neutral.
-        var profitColor = dim ? Theme.TextFaint : profit <= 0m ? Theme.Danger : Theme.Profit;
-        if (!dim && this.maxProfitMagnitude > 0m)
+        foreach (var dataColumn in visibleColumns)
         {
-            var heat = Math.Clamp((float)(Math.Abs(profit) / this.maxProfitMagnitude), 0f, 1f);
-            if (heat > 0f)
+            Gw.TableCell();
+
+            switch (dataColumn)
             {
-                var cellWidth = ImGui.GetContentRegionAvail().X;
-                var heatOrigin = ImGui.GetCursorScreenPos();
-                var heatColor = profit > 0m ? Theme.Profit : Theme.Danger;
-                ImGui.GetWindowDrawList().AddRectFilled(
-                    heatOrigin,
-                    heatOrigin + new Vector2(cellWidth * heat, ImGui.GetTextLineHeight()),
-                    Theme.WithAlpha(heatColor, 0.16f),
-                    2f);
+                case 0:
+                {
+                    var nameColor = dim ? Theme.TextFaint : Theme.Text;
+                    UiKit.ItemIcon(UiKit.IconIdForItem(candidate.ItemId), candidate.Quality == Quality.Hq, 18f);
+                    ImGui.SameLine(0f, 6f);
+                    Theme.Colored(nameColor, info.Name);
+                    var nameHovered = ImGui.IsItemHovered();
+
+                    if (score.IsStale)
+                    {
+                        ImGui.SameLine();
+                        Theme.Colored(Theme.Warn, "!");
+                    }
+
+                    if (score.Verdict.Length > 0 && ImGui.GetContentRegionAvail().X > 80f)
+                    {
+                        ImGui.SameLine(0f, 8f);
+                        var (verdictLabel, verdictColor) = VerdictChip(score.Verdict);
+                        UiKit.Chip(verdictLabel, verdictColor);
+
+                        ImGui.SameLine(0f, 6f);
+                        UiKit.ConfidenceDots(score.Confidence);
+                    }
+
+                    if (nameHovered)
+                    {
+                        var tip = score.Explain;
+                        if (score.CostPerUnit is { } tipCost)
+                            tip += $"\ncost {Money.Exact(tipCost)} / unit ({score.CostSource})";
+                        if (score.CostDetail.Length > 0)
+                            tip += $"\n{score.CostDetail}";
+                        if (score.CostIsPartial)
+                            tip += "\ncost is a lower bound: some materials had no price";
+                        if (score.Quote.PriceHistory.Length >= 2)
+                            tip += $"\n30-day trend {score.TrendPercent:+0.0%;-0.0%;0%}";
+                        tip += $"\ndata {score.Quote.DataAgeMinutes:0} min old, {score.Quote.HistorySamples} sales sampled, confidence {score.Confidence:P0}";
+                        ImGui.SetTooltip(tip);
+                    }
+
+                    break;
+                }
+
+                case 1:
+                    Gw.TableText(
+                        candidate.Quality == Quality.Hq ? "HQ" : "NQ",
+                        TextRole.Body,
+                        Theme.ToColor(candidate.Quality == Quality.Hq ? Theme.Hq : Theme.TextDim));
+                    break;
+
+                case 2:
+                    Gw.TableText(Money.Gil(score.ListPrice), TextRole.Body, Theme.ToColor(dim ? Theme.TextFaint : Theme.Text));
+                    break;
+
+                case 3:
+                {
+                    var costText = score.CostPerUnit is { } unitCost
+                        ? Money.Gil(unitCost) + (score.CostIsPartial ? "?" : string.Empty)
+                        : "-";
+                    Gw.TableText(costText, TextRole.Body, Theme.ToColor(dim ? Theme.TextFaint : score.CostIsPartial ? Theme.Warn : Theme.TextDim));
+                    break;
+                }
+
+                case 4:
+                    Gw.TableText(dim ? "-" : Money.Gil(score.GilPerDay), TextRole.Body, Theme.ToColor(dim ? Theme.TextFaint : Theme.TextDim));
+                    break;
+
+                case 5:
+                {
+                    var profit = score.ProfitPerDay;
+                    // Profit is the one figure that leads a row; every other number stays neutral.
+                    var profitColor = dim ? Theme.TextFaint : profit <= 0m ? Theme.Danger : Theme.Profit;
+                    if (!dim && this.maxProfitMagnitude > 0m)
+                    {
+                        var heat = Math.Clamp((float)(Math.Abs(profit) / this.maxProfitMagnitude), 0f, 1f);
+                        if (heat > 0f)
+                        {
+                            var cellWidth = ImGui.GetContentRegionAvail().X;
+                            var heatOrigin = ImGui.GetCursorScreenPos();
+                            var heatHeight = ImGui.GetTextLineHeight();
+                            var heatTop = heatOrigin.Y + MathF.Max(0f, (rowHeight - heatHeight) * 0.5f);
+                            var heatColor = profit > 0m ? Theme.Profit : Theme.Danger;
+                            ImGui.GetWindowDrawList().AddRectFilled(
+                                new Vector2(heatOrigin.X, heatTop),
+                                new Vector2(heatOrigin.X + (cellWidth * heat), heatTop + heatHeight),
+                                Theme.WithAlpha(heatColor, 0.16f),
+                                2f);
+                        }
+                    }
+
+                    Gw.TableText(dim ? "-" : Money.Gil(profit), TextRole.Body, Theme.ToColor(profitColor));
+                    break;
+                }
+
+                case 6:
+                    Gw.TableText(score.Quote.DailyVelocity.ToString("0.0"), TextRole.Body, Theme.ToColor(dim ? Theme.TextFaint : Theme.Text));
+                    break;
+
+                case 7:
+                    Gw.TableText(candidate.Quote.DistinctSellers.ToString(), TextRole.Body, Theme.ToColor(dim ? Theme.TextFaint : Theme.Text));
+                    break;
+
+                case 8:
+                {
+                    var share = (float)score.ExpectedShare;
+                    var shareOrigin = ImGui.GetCursorScreenPos() + new Vector2(0f, 4f);
+                    UiKit.Bar(ImGui.GetWindowDrawList(), shareOrigin, new Vector2(18f, 6f), share, dim ? Theme.TextFaint : Theme.Accent);
+                    ImGui.Dummy(new Vector2(20f, 14f));
+                    ImGui.SameLine(0f, 3f);
+                    Theme.Colored(dim ? Theme.TextFaint : Theme.TextDim, Money.Percent(score.ExpectedShare));
+                    break;
+                }
+
+                case 9:
+                    Gw.TableText(Money.Gil(score.CapitalPerSlot), TextRole.Body, Theme.ToColor(dim ? Theme.TextFaint : Theme.TextDim));
+                    break;
+
+                case 10:
+                {
+                    var clearColor = dim ? Theme.Danger : score.DaysToClear <= 14 ? Theme.Text : Theme.TextDim;
+                    Gw.TableText(Money.Days(score.DaysToClear), TextRole.Body, Theme.ToColor(clearColor));
+                    break;
+                }
+
+                case 11:
+                {
+                    var series = candidate.Quote.PriceHistory;
+                    var sparkPosition = ImGui.GetCursorScreenPos();
+                    var sparkSize = new Vector2(104f, 24f);
+                    ImGui.Dummy(sparkSize);
+                    ImGui.GetWindowDrawList().AddRectFilled(sparkPosition, sparkPosition + sparkSize, Theme.WithAlpha(Theme.PanelRaised, 0.40f), 4f);
+
+                    if (series.Length >= 2)
+                    {
+                        var sparkColor = score.IsFalling ? Theme.Danger : score.TrendPercent > 0.05 ? Theme.Accent : Theme.TextDim;
+                        var sparkList = ImGui.GetWindowDrawList();
+                        var sparkClip = sparkPosition + new Vector2(sparkSize.X * this.sparkProgress, sparkSize.Y);
+                        sparkList.PushClipRect(sparkPosition, sparkClip, true);
+                        DrawSparkline(sparkList, sparkPosition, sparkSize, series, Theme.WithAlpha(sparkColor, 0.9f));
+                        sparkList.PopClipRect();
+
+                        if (ImGui.IsItemHovered())
+                            ImGui.SetTooltip($"30-day trend {score.TrendPercent:+0.0%;-0.0%;0%}\n(quantity-weighted daily prices)");
+                    }
+
+                    break;
+                }
+
+                case 12:
+                    Gw.TableText(Money.Gil(score.ProfitPerDay * (decimal)score.DaysToClear), TextRole.Body, Theme.ToColor(dim ? Theme.TextFaint : Theme.TextDim));
+                    break;
+
+                case 13:
+                    ImGui.PushID((int)candidate.ItemId * 2 + (candidate.Quality == Quality.Hq ? 1 : 0));
+                    if (ImGui.SmallButton(pinned ? "unpin" : "pin"))
+                        this.TogglePin(candidate.ItemId, candidate.Quality);
+                    ImGui.PopID();
+                    break;
             }
         }
-
-        Theme.Colored(profitColor, dim ? "-" : Money.Gil(profit));
-
-        ImGui.TableNextColumn();
-        Theme.Colored(dim ? Theme.TextFaint : Theme.Text, score.Quote.DailyVelocity.ToString("0.0"));
-
-        ImGui.TableNextColumn();
-        Theme.Colored(dim ? Theme.TextFaint : Theme.Text, candidate.Quote.DistinctSellers.ToString());
-
-        ImGui.TableNextColumn();
-        var share = (float)score.ExpectedShare;
-        var shareOrigin = ImGui.GetCursorScreenPos() + new Vector2(0f, 4f);
-        UiKit.Bar(ImGui.GetWindowDrawList(), shareOrigin, new Vector2(18f, 6f), share, dim ? Theme.TextFaint : Theme.Accent);
-        ImGui.Dummy(new Vector2(20f, 14f));
-        ImGui.SameLine(0f, 3f);
-        Theme.Colored(dim ? Theme.TextFaint : Theme.TextDim, Money.Percent(score.ExpectedShare));
-
-        ImGui.TableNextColumn();
-        Theme.Colored(dim ? Theme.TextFaint : Theme.TextDim, Money.Gil(score.CapitalPerSlot));
-
-        ImGui.TableNextColumn();
-        var clearColor = dim ? Theme.Danger : score.DaysToClear <= 14 ? Theme.Text : Theme.TextDim;
-        Theme.Colored(clearColor, Money.Days(score.DaysToClear));
-
-        ImGui.TableNextColumn();
-        var series = candidate.Quote.PriceHistory;
-        var sparkPosition = ImGui.GetCursorScreenPos();
-        var sparkSize = new Vector2(104f, 24f);
-        ImGui.Dummy(sparkSize);
-        ImGui.GetWindowDrawList().AddRectFilled(sparkPosition, sparkPosition + sparkSize, Theme.WithAlpha(Theme.PanelRaised, 0.40f), 4f);
-
-        if (series.Length >= 2)
-        {
-            var sparkColor = score.IsFalling ? Theme.Danger : score.TrendPercent > 0.05 ? Theme.Accent : Theme.TextDim;
-            var sparkList = ImGui.GetWindowDrawList();
-            var sparkClip = sparkPosition + new Vector2(sparkSize.X * this.sparkProgress, sparkSize.Y);
-            sparkList.PushClipRect(sparkPosition, sparkClip, true);
-            DrawSparkline(sparkList, sparkPosition, sparkSize, series, Theme.WithAlpha(sparkColor, 0.9f));
-            sparkList.PopClipRect();
-
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip($"30-day trend {score.TrendPercent:+0.0%;-0.0%;0%}\n(quantity-weighted daily prices)");
-        }
-
-        ImGui.TableNextColumn();
-        Theme.Colored(dim ? Theme.TextFaint : Theme.TextDim, Money.Gil(score.ProfitPerDay * (decimal)score.DaysToClear));
-
-        ImGui.TableNextColumn();
-        ImGui.PushID((int)candidate.ItemId * 2 + (candidate.Quality == Quality.Hq ? 1 : 0));
-        if (ImGui.SmallButton(pinned ? "unpin" : "pin"))
-            this.TogglePin(candidate.ItemId, candidate.Quality);
-        ImGui.PopID();
     }
 
     private static void DrawSparkline(ImDrawListPtr drawList, Vector2 position, Vector2 size, ReadOnlySpan<decimal> series, uint color)
@@ -3641,6 +3636,32 @@ public sealed class MainWindow : GlassWindow
         // This was inverted: "v" (descending) used to show the ascending list.
         if (!this.sortAscending)
             rows.Reverse();
+    }
+
+    /// <summary>
+    /// Puts the saved sort back into the table after it (re)initialises: ImGui would otherwise keep its own
+    /// default column, or a column index restored from its saved settings for a different visible set.
+    /// </summary>
+    private void RepairTableSort(ReadOnlySpan<int> visibleColumns, int visibleCount)
+    {
+        var visible = -1;
+        for (var index = 0; index < visibleCount; index++)
+        {
+            if (visibleColumns[index] == this.sortColumn)
+            {
+                visible = index;
+                break;
+            }
+        }
+
+        // A hidden sort column has no header to point at; the rows keep their saved order anyway.
+        if (visible < 0)
+            return;
+
+        ImGuiP.TableSetColumnSortDirection(
+            visible,
+            this.sortAscending ? ImGuiSortDirection.Ascending : ImGuiSortDirection.Descending,
+            false);
     }
 
     private bool IsSlotPinned(uint itemId, Quality quality) =>
