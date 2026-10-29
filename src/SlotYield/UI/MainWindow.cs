@@ -1670,12 +1670,32 @@ public sealed class MainWindow : GlassWindow
 
         decimal total = 0m;
 
-        foreach (var slot in pinned)
+        for (var index = 0; index < pinned.Count; index++)
         {
+            var slot = pinned[index];
             var candidate = result?.Candidates.FirstOrDefault(c => c.ItemId == slot.ItemId && c.Quality == (slot.Hq ? Quality.Hq : Quality.Nq));
             var name = this.plugin.Catalog.Name(slot.ItemId);
 
             ImGui.PushID((int)slot.ItemId * 2 + (slot.Hq ? 1 : 0));
+
+            // Custom reorder: slot order is real (slot 1, slot 2, ...), so it gets handles rather
+            // than a ReorderList, which would drop the icon, profit and verdict cells.
+            Theme.Faint($"{index + 1}.");
+            ImGui.SameLine(0f, 4f);
+            if (ImGui.SmallButton("^##up") && index > 0)
+            {
+                (pinned[index - 1], pinned[index]) = (pinned[index], pinned[index - 1]);
+                this.plugin.SaveConfig();
+            }
+
+            ImGui.SameLine(0f, 2f);
+            if (ImGui.SmallButton("v##down") && index < pinned.Count - 1)
+            {
+                (pinned[index + 1], pinned[index]) = (pinned[index], pinned[index + 1]);
+                this.plugin.SaveConfig();
+            }
+
+            ImGui.SameLine(0f, 6f);
 
             if (candidate is null)
             {
