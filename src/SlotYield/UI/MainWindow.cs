@@ -286,8 +286,16 @@ public sealed class MainWindow : GlassWindow
     private void DrawContent()
     {
         var deltaTime = ImGui.GetIO().DeltaTime;
-        this.cardFade += (1f - this.cardFade) * (1f - MathF.Exp(-10f * deltaTime));
-        this.sparkProgress += (1f - this.sparkProgress) * (1f - MathF.Exp(-8f * deltaTime));
+        if (Theme.Look.ReduceMotion)
+        {
+            this.cardFade = 1f;
+            this.sparkProgress = 1f;
+        }
+        else
+        {
+            this.cardFade += (1f - this.cardFade) * (1f - MathF.Exp(-10f * deltaTime));
+            this.sparkProgress += (1f - this.sparkProgress) * (1f - MathF.Exp(-8f * deltaTime));
+        }
 
         this.DrawHeader();
         this.DrawTabBar();
@@ -449,7 +457,14 @@ public sealed class MainWindow : GlassWindow
             this.tabUnderlineInit = true;
         }
 
-        this.tabUnderlineX += (activeMin - this.tabUnderlineX) * (1f - MathF.Exp(-14f * ImGui.GetIO().DeltaTime));
+        if (Theme.Look.ReduceMotion)
+        {
+            this.tabUnderlineX = activeMin;
+        }
+        else
+        {
+            this.tabUnderlineX += (activeMin - this.tabUnderlineX) * (1f - MathF.Exp(-14f * ImGui.GetIO().DeltaTime));
+        }
 
         drawList.AddRectFilled(
             new Vector2(this.tabUnderlineX + 6f, pos.Y + height - 2f),
@@ -536,7 +551,9 @@ public sealed class MainWindow : GlassWindow
             this.stripPulse = 1f;
         }
 
-        this.stripPulse = MathF.Max(0f, this.stripPulse - (ImGui.GetIO().DeltaTime * 2f));
+        this.stripPulse = Theme.Look.ReduceMotion
+            ? 0f
+            : MathF.Max(0f, this.stripPulse - (ImGui.GetIO().DeltaTime * 2f));
 
         var pinnedIcons = new List<(uint IconId, bool Hq)>(filled);
         for (var index = 0; index < this.Config.Pinned.Count; index++)
@@ -2535,14 +2552,10 @@ public sealed class MainWindow : GlassWindow
 
     private void DrawBuyPopup()
     {
-        if (this.buyOpen)
-        {
-            ImGui.OpenPopup("##buyitem");
-            this.buyOpen = false;
-            this.buyMaxPriceText = this.buyMaxPrice.ToString("0", CultureInfo.InvariantCulture);
-        }
+        if (!this.buyOpen)
+            return;
 
-        if (!ImGui.BeginPopup("##buyitem"))
+        if (!Gw.Dialog("buyitem"u8, ref this.buyOpen, "Buy item"u8, new Vector2(380f, 280f)))
             return;
 
         Theme.Colored(Theme.Text, this.buyName);
@@ -2567,18 +2580,15 @@ public sealed class MainWindow : GlassWindow
         if (Gw.Button("check and buy"u8, ButtonStyle.Prominent, ButtonSize.Small))
             this.plugin.StartBuy(this.buyWorld, this.buyItemId, this.buyName, this.buyHq, this.buyQty, this.buyMaxPrice);
 
-        ImGui.EndPopup();
+        Gw.EndDialog();
     }
 
     private void DrawFlipPopup()
     {
-        if (this.flipOpen)
-        {
-            ImGui.OpenPopup("##flip");
-            this.flipOpen = false;
-        }
+        if (!this.flipOpen)
+            return;
 
-        if (!ImGui.BeginPopup("##flip"))
+        if (!Gw.Dialog("flip"u8, ref this.flipOpen, "Flip calculator"u8, new Vector2(400f, 260f)))
             return;
 
         var report = this.plugin.Arbitrage;
@@ -2586,7 +2596,10 @@ public sealed class MainWindow : GlassWindow
         if (row is null)
         {
             Theme.Faint("That pair is no longer in the report.");
-            ImGui.EndPopup();
+            if (Gw.Button("close"u8, ButtonStyle.Plain, ButtonSize.Small))
+                this.flipOpen = false;
+
+            Gw.EndDialog();
             return;
         }
 
@@ -2604,7 +2617,7 @@ public sealed class MainWindow : GlassWindow
         Theme.Faint($"cost {Money.Gil(cost)}   revenue {Money.Gil(revenue)}");
         Theme.Colored(net > 0m ? Theme.Profit : Theme.Danger, $"net {Money.Gil(net)}");
 
-        ImGui.EndPopup();
+        Gw.EndDialog();
     }
 
     private string BuildCraftCsv(IReadOnlyList<CraftOpportunity> ideas)
@@ -3069,6 +3082,7 @@ public sealed class MainWindow : GlassWindow
                         this.buyWorld = row.BuyWorld;
                         this.buyQty = Math.Max(1, this.Config.DefaultStackSize);
                         this.buyMaxPrice = row.BuyPrice;
+                        this.buyMaxPriceText = this.buyMaxPrice.ToString("0", CultureInfo.InvariantCulture);
                     }
 
                     if (ImGui.MenuItem("Flip calculator..."))

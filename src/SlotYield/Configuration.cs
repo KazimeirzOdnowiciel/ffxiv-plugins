@@ -96,7 +96,6 @@ public sealed class Configuration : IPluginConfiguration
     public int MinimumGilPerDay { get; set; } = 1000;
 
     /// <summary>Draw the opportunity table with tighter row padding.</summary>
-    public bool CompactRows { get; set; }
 
     /// <summary>Show the best gil/day in the server info bar.</summary>
     public bool DtrBar { get; set; } = true;
