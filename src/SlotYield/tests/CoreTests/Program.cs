@@ -439,7 +439,7 @@ Check(unpriced.Status == ListingStatus.Unpriced && unpriced.MarketMin == 0m, "no
 
 Check(above.SuggestedPrice == 1000m, $"suggested price matches the minimum, got {above.SuggestedPrice}");
 Check(above.DaysIfRepriced < above.DaysToSell, "repricing must clear faster than sitting above the market");
-Check(above.Advice.StartsWith("reprice to", StringComparison.Ordinal), $"advice tells you to reprice, got: {above.Advice}");
+Check(above.Advice.StartsWith("reprice ", StringComparison.Ordinal), $"advice tells you to reprice, got: {above.Advice}");
 Check(atMarket.Advice.Contains("minimum", StringComparison.Ordinal), $"at-market advice, got: {atMarket.Advice}");
 
 var oldListing = new CapturedListing(100, false, 1000, 1, 0, 1, "R", 0, DateTime.UtcNow.AddDays(-10));

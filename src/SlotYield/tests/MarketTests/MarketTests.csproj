@@ -12,7 +12,9 @@
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="..\..\Core\*.cs" />
-    <Compile Include="..\..\Market\*.cs" />
+    <!-- MarketBoardBuyer is game interop (FFXIVClientStructs + unsafe): it cannot compile in this
+         plain console project, and these tests only cover parsing, trimming and the cache. -->
+    <Compile Include="..\..\Market\*.cs" Exclude="..\..\Market\MarketBoardBuyer.cs" />
     <None Include="..\Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
   </ItemGroup>
 

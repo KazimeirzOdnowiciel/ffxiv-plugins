@@ -828,9 +828,14 @@ public sealed class MainWindow : GlassWindow
 
         // The search field flexes: it takes whatever the fixed controls leave, so a wide window
         // fills with the row instead of leaving the right half empty.
+        // The quality control is three equal cells. Gw.Segmented sizes itself from
+        // ImGui.CalcItemWidth(), which without an explicit next-item width is the window's
+        // default (~65% of it): that alone pushed this row ~950 px past the right edge.
+        var qualityWidth = (ImGui.CalcTextSize("NQ+HQ").X + 24f) * QualityFilterLabels.Length;
+
         var rowFixed =
             (110f + ImGui.CalcTextSize("min/day").X) +
-            90f +
+            qualityWidth +
             (110f + ImGui.CalcTextSize("category").X) +
             (80f + ImGui.CalcTextSize("level").X) +
             SmallButtonWidth("my level") +
@@ -867,7 +872,7 @@ public sealed class MainWindow : GlassWindow
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("0 shows every row, including ones that would lose gil. Raise it to hide them.");
         ImGui.SameLine();
-
+        ImGui.SetNextItemWidth(qualityWidth);
         var quality = this.qualityFilter;
         if (Gw.Segmented(ref quality, QualityFilterLabels))
             this.qualityFilter = quality;
