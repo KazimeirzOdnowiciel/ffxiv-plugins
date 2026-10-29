@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
   <PropertyGroup>
-    <Version>0.3.8.3</Version>
+    <Version>0.4.0.0</Version>
     <Author>Deepseek</Author>
     <Name>Slot Yield</Name>
     <Punchline>Tells you what your retainer slots should actually be selling.</Punchline>
@@ -18,5 +18,27 @@ Every number is explainable - velocity, sellers at your price, expected share, d
     <Compile Remove="tests\**" />
     <None Remove="tests\**" />
     <EmbeddedResource Remove="tests\**" />
+  </ItemGroup>
+
+  <!--
+    Glasswork: refracting glass behind windows and themed widgets in place of ImGui's.
+    MIT, four prerelease packages, API 15. TerraFX is a Reference, not a package: the glass
+    renderer compiles against the TerraFX.Interop.Windows that Dalamud itself ships, and
+    Private=false keeps that assembly out of the plugin.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Glasswork" Version="0.1.0-beta.2" />
+    <PackageReference Include="Glasswork.Glass" Version="0.1.0-beta.2" />
+    <PackageReference Include="Glasswork.Backend" Version="0.1.0-beta.2" />
+    <PackageReference Include="Glasswork.Dalamud" Version="0.1.0-beta.2" />
+    <Reference Include="TerraFX.Interop.Windows">
+      <HintPath>$(DalamudLibPath)TerraFX.Interop.Windows.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- The package carries the four MIT Glasswork assemblies, so the notice travels with them. -->
+  <ItemGroup>
+    <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

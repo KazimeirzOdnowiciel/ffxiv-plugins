@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -8,12 +9,12 @@ using SlotYield.Core;
 namespace SlotYield.UI;
 
 /// <summary>A tiny always-visible list of the top opportunities, for use while playing.</summary>
-public sealed class TickerWindow : Window
+public sealed class TickerWindow : GlassWindow
 {
     private readonly Plugin plugin;
 
     public TickerWindow(Plugin plugin)
-        : base("Slot Yield - ticker###SlotYieldTicker")
+        : base(plugin, "Slot Yield - ticker###SlotYieldTicker")
     {
         this.plugin = plugin;
         this.Size = new Vector2(300f, 150f);
@@ -24,6 +25,21 @@ public sealed class TickerWindow : Window
 
     public override void Draw()
     {
+        try
+        {
+            this.DrawBody();
+            this.ReportDrawRecovered();
+        }
+        catch (Exception ex)
+        {
+            this.ReportDrawFailure(ex);
+        }
+    }
+
+    private void DrawBody()
+    {
+        this.DrawGlass();
+
         var result = this.plugin.State.Result;
         if (result is null)
         {

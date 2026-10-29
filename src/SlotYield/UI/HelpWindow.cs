@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
@@ -5,7 +6,7 @@ using Dalamud.Interface.Windowing;
 namespace SlotYield.UI;
 
 /// <summary>A one-page reference of the window's controls and shortcuts.</summary>
-public sealed class HelpWindow : Window
+public sealed class HelpWindow : GlassWindow
 {
     private static readonly (string Keys, string Action)[] Mouse =
     {
@@ -28,8 +29,8 @@ public sealed class HelpWindow : Window
         ("/slotyield worth", "open the net worth window"),
     };
 
-    public HelpWindow()
-        : base("Slot Yield - help###SlotYieldHelp")
+    public HelpWindow(Plugin plugin)
+        : base(plugin, "Slot Yield - help###SlotYieldHelp")
     {
         this.Size = new Vector2(480f, 440f);
         this.SizeCondition = ImGuiCond.FirstUseEver;
@@ -37,6 +38,21 @@ public sealed class HelpWindow : Window
 
     public override void Draw()
     {
+        try
+        {
+            this.DrawBody();
+            this.ReportDrawRecovered();
+        }
+        catch (Exception ex)
+        {
+            this.ReportDrawFailure(ex);
+        }
+    }
+
+    private void DrawBody()
+    {
+        this.DrawGlass();
+
         UiKit.SectionHeader("What it does");
         Theme.Dimmed(
             "A scan prices every marketable item on your world, models how much of each item's daily " +

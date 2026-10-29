@@ -19,6 +19,8 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.ImGuiNotification;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using Glasswork;
+using Glasswork.Dalamud;
 using SlotYield.Core;
 using SlotYield.Game;
 using SlotYield.Market;
@@ -32,6 +34,13 @@ public sealed class Plugin : IDalamudPlugin
     public const string AliasName = "/sy";
 
     private readonly WindowSystem windowSystem = new("SlotYield");
+
+    /// <summary>
+    /// One Glasswork host per plugin: it owns the glass layer, the Look the widgets read, and the
+    /// frame every <c>Gw</c> widget runs inside (N11).
+    /// </summary>
+    public GlassworkHost Host { get; }
+
     private readonly MainWindow mainWindow;
     private readonly WorthWindow worthWindow;
     private readonly TickerWindow tickerWindow;
@@ -65,7 +74,13 @@ public sealed class Plugin : IDalamudPlugin
     public Plugin()
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        var migratedConfig = Configuration.Version < 2;
         Configuration.Normalize();
+
+        Host = new GlassworkHost(PluginInterface, Log);
+        this.RefreshLookCatalog();
+        this.SetLook(Configuration.LookName);
+        Host.FollowGameTheme = Configuration.FollowGameTheme;
 
         var repairedListings = ListingBook.RepairEncodedIds(Configuration.MyListings);
         if (repairedListings > 0)
@@ -97,7 +112,7 @@ public sealed class Plugin : IDalamudPlugin
         this.worthWindow = new WorthWindow(this);
         this.tickerWindow = new TickerWindow(this);
         this.historyWindow = new HistoryWindow(this);
-        this.helpWindow = new HelpWindow();
+        this.helpWindow = new HelpWindow(this);
         this.compareWindow = new CompareWindow(this, this.mainWindow);
         this.windowSystem.AddWindow(this.mainWindow);
         this.windowSystem.AddWindow(this.worthWindow);
@@ -107,7 +122,7 @@ public sealed class Plugin : IDalamudPlugin
         this.windowSystem.AddWindow(this.compareWindow);
         this.worthWindow.IsOpen = Configuration.WorthOpen;
 
-        PluginInterface.UiBuilder.Draw += this.windowSystem.Draw;
+        PluginInterface.UiBuilder.Draw += this.OnDraw;
         PluginInterface.UiBuilder.OpenConfigUi += this.OpenMain;
         PluginInterface.UiBuilder.OpenMainUi += this.OpenMain;
 
@@ -135,13 +150,14 @@ public sealed class Plugin : IDalamudPlugin
 
         Log.Information("[SlotYield] Loaded. World: {World}", this.ResolveWorld());
 
-        Theme.Apply(Configuration.Theme);
-
         this.dtrEntry = DtrBar.Get("Slot Yield");
         this.dtrEntry.Tooltip = "Best gil/day - click for Slot Yield";
         this.dtrEntry.OnClick = _ => this.OpenMain();
         this.dtrEntry.Text = "no scan";
         this.dtrEntry.Shown = false;
+
+        if (migratedConfig)
+            this.SaveConfig();
 
         if (Configuration.ExceptionLog)
             AppDomain.CurrentDomain.FirstChanceException += this.OnFirstChanceException;
@@ -873,10 +889,14 @@ public sealed class Plugin : IDalamudPlugin
         if (CommandManager.Commands.ContainsKey(AliasName))
             CommandManager.RemoveHandler(AliasName);
 
-        PluginInterface.UiBuilder.Draw -= this.windowSystem.Draw;
+        PluginInterface.UiBuilder.Draw -= this.OnDraw;
         PluginInterface.UiBuilder.OpenConfigUi -= this.OpenMain;
         PluginInterface.UiBuilder.OpenMainUi -= this.OpenMain;
         this.windowSystem.RemoveAllWindows();
+
+        // Last, and only after Draw is unsubscribed: a glass callback recorded after the layer
+        // is gone faults the client (N11).
+        this.Host.Dispose();
 
         this.dtrEntry?.Remove();
         this.dtrEntry = null;
@@ -887,7 +907,135 @@ public sealed class Plugin : IDalamudPlugin
         this.SaveConfig();
     }
 
-    public void SaveConfig() => PluginInterface.SavePluginConfig(Configuration);
+    /// <summary>
+    /// Saves the configuration. Fail-soft: <c>OnOpen</c>/<c>OnClose</c> run outside the guard
+    /// around <c>Window.Draw</c>, so an exception here would abort the whole draw pass and skip
+    /// <c>Host.EndFrame()</c> (N11). Log it instead.
+    /// </summary>
+    public void SaveConfig()
+    {
+        try
+        {
+            PluginInterface.SavePluginConfig(Configuration);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[SlotYield] Failed to save the configuration.");
+        }
+    }
+
+    /// <summary>Switches the Look by name and rebinds every token from it (N9).</summary>
+    public void SetLook(string name)
+    {
+        Look? chosen = null;
+
+        if (Look.TryFromName(name, out var builtIn) && builtIn is not null)
+            chosen = builtIn;
+        else if (Host.Themes.TryGet(name, out var theme) && theme is not null)
+            chosen = theme.Clone();
+
+        if (chosen is null)
+            return;
+
+        var changed = !string.Equals(Configuration.LookName, name, StringComparison.Ordinal);
+        Configuration.LookName = name;
+        Host.Look = chosen;
+        Theme.Bind(Host.Look);
+
+        if (changed)
+            this.SaveConfig();
+    }
+
+    /// <summary>Follow the player's game window theme; the Look is then the host's, not the picker's.</summary>
+    public void SetFollowGameTheme(bool follow)
+    {
+        Configuration.FollowGameTheme = follow;
+        Host.FollowGameTheme = follow;
+        Theme.Bind(Host.Look);
+        this.SaveConfig();
+    }
+
+    /// <summary>Built-in Look names first, then the themes in the config folder's <c>themes</c> directory.</summary>
+    public string[] LookNames { get; private set; } = Array.Empty<string>();
+
+    /// <summary>Display labels for <see cref="LookNames"/>, in the same order.</summary>
+    public string[] LookLabels { get; private set; } = Array.Empty<string>();
+
+    private int lookCatalogSize = -1;
+
+    /// <summary>
+    /// Rebuilds the picker's list when a theme file was added or removed. The host refreshes its
+    /// library on BeginFrame, so comparing the count is enough to notice a change.
+    /// </summary>
+    public void RefreshLookCatalog()
+    {
+        var themes = Host.Themes;
+        var size = Look.BuiltInNames.Length + themes.Count;
+        if (size == this.lookCatalogSize)
+            return;
+
+        this.lookCatalogSize = size;
+        var names = new string[size];
+        var labels = new string[size];
+        var at = 0;
+
+        foreach (var name in Look.BuiltInNames)
+        {
+            names[at] = name;
+            labels[at] = FormatLookLabel(name);
+            at++;
+        }
+
+        for (var index = 0; index < themes.Count; index++)
+        {
+            names[at] = themes[index].Name;
+            labels[at] = themes[index].Name;
+            at++;
+        }
+
+        this.LookNames = names;
+        this.LookLabels = labels;
+    }
+
+    /// <summary>"clear-blue-light" reads as "Clear Blue · light".</summary>
+    private static string FormatLookLabel(string name)
+    {
+        var light = name.EndsWith("-light", StringComparison.OrdinalIgnoreCase);
+        var core = light ? name[..^6] : name;
+        var words = core.Split('-', StringSplitOptions.RemoveEmptyEntries);
+
+        for (var index = 0; index < words.Length; index++)
+        {
+            var word = words[index];
+            words[index] = word.Length == 0 ? word : char.ToUpperInvariant(word[0]) + word[1..];
+        }
+
+        var label = string.Join(' ', words);
+        return light ? label + " · light" : label;
+    }
+
+    /// <summary>
+    /// BeginFrame first and EndFrame last, around every window. EndFrame is in a finally because a
+    /// window that throws must not leave the frame the host began open forever (N11).
+    /// </summary>
+    private void OnDraw()
+    {
+        Host.BeginFrame();
+
+        // While the host follows the game theme it restyles Look itself; keep the facade in step
+        // so the hand-drawn parts (slot strip, rules, charts) use the same tokens as the widgets.
+        if (Host.FollowGameTheme || !ReferenceEquals(Theme.Look, Host.Look))
+            Theme.Bind(Host.Look);
+
+        try
+        {
+            this.windowSystem.Draw();
+        }
+        finally
+        {
+            Host.EndFrame();
+        }
+    }
 
     private void OnFirstChanceException(object? sender, System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs args)
     {

@@ -7,13 +7,15 @@ using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Client.Game;
+using Glasswork;
+using Glasswork.Backend;
 using SlotYield.Core;
 using SlotYield.Game;
 using SlotYield.Market;
 
 namespace SlotYield.UI;
 
-public sealed class MainWindow : Window
+public sealed class MainWindow : GlassWindow
 {
     /// <summary>Every retainer can hold twenty market listings.</summary>
     private const int MarketSlotsPerRetainer = 20;
@@ -71,6 +73,21 @@ public sealed class MainWindow : Window
     private DateTime undoUtc;
     private bool watchedOnly;
 
+    /// <summary>Pending destructive confirmations, so nothing irreversible fires on one click.</summary>
+    private bool confirmUndercutAll;
+    private bool confirmForgetListings;
+    private bool confirmClearCart;
+    private bool confirmClearCache;
+
+    /// <summary>Typed max price for the buy dialog, parsed back into <see cref="buyMaxPrice"/>.</summary>
+    private string buyMaxPriceText = string.Empty;
+
+    /// <summary>World names for the picker, rebuilt only when the world list changes.</summary>
+    private string[] worldChoices = Array.Empty<string>();
+
+    /// <summary>Category filter items, reused so the combo does not allocate per frame.</summary>
+    private readonly List<string> categoryItems = new();
+
     public IReadOnlyCollection<(uint ItemId, Quality Quality)> MultiSelection => this.multiSelected;
 
     private static readonly string[] TabLabels =
@@ -82,6 +99,16 @@ public sealed class MainWindow : Window
     {
         "Item", "Q", "Price", "Cost", "Revenue/d", "Profit/d", "Sales/d", "Sellers", "Share", "Capital", "Clear", "30d", "Stack", "",
     };
+
+    private static readonly string[] QualityFilterLabels = { "NQ+HQ", "NQ", "HQ" };
+
+    private static readonly PricingStrategy[] StrategyValues = Enum.GetValues<PricingStrategy>();
+
+    private static readonly string[] StrategyLabels = StrategyValues.Select(StrategyLabel).ToArray();
+
+    private static readonly CostMode[] CostValues = Enum.GetValues<CostMode>();
+
+    private static readonly string[] CostLabels = CostValues.Select(CostLabel).ToArray();
 
     private readonly bool[] columnVisible =
     {
@@ -96,7 +123,7 @@ public sealed class MainWindow : Window
     private bool listingSortAscending;
 
     public MainWindow(Plugin plugin)
-        : base("Slot Yield###SlotYieldMain")
+        : base(plugin, "Slot Yield###SlotYieldMain")
     {
         this.plugin = plugin;
         this.Size = new Vector2(1120, 780);
@@ -118,14 +145,6 @@ public sealed class MainWindow : Window
     }
 
     private Configuration Config => this.plugin.Configuration;
-
-    /// <summary>Sliders update the in-memory config every frame so they drag smoothly, but the
-    /// config is only written to disk when the drag ends.</summary>
-    private void SaveAfterEdit()
-    {
-        if (ImGui.IsItemDeactivatedAfterEdit())
-            this.plugin.SaveConfig();
-    }
 
     /// <summary>
     /// Puts the window back somewhere visible at a sensible size. Used by the error screen and by
@@ -157,6 +176,8 @@ public sealed class MainWindow : Window
         // A UI fault must not take the window system down with it. Show a recovery panel instead.
         try
         {
+            this.DrawGlass();
+
             this.DrawCore();
         }
         catch (Exception ex)
@@ -193,51 +214,11 @@ public sealed class MainWindow : Window
             this.plugin.WriteDiagnostics();
     }
 
-    /// <summary>
-    /// ImGui's stock frame/checkbox/combo colours are what made the window read as a debug
-    /// tool. Scoped to this window only, so other plugins keep their own look.
-    /// </summary>
-    private void PushControlStyle()
-    {
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.PanelRaised);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, Theme.PanelHover);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, Theme.PanelHover);
-        ImGui.PushStyleColor(ImGuiCol.CheckMark, Theme.Accent);
-        ImGui.PushStyleColor(ImGuiCol.PopupBg, Theme.Panel);
-        ImGui.PushStyleColor(ImGuiCol.Header, Theme.PanelHover);
-        ImGui.PushStyleColor(ImGuiCol.HeaderHovered, Theme.WithAlpha(Theme.Accent, 0.18f));
-        ImGui.PushStyleColor(ImGuiCol.HeaderActive, Theme.WithAlpha(Theme.Accent, 0.28f));
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.PanelRaised);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.Lerp(Theme.PanelRaised, Theme.Accent, 0.22f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.Lerp(Theme.PanelRaised, Theme.Accent, 0.42f));
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, Theme.WithAlpha(Theme.Background, 0.35f));
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, Theme.WithAlpha(Theme.Text, 0.18f));
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, Theme.WithAlpha(Theme.Text, 0.30f));
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, Theme.WithAlpha(Theme.Accent, 0.55f));
-        ImGui.PushStyleColor(ImGuiCol.SliderGrab, Theme.Lerp(Theme.PanelRaised, Theme.Accent, 0.50f));
-        ImGui.PushStyleColor(ImGuiCol.SliderGrabActive, Theme.Accent);
-        ImGui.PushStyleColor(ImGuiCol.Separator, Theme.Hairline);
-        ImGui.PushStyleColor(ImGuiCol.TableHeaderBg, Theme.Panel);
-        ImGui.PushStyleColor(ImGuiCol.TableBorderLight, Theme.Hairline);
-        ImGui.PushStyleColor(ImGuiCol.TableBorderStrong, Theme.Border);
-        ImGui.PushStyleColor(ImGuiCol.TableRowBg, Theme.WithAlpha(Theme.Background, 0f));
-        ImGui.PushStyleColor(ImGuiCol.TableRowBgAlt, Theme.WithAlpha(Theme.Text, 0.030f));
-
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3f);
-        ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, 3f);
-        ImGui.PushStyleVar(ImGuiStyleVar.PopupRounding, 4f);
-        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 6f);
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 0f);
-    }
-
-    private void PopControlStyle()
-    {
-        ImGui.PopStyleVar(5);
-        ImGui.PopStyleColor(23);
-    }
-
     /// <summary>Table height that fills the window instead of stranding empty space below.</summary>
     private static float TableHeight() => MathF.Max(220f, ImGui.GetContentRegionAvail().Y - 4f);
+
+    /// <summary>Approximate width of a <c>Gw</c> small button, for right-aligning a toolbar.</summary>
+    private static float SmallButtonWidth(string label) => ImGui.CalcTextSize(label).X + 24f;
 
     private void DrawCore()
     {
@@ -253,15 +234,7 @@ public sealed class MainWindow : Window
             return;
         }
 
-        this.PushControlStyle();
-        try
-        {
-            this.DrawContent();
-        }
-        finally
-        {
-            this.PopControlStyle();
-        }
+        this.DrawContent();
     }
 
     private void DrawContent()
@@ -359,19 +332,19 @@ public sealed class MainWindow : Window
         }
 
         ImGui.Spacing();
-        if (ImGui.Button(this.IsSlotPinned(candidate.ItemId, candidate.Quality) ? "unpin" : "pin to slot"))
+        if (Gw.Button(this.IsSlotPinned(candidate.ItemId, candidate.Quality) ? "unpin"u8 : "pin to slot"u8))
             this.TogglePin(candidate.ItemId, candidate.Quality);
 
         ImGui.SameLine();
-        if (ImGui.Button("universalis"))
+        if (Gw.Button("universalis"u8))
             OpenUrl($"https://universalis.app/market/{candidate.ItemId}");
 
         ImGui.SameLine();
-        if (ImGui.Button("history"))
+        if (Gw.Button("history"u8))
             this.plugin.OpenHistory(candidate.ItemId, candidate.Quality);
 
         ImGui.SameLine();
-        if (ImGui.Button("close"))
+        if (Gw.Button("close"u8))
             ImGui.CloseCurrentPopup();
 
         ImGui.EndPopup();
@@ -647,15 +620,15 @@ public sealed class MainWindow : Window
         if (result is null || result.Candidates.Count == 0)
         {
             ImGui.Spacing();
-            UiKit.EmptyState(
+            var startScan = UiKit.EmptyState(
                 "No scan yet",
-                "A scan walks every marketable item on your world, ranks them by how much gil a slot could realistically earn, and prices the shortlist exactly. It takes one to three minutes and stays cached for a few hours.");
-            if (ImGui.Button("Scan now"))
+                "A scan walks every marketable item on your world, ranks them by how much gil a slot could realistically earn, and prices the shortlist exactly. It takes one to three minutes and stays cached for a few hours.",
+                "Scan now");
+            if (startScan)
+            {
                 this.plugin.StartScan();
-
-            ImGui.SameLine();
-            if (ImGui.Button("Open scan settings"))
-                this.plugin.MainWindow.IsOpen = true;
+                Gw.Toast("Scan started"u8, ToastKind.Info);
+            }
 
             return;
         }
@@ -670,92 +643,144 @@ public sealed class MainWindow : Window
         if (ImGui.IsWindowFocused(ImGuiFocusedFlags.RootAndChildWindows) && ImGui.GetIO().KeyCtrl && ImGui.IsKeyPressed(ImGuiKey.F))
             this.focusSearch = true;
 
-        ImGui.SetNextItemWidth(220f);
+        // The search field flexes: it takes whatever the fixed controls leave, so a wide window
+        // fills with the row instead of leaving the right half empty.
+        var rowFixed =
+            (110f + ImGui.CalcTextSize("min/day").X) +
+            90f +
+            (110f + ImGui.CalcTextSize("category").X) +
+            (80f + ImGui.CalcTextSize("level").X) +
+            SmallButtonWidth("my level") +
+            (90f + ImGui.CalcTextSize("stack").X) +
+            (ImGui.GetStyle().ItemSpacing.X * 7f);
+
+        var searchWidth = Math.Clamp(ImGui.GetContentRegionAvail().X - rowFixed, 200f, 900f);
+        ImGui.SetNextItemWidth(searchWidth);
         if (this.focusSearch)
         {
             ImGui.SetKeyboardFocusHere();
             this.focusSearch = false;
         }
 
-        ImGui.InputTextWithHint("##search", "filter by item name...", ref this.search, 64);
+        Gw.TextField(ref this.search, "filter by item name..."u8, maxLength: 64);
         if (ImGui.IsItemActive() && ImGui.IsKeyPressed(ImGuiKey.Escape))
             this.search = string.Empty;
         ImGui.SameLine(0f, 8f);
         // 0 means "no minimum" and is deliberate: unprofitable rows stay visible so a losing
         // slot can be spotted. Say that instead of printing "min 0", which read as ">= 0".
-        ImGui.SetNextItemWidth(150f);
-        var minFormat = this.minGilPerDay <= 0 ? "no minimum" : "min %d profit/day";
-        ImGui.SliderInt("##min", ref this.minGilPerDay, 0, 200_000, minFormat);
+        ImGui.SetNextItemWidth(110f);
+        var minFormat = this.minGilPerDay <= 0 ? "any" : "%d";
+        Gw.Slider(ref this.minGilPerDay, 0, 200_000, "min/day"u8, 1, minFormat);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("0 shows every row, including ones that would lose gil. Raise it to hide them.");
         ImGui.SameLine();
 
         var quality = this.qualityFilter;
-        ImGui.SetNextItemWidth(90f);
-        if (ImGui.BeginCombo("##quality", quality == 0 ? "NQ+HQ" : quality == 1 ? "NQ" : "HQ"))
-        {
-            if (ImGui.Selectable("NQ+HQ", quality == 0))
-                this.qualityFilter = 0;
-            if (ImGui.Selectable("NQ", quality == 1))
-                this.qualityFilter = 1;
-            if (ImGui.Selectable("HQ", quality == 2))
-                this.qualityFilter = 2;
-            ImGui.EndCombo();
-        }
+        if (Gw.Segmented(ref quality, QualityFilterLabels))
+            this.qualityFilter = quality;
 
         ImGui.SameLine();
         var categoryChoices = this.CategoryChoices(result.Candidates);
-        ImGui.SetNextItemWidth(130f);
-        if (ImGui.BeginCombo("##category", this.categoryFilter.Length == 0 ? "all categories" : this.categoryFilter))
-        {
-            if (ImGui.Selectable("all categories", this.categoryFilter.Length == 0))
-                this.categoryFilter = string.Empty;
+        this.categoryItems.Clear();
+        this.categoryItems.Add("all");
+        this.categoryItems.AddRange(categoryChoices);
 
-            foreach (var categoryChoice in categoryChoices)
-            {
-                if (ImGui.Selectable(categoryChoice, this.categoryFilter == categoryChoice))
-                    this.categoryFilter = categoryChoice;
-            }
+        var categoryIndex = this.categoryFilter.Length == 0 ? 0 : categoryChoices.IndexOf(this.categoryFilter) + 1;
+        if (categoryIndex < 0)
+            categoryIndex = 0;
 
-            ImGui.EndCombo();
-        }
+        ImGui.SetNextItemWidth(110f);
+        if (Gw.ComboBox(ref categoryIndex, System.Runtime.InteropServices.CollectionsMarshal.AsSpan(this.categoryItems), "category"u8))
+            this.categoryFilter = categoryIndex <= 0 ? string.Empty : categoryChoices[categoryIndex - 1];
 
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(110f);
+        ImGui.SetNextItemWidth(80f);
         var levelCap = Math.Clamp(this.levelCap, 0, 100);
-        if (ImGui.SliderInt("##level", ref levelCap, 0, 100, levelCap <= 0 ? "any level" : "level %d"))
+        if (Gw.Slider(ref levelCap, 0, 100, "level"u8, 1, levelCap <= 0 ? "any" : "%d"))
             this.levelCap = levelCap;
 
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Hide items whose craft or equip level is above this. 0 shows everything.");
 
         ImGui.SameLine();
-        if (ImGui.SmallButton("my level"))
+        if (Gw.Button("my level"u8, ButtonStyle.Plain, ButtonSize.Small))
             this.levelCap = Plugin.PlayerState.Level;
 
         ImGui.SameLine();
-        ImGui.SetNextItemWidth(125f);
+        ImGui.SetNextItemWidth(90f);
         var minStack = Math.Clamp(this.minStackProfit, 0, 5_000_000);
-        if (ImGui.SliderInt("##minstack", ref minStack, 0, 5_000_000, minStack <= 0 ? "any stack" : "stack %d+"))
+        if (Gw.Slider(ref minStack, 0, 5_000_000, "stack"u8, 1, minStack <= 0 ? "any" : "%d+"))
             this.minStackProfit = minStack;
 
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Hide rows whose whole stack would earn less than this before it clears.");
 
-        ImGui.SameLine();
-        UiKit.ToggleChip("pinned", ref this.pinnedOnly);
-        ImGui.SameLine();
-        UiKit.ToggleChip("dead", ref this.showDead);
-        ImGui.SameLine();
-        UiKit.ToggleChip("affordable", ref this.affordableOnly);
-        ImGui.SameLine();
-        UiKit.ToggleChip("fresh only", ref this.hideStale);
+        // One toolbar strip behind the chips and actions, so a wide window reads as a bar instead
+        // of two clusters floating in empty space. Only worth drawing when the window is wide.
+        ImGui.NewLine();
+        var toolbarBarMin = ImGui.GetCursorScreenPos();
+        var toolbarBarWidth = ImGui.GetContentRegionAvail().X;
+        var toolbarBarHeight = ImGui.GetFrameHeight() + 10f;
+        var toolbarLook = this.plugin.Host.Look;
+        var toolbarHasBar = toolbarBarWidth >= 900f;
 
-        ImGui.SameLine();
+        if (toolbarHasBar)
+        {
+            Paint.Material(
+                ImGui.GetWindowDrawList(),
+                Rect.FromSize(toolbarBarMin, new Vector2(toolbarBarWidth, toolbarBarHeight)),
+                Corners.All(6f * Frame.Scale),
+                toolbarLook.CornerStyle,
+                in toolbarLook.BarMaterial,
+                in toolbarLook,
+                Frame.Glass,
+                Frame.Scale,
+                0.55f);
+
+            ImGui.SetCursorScreenPos(toolbarBarMin + new Vector2(6f, 5f));
+        }
+
+        UiKit.ToggleChip("pinned", ref this.pinnedOnly);
+        ImGui.SameLine(0f, 4f);
+        UiKit.ToggleChip("dead", ref this.showDead);
+        ImGui.SameLine(0f, 4f);
+        UiKit.ToggleChip("affordable", ref this.affordableOnly);
+        ImGui.SameLine(0f, 4f);
+        UiKit.ToggleChip("fresh only", ref this.hideStale);
+        ImGui.SameLine(0f, 4f);
         UiKit.ToggleChip("watched", ref this.watchedOnly);
 
+        var rows = this.Filter(result.Candidates);
+        this.Sort(rows);
+
+        var toolbarWidth =
+            ImGui.CalcTextSize($"{rows.Count} shown").X +
+            SmallButtonWidth("copy CSV") + SmallButtonWidth("reset") + SmallButtonWidth("save filter") +
+            SmallButtonWidth("presets") + SmallButtonWidth("columns") +
+            (ImGui.GetStyle().ItemSpacing.X * 6f);
+
+        var toolbarX = ImGui.GetWindowContentRegionMax().X - toolbarWidth - (toolbarHasBar ? 6f : 0f);
+        if (toolbarX > ImGui.GetCursorPosX() + 24f)
+        {
+            ImGui.SameLine(toolbarX);
+        }
+        else
+        {
+            ImGui.SameLine(0f, 20f);
+        }
+
+        ImGui.AlignTextToFramePadding();
+        Theme.Faint($"{rows.Count} shown");
+
         ImGui.SameLine();
-        if (ImGui.SmallButton("reset"))
+        if (Gw.Button("copy CSV"u8, ButtonStyle.Plain, ButtonSize.Small))
+        {
+            ImGui.SetClipboardText(this.BuildCsv(rows));
+            this.plugin.Print($"Copied {rows.Count} rows as CSV.");
+        }
+
+        ImGui.SameLine();
+        if (Gw.Button("reset"u8, ButtonStyle.Plain, ButtonSize.Small))
         {
             this.search = string.Empty;
             this.minGilPerDay = 0;
@@ -767,7 +792,7 @@ public sealed class MainWindow : Window
         }
 
         ImGui.SameLine();
-        if (ImGui.SmallButton("save filter"))
+        if (Gw.Button("save filter"u8, ButtonStyle.Plain, ButtonSize.Small))
             ImGui.OpenPopup("##savefilter");
 
         if (ImGui.BeginPopup("##savefilter"))
@@ -785,7 +810,7 @@ public sealed class MainWindow : Window
         }
 
         ImGui.SameLine();
-        if (ImGui.SmallButton("presets"))
+        if (Gw.Button("presets"u8, ButtonStyle.Plain, ButtonSize.Small))
             ImGui.OpenPopup("##presets");
 
         if (ImGui.BeginPopup("##presets"))
@@ -803,7 +828,7 @@ public sealed class MainWindow : Window
         }
 
         ImGui.SameLine();
-        if (ImGui.SmallButton("columns"))
+        if (Gw.Button("columns"u8, ButtonStyle.Plain, ButtonSize.Small))
             ImGui.OpenPopup("##columns");
 
         if (ImGui.BeginPopup("##columns"))
@@ -822,44 +847,69 @@ public sealed class MainWindow : Window
             ImGui.EndPopup();
         }
 
-        var rows = this.Filter(result.Candidates);
-        this.Sort(rows);
+        if (toolbarHasBar)
+            ImGui.SetCursorScreenPos(new Vector2(toolbarBarMin.X, toolbarBarMin.Y + toolbarBarHeight + 6f));
 
-        ImGui.SameLine();
-        Theme.Faint($"{rows.Count} shown");
+        // Secondary line only when there is a selection, an undo or a diff to report.
+        var undoAvailable = this.undoSlot is not null && (DateTime.UtcNow - this.undoUtc).TotalSeconds < 10;
+        var diff = this.plugin.State.Diff is { HasAnything: true } changes ? changes : null;
 
-        if (this.multiSelected.Count > 0)
+        if (this.multiSelected.Count > 0 || undoAvailable || diff is not null)
         {
-            ImGui.SameLine();
-            if (ImGui.SmallButton($"pin {this.multiSelected.Count}"))
+            ImGui.NewLine();
+            ImGui.AlignTextToFramePadding();
+            var first = true;
+
+            if (this.multiSelected.Count > 0)
             {
-                foreach (var (itemId, pinQuality) in this.multiSelected)
+                if (Gw.Button($"pin {this.multiSelected.Count}", ButtonStyle.Plain, ButtonSize.Small))
                 {
-                    if (!this.IsSlotPinned(itemId, pinQuality))
-                        this.TogglePin(itemId, pinQuality);
+                    foreach (var (itemId, pinQuality) in this.multiSelected)
+                    {
+                        if (!this.IsSlotPinned(itemId, pinQuality))
+                            this.TogglePin(itemId, pinQuality);
+                    }
+
+                    this.multiSelected.Clear();
                 }
 
-                this.multiSelected.Clear();
+                ImGui.SameLine();
+                if (Gw.Button("compare"u8, ButtonStyle.Plain, ButtonSize.Small))
+                    this.plugin.ToggleCompare();
+
+                ImGui.SameLine();
+                if (Gw.Button("x"u8, ButtonStyle.Plain, ButtonSize.Small))
+                    this.multiSelected.Clear();
+
+                first = false;
             }
 
-            ImGui.SameLine();
-            if (ImGui.SmallButton("compare"))
-                this.plugin.ToggleCompare();
-
-            ImGui.SameLine();
-            if (ImGui.SmallButton("x"))
-                this.multiSelected.Clear();
-        }
-
-        if (this.undoSlot is not null && (DateTime.UtcNow - this.undoUtc).TotalSeconds < 10)
-        {
-            ImGui.SameLine();
-            if (ImGui.SmallButton("undo unpin"))
+            if (undoAvailable)
             {
-                this.Config.Pinned.Add(this.undoSlot);
-                this.Config.Normalize();
-                this.plugin.SaveConfig();
-                this.undoSlot = null;
+                if (!first)
+                    ImGui.SameLine();
+
+                if (Gw.Button("undo unpin"u8, ButtonStyle.Plain, ButtonSize.Small))
+                {
+                    var restored = this.undoSlot;
+                    if (restored is not null)
+                        this.Config.Pinned.Add(restored);
+
+                    this.Config.Normalize();
+                    this.plugin.SaveConfig();
+                    this.undoSlot = null;
+                }
+
+                first = false;
+            }
+
+            if (diff is not null)
+            {
+                if (!first)
+                    ImGui.SameLine();
+
+                Theme.Faint(
+                    $"since last scan: {diff.Drops.Count} down, {diff.Rises.Count} up, {diff.NewEntries.Count} new");
             }
         }
 
@@ -872,20 +922,6 @@ public sealed class MainWindow : Window
 
             if (this.selectedRow >= 0 && this.selectedRow < rows.Count && ImGui.IsKeyPressed(ImGuiKey.Enter))
                 this.TogglePin(rows[this.selectedRow].ItemId, rows[this.selectedRow].Quality);
-        }
-
-        if (this.plugin.State.Diff is { HasAnything: true } changes)
-        {
-            ImGui.SameLine();
-            Theme.Faint(
-                $"| since last scan: {changes.Drops.Count} down, {changes.Rises.Count} up, {changes.NewEntries.Count} new");
-        }
-
-        ImGui.SameLine();
-        if (ImGui.SmallButton("copy CSV"))
-        {
-            ImGui.SetClipboardText(this.BuildCsv(rows));
-            this.plugin.Print($"Copied {rows.Count} rows as CSV.");
         }
 
         var flags = ImGuiTableFlags.RowBg | ImGuiTableFlags.BordersInnerH | ImGuiTableFlags.ScrollY |
@@ -1042,10 +1078,20 @@ public sealed class MainWindow : Window
         ImGui.TableNextColumn();
     }
 
+    /// <summary>
+    /// A Glasswork-style table header: a flat semibold footnote that brightens on hover, with the
+    /// sorted column's chevron at its trailing edge. The whole cell is the hit target, so sorting
+    /// behaves exactly as the old small buttons did without a button body (N9).
+    /// </summary>
     private void HeaderButton(string label, int column, ImGuiTableColumnFlags flags)
     {
         ImGui.TableNextColumn();
-        if (ImGui.SmallButton(label + "##h" + column))
+
+        var width = MathF.Max(24f, ImGui.GetContentRegionAvail().X);
+        var height = ImGui.GetFrameHeight();
+        var min = ImGui.GetCursorScreenPos();
+
+        if (ImGui.InvisibleButton("##h" + column, new Vector2(width, height)))
         {
             if (this.sortColumn == column)
             {
@@ -1062,27 +1108,59 @@ public sealed class MainWindow : Window
             this.plugin.SaveConfig();
         }
 
-        if (this.sortColumn == column)
+        var drawList = ImGui.GetWindowDrawList();
+        var isSorted = this.sortColumn == column;
+        var textColor = isSorted || ImGui.IsItemHovered() ? Theme.Text : Theme.TextDim;
+        var textSize = ImGui.GetFontSize() * 0.85f;
+
+        if (ImGui.IsItemHovered())
+            Gw.Tooltip(HeaderHint(label));
+
+        drawList.AddText(
+            ImGui.GetFont(),
+            textSize,
+            new Vector2(min.X + 2f, min.Y + ((height - textSize) * 0.5f)),
+            Theme.U32(textColor),
+            label);
+
+        if (isSorted)
         {
-            var drawList = ImGui.GetWindowDrawList();
-            var min = ImGui.GetItemRectMin();
-            var max = ImGui.GetItemRectMax();
-            var centerX = max.X + 6f;
-            var centerY = (min.Y + max.Y) * 0.5f;
+            var centerX = min.X + width - 8f;
+            var centerY = min.Y + (height * 0.5f);
             if (this.sortAscending)
+            {
                 drawList.AddTriangleFilled(
-                    new Vector2(centerX - 4f, centerY + 2f),
-                    new Vector2(centerX + 4f, centerY + 2f),
+                    new Vector2(centerX - 3.5f, centerY + 2f),
+                    new Vector2(centerX + 3.5f, centerY + 2f),
                     new Vector2(centerX, centerY - 3f),
                     Theme.U32(Theme.Accent));
+            }
             else
+            {
                 drawList.AddTriangleFilled(
-                    new Vector2(centerX - 4f, centerY - 2f),
-                    new Vector2(centerX + 4f, centerY - 2f),
+                    new Vector2(centerX - 3.5f, centerY - 2f),
+                    new Vector2(centerX + 3.5f, centerY - 2f),
                     new Vector2(centerX, centerY + 3f),
                     Theme.U32(Theme.Accent));
+            }
         }
     }
+
+    /// <summary>Plain-language meaning of the short table headers, shown as a delayed Look tooltip.</summary>
+    private static string HeaderHint(string label) => label switch
+    {
+        "Q" => "NQ or HQ for this row.",
+        "Revenue/d" => "Gross gil per day for this slot.",
+        "Profit/d" => "Net gil per day after cost and tax.",
+        "Sales/d" => "Units the market moves per day.",
+        "Sellers" => "Distinct sellers at or below your price.",
+        "Share" => "Your expected share of the daily sales at this price.",
+        "Capital" => "Gil tied up per slot at this price.",
+        "Clear" => "Days for a full stack to sell at your price.",
+        "30d" => "Price history, oldest first.",
+        "Stack" => "Profit for the whole stack before it clears.",
+        _ => "Sort by this column.",
+    };
 
     private static (string Label, Vector4 Color) VerdictChip(string verdict)
     {
@@ -1411,7 +1489,7 @@ public sealed class MainWindow : Window
         else
             Theme.Colored(Theme.Warn, $"only {freshSource.Count} fresh items for {config.PortfolioSlots} slots; stale data included");
 
-        if (ImGui.SmallButton("copy plan"))
+        if (Gw.Button("copy plan"u8, ButtonStyle.Plain, ButtonSize.Small))
             ImGui.SetClipboardText(this.BuildPortfolioCsv(plan.Picks));
 
         this.DrawPortfolioSummaryCard(plan);
@@ -1525,11 +1603,11 @@ public sealed class MainWindow : Window
         Theme.Colored(Theme.Text, $"My slots ({pinned.Count})");
 
         ImGui.SameLine();
-        if (ImGui.SmallButton("share"))
+        if (Gw.Button("share"u8, ButtonStyle.Plain, ButtonSize.Small))
             ImGui.SetClipboardText(this.plugin.BuildShareCode());
 
         ImGui.SameLine();
-        if (ImGui.SmallButton("import"))
+        if (Gw.Button("import"u8, ButtonStyle.Plain, ButtonSize.Small))
             ImGui.OpenPopup("##importslots");
 
         if (ImGui.BeginPopup("##importslots"))
@@ -1651,7 +1729,7 @@ public sealed class MainWindow : Window
             "priced against the last scan. Profit subtracts " +
             "what those materials would fetch if sold instead; Owned is the revenue if you count them as free.");
 
-        if (ImGui.Button("Read stock"))
+        if (Gw.Button("Read stock"u8, ButtonStyle.Prominent, ButtonSize.Small))
             this.plugin.RefreshCraftPlan();
 
         ImGui.SameLine();
@@ -1705,7 +1783,7 @@ public sealed class MainWindow : Window
             return;
         }
 
-        if (ImGui.SmallButton("copy plan"))
+        if (Gw.Button("copy plan"u8, ButtonStyle.Plain, ButtonSize.Small))
             ImGui.SetClipboardText(this.BuildCraftCsv(plan));
 
         ImGui.Spacing();
@@ -1895,7 +1973,7 @@ public sealed class MainWindow : Window
         if (reviews.Any(review => review.Status == ListingStatus.Unpriced))
             this.plugin.RequestListingQuotes(listings.Select(listing => listing.ItemId));
 
-        if (ImGui.SmallButton("copy"))
+        if (Gw.Button("copy"u8, ButtonStyle.Plain, ButtonSize.Small))
             ImGui.SetClipboardText(this.BuildListingsCsv(reviews));
 
         if (this.listingSortColumn >= 0)
@@ -1934,15 +2012,15 @@ public sealed class MainWindow : Window
             Theme.Colored(Theme.Accent, $"-   sold in 24h: {soldCount} (~{Money.Gil(soldTotal)})");
         }
 
-        if (ImGui.Button("Rescan prices"))
+        if (Gw.Button("Rescan prices"u8, ButtonStyle.Default, ButtonSize.Small))
             this.plugin.StartScan();
 
         ImGui.SameLine();
-        if (ImGui.Button("Copy repricing list"))
+        if (Gw.Button("Copy repricing list"u8, ButtonStyle.Plain, ButtonSize.Small))
             this.CopyRepricingList(reviews);
 
         ImGui.SameLine();
-        if (ImGui.Button("Check & reprice"))
+        if (Gw.Button("Check & reprice"u8, ButtonStyle.Prominent, ButtonSize.Small))
             this.plugin.CheckAllListings();
 
         if (ImGui.IsItemHovered())
@@ -1954,8 +2032,8 @@ public sealed class MainWindow : Window
         }
 
         ImGui.SameLine();
-        if (ImGui.Button("Undercut all -1"))
-            this.plugin.CheckAllListings(true);
+        if (Gw.Button("Undercut all -1"u8, ButtonStyle.Tinted, ButtonSize.Small))
+            this.confirmUndercutAll = true;
 
         if (ImGui.IsItemHovered())
         {
@@ -1964,11 +2042,35 @@ public sealed class MainWindow : Window
                 "threshold, no strategy - it does exactly what it says.");
         }
 
+        if (Gw.Alert(
+                "##undercutall"u8,
+                ref this.confirmUndercutAll,
+                "Undercut every listing?"u8,
+                "Sets every listing to one gil under the current market minimum. No floor, no threshold, no undo."u8,
+                "undercut all"u8,
+                "cancel"u8,
+                destructive: true) == DialogResult.Confirmed)
+        {
+            this.plugin.CheckAllListings(true);
+            Gw.Toast("Repricing every listing"u8, ToastKind.Warning);
+        }
+
         ImGui.SameLine();
-        if (ImGui.Button("Forget all"))
+        if (Gw.Button("Forget all"u8, ButtonStyle.Plain, ButtonSize.Small))
+            this.confirmForgetListings = true;
+
+        if (Gw.Alert(
+                "##forgetlistings"u8,
+                ref this.confirmForgetListings,
+                "Forget every listing?"u8,
+                "SlotYield drops its own record of your listings. Nothing is changed on the retainers."u8,
+                "forget"u8,
+                "cancel"u8,
+                destructive: true) == DialogResult.Confirmed)
         {
             listings.Clear();
             this.plugin.SaveConfig();
+            Gw.Toast("Listing record cleared"u8, ToastKind.Success);
             return;
         }
 
@@ -2309,14 +2411,25 @@ public sealed class MainWindow : Window
         ImGui.Spacing();
         Theme.Colored(Theme.Gold, $"flip cart: {cart.Count} item(s), {Money.Gil(cost)} to spend, +{Money.Gil(net)} expected");
 
-        if (ImGui.SmallButton("copy cart"))
+        if (Gw.Button("copy cart"u8, ButtonStyle.Plain, ButtonSize.Small))
             ImGui.SetClipboardText(this.BuildFlipCartCsv(cart));
 
         ImGui.SameLine();
-        if (ImGui.SmallButton("clear cart"))
+        if (Gw.Button("clear cart"u8, ButtonStyle.Plain, ButtonSize.Small))
+            this.confirmClearCart = true;
+
+        if (Gw.Alert(
+                "##clearcart"u8,
+                ref this.confirmClearCart,
+                "Clear the flip cart?"u8,
+                "Removes every item from the cart. Your listings and the market board are untouched."u8,
+                "clear"u8,
+                "cancel"u8,
+                destructive: true) == DialogResult.Confirmed)
         {
             cart.Clear();
             this.plugin.SaveConfig();
+            Gw.Toast("Cart cleared"u8, ToastKind.Success);
         }
 
         foreach (var group in cart.GroupBy(entry => entry.BuyWorld, StringComparer.OrdinalIgnoreCase).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
@@ -2359,6 +2472,7 @@ public sealed class MainWindow : Window
         {
             ImGui.OpenPopup("##buyitem");
             this.buyOpen = false;
+            this.buyMaxPriceText = this.buyMaxPrice.ToString("0", CultureInfo.InvariantCulture);
         }
 
         if (!ImGui.BeginPopup("##buyitem"))
@@ -2367,19 +2481,23 @@ public sealed class MainWindow : Window
         Theme.Colored(Theme.Text, this.buyName);
         Theme.Faint($"on {this.buyWorld} - open the market board there first");
 
-        ImGui.SetNextItemWidth(195f);
         var quantity = Math.Clamp(this.buyQty, 1, 999);
-        if (ImGui.SliderInt("##buyqty", ref quantity, 1, 999, "%d units"))
+        if (Gw.Stepper(ref quantity, 1, 999, 1, "units"u8))
             this.buyQty = quantity;
 
+        Theme.Faint("max gil per unit");
         ImGui.SetNextItemWidth(195f);
-        var max = (int)Math.Clamp(this.buyMaxPrice, 0, 5_000_000);
-        if (ImGui.SliderInt("##buymax", ref max, 0, 5_000_000, "max %d / unit"))
-            this.buyMaxPrice = max;
+        var priceText = this.buyMaxPriceText;
+        if (Gw.TextField(ref priceText, "max gil / unit"u8, maxLength: 12))
+        {
+            this.buyMaxPriceText = priceText;
+            if (decimal.TryParse(priceText, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var parsed) && parsed >= 0m)
+                this.buyMaxPrice = parsed;
+        }
 
         Theme.Faint(this.plugin.BuyStatus);
 
-        if (ImGui.Button("check and buy"))
+        if (Gw.Button("check and buy"u8, ButtonStyle.Prominent, ButtonSize.Small))
             this.plugin.StartBuy(this.buyWorld, this.buyItemId, this.buyName, this.buyHq, this.buyQty, this.buyMaxPrice);
 
         ImGui.EndPopup();
@@ -2408,9 +2526,8 @@ public sealed class MainWindow : Window
         Theme.Colored(Theme.Text, this.plugin.Catalog.Name(row.ItemId));
         Theme.Faint($"{row.BuyWorld} {Money.Gil(row.BuyPrice)}  ->  {row.SellWorld} {Money.Gil(row.SellPrice)}");
 
-        ImGui.SetNextItemWidth(190f);
         var quantity = Math.Clamp(this.flipQty, 1, 999);
-        if (ImGui.SliderInt("##flipqty", ref quantity, 1, 999, "%d units"))
+        if (Gw.Stepper(ref quantity, 1, 999, 1, "units"u8))
             this.flipQty = quantity;
 
         var cost = row.BuyPrice * this.flipQty;
@@ -2673,16 +2790,16 @@ public sealed class MainWindow : Window
         {
             Theme.Colored(Theme.Gold, $"comparing worlds... {this.plugin.ArbitrageDone}/{this.plugin.ArbitrageTotal}");
             ImGui.SameLine();
-            if (ImGui.SmallButton("cancel"))
+            if (Gw.Button("cancel"u8, ButtonStyle.Plain, ButtonSize.Small))
                 this.plugin.CancelArbitrage();
         }
-        else if (ImGui.Button("compare worlds"))
+        else if (Gw.Button("compare worlds"u8, ButtonStyle.Prominent, ButtonSize.Small))
         {
             this.plugin.StartArbitrage();
         }
 
         ImGui.SameLine();
-        if (ImGui.SmallButton("worlds"))
+        if (Gw.Button("worlds"u8, ButtonStyle.Plain, ButtonSize.Small))
             ImGui.OpenPopup("##arbworlds");
 
         if (ImGui.BeginPopup("##arbworlds"))
@@ -2706,7 +2823,7 @@ public sealed class MainWindow : Window
                 }
             }
 
-            if (ImGui.Button("auto (whole DC)"))
+            if (Gw.Button("auto (whole DC)"u8, ButtonStyle.Plain, ButtonSize.Small))
             {
                 selected.Clear();
                 this.plugin.SaveConfig();
@@ -2772,11 +2889,11 @@ public sealed class MainWindow : Window
         if (this.arbitrageSortAscending)
             visible.Reverse();
 
-        if (ImGui.SmallButton("copy list"))
+        if (Gw.Button("copy list"u8, ButtonStyle.Plain, ButtonSize.Small))
             ImGui.SetClipboardText(this.BuildArbitrageCsv(visible));
 
         ImGui.SameLine();
-        if (ImGui.SmallButton("buy list"))
+        if (Gw.Button("buy list"u8, ButtonStyle.Prominent, ButtonSize.Small))
             ImGui.OpenPopup("##arbbuylist");
 
         if (ImGui.BeginPopup("##arbbuylist"))
@@ -2785,10 +2902,10 @@ public sealed class MainWindow : Window
             {
                 Theme.Colored(Theme.Gold, this.plugin.BuyRunStatus);
                 ImGui.SameLine();
-                if (ImGui.SmallButton("cancel run"))
+                if (Gw.Button("cancel run"u8, ButtonStyle.Plain, ButtonSize.Small))
                     this.plugin.CancelBuyRun();
             }
-            else if (ImGui.SmallButton("go and buy"))
+            else if (Gw.Button("go and buy"u8, ButtonStyle.Prominent, ButtonSize.Small))
             {
                 this.plugin.StartBuyRun();
             }
@@ -2972,22 +3089,36 @@ public sealed class MainWindow : Window
 
         if (state.IsScanning)
         {
-            ImGui.ProgressBar(state.Fraction, new Vector2(-1f, 14f), $"{state.Phase} {state.Done}/{state.Total} {state.Detail}");
-            if (ImGui.Button("Cancel scan"))
+            Gw.BeginRow("Scanning", $"{state.Phase} {state.Done}/{state.Total} {state.Detail}");
+            Gw.ProgressBar(state.Fraction, 360f);
+            Gw.EndRow();
+
+            if (Gw.Button("Cancel scan"u8, ButtonStyle.Plain, ButtonSize.Small))
                 this.plugin.CancelScan();
         }
         else
         {
-            if (ImGui.Button("Scan now"))
+            if (Gw.Button("Scan now"u8, ButtonStyle.Prominent))
                 this.plugin.StartScan();
 
             ImGui.SameLine();
-            if (ImGui.Button("Clear cache"))
+            if (Gw.Button("Clear cache"u8))
+                this.confirmClearCache = true;
+
+            if (Gw.Alert(
+                    "##clearcache"u8,
+                    ref this.confirmClearCache,
+                    "Clear the market cache?"u8,
+                    "Drops every cached quote and aggregate, so the next scan fetches everything again. The current result is cleared too."u8,
+                    "clear cache"u8,
+                    "cancel"u8,
+                    destructive: true) == DialogResult.Confirmed)
             {
                 this.plugin.Cache.Clear();
                 this.plugin.State.Result = null;
                 this.plugin.State.Diff = null;
                 this.plugin.SaveConfig();
+                Gw.Toast("Market cache cleared"u8, ToastKind.Success);
             }
         }
 
@@ -3011,301 +3142,320 @@ public sealed class MainWindow : Window
         ImGui.Spacing();
         ImGui.Separator();
 
-        var compactRows = this.Config.CompactRows;
-        if (ImGui.Checkbox("compact rows", ref compactRows))
+        if (Gw.BeginSection("Appearance"u8))
         {
-            this.Config.CompactRows = compactRows;
-            this.plugin.SaveConfig();
-        }
+            this.plugin.RefreshLookCatalog();
+            var lookNames = this.plugin.LookNames;
+            var lookIndex = Array.IndexOf(lookNames, this.Config.LookName);
+            if (lookIndex < 0)
+                lookIndex = Array.FindIndex(lookNames, name => string.Equals(name, "eorzea", StringComparison.OrdinalIgnoreCase));
 
-        ImGui.SameLine();
-        var dtrBar = this.Config.DtrBar;
-        if (ImGui.Checkbox("dtr bar", ref dtrBar))
-        {
-            this.Config.DtrBar = dtrBar;
-            this.plugin.SaveConfig();
-            this.plugin.RefreshDtr();
-        }
+            if (lookIndex < 0)
+                lookIndex = 0;
 
-        ImGui.SameLine();
-        var themeVariant = this.Config.Theme;
-        ImGui.SetNextItemWidth(110f);
-        if (ImGui.BeginCombo("##theme", themeVariant == ThemeVariant.Graphite ? "graphite" : "parchment"))
-        {
-            if (ImGui.Selectable("graphite", themeVariant == ThemeVariant.Graphite))
+            Gw.BeginRow("Theme", "any Glasswork Look, or a theme in the config folder");
+            ImGui.SetNextItemWidth(170f);
+            if (lookNames.Length > 0 && Gw.ComboBox(ref lookIndex, this.plugin.LookLabels))
+                this.plugin.SetLook(lookNames[lookIndex]);
+
+            ImGui.SameLine();
+            if (Gw.Button("copy JSON"u8, ButtonStyle.Plain, ButtonSize.Small))
             {
-                this.Config.Theme = ThemeVariant.Graphite;
-                Theme.Apply(ThemeVariant.Graphite);
+                ImGui.SetClipboardText(this.plugin.Host.Look.ToJson());
+                Gw.Toast("Theme JSON copied"u8, ToastKind.Success);
+            }
+
+            Gw.EndRow();
+
+            Gw.BeginRow("Follow game theme", "match the game's own window theme instead");
+            var followGameTheme = this.Config.FollowGameTheme;
+            if (Gw.Toggle(ref followGameTheme))
+                this.plugin.SetFollowGameTheme(followGameTheme);
+
+            Gw.EndRow();
+        }
+
+        Gw.EndSection();
+
+        if (Gw.BeginSection("Window"u8))
+        {
+            Gw.BeginRow("Compact rows", "tighter rows in the opportunity table");
+            var compactRows = this.Config.CompactRows;
+            if (Gw.Toggle(ref compactRows))
+            {
+                this.Config.CompactRows = compactRows;
                 this.plugin.SaveConfig();
             }
 
-            if (ImGui.Selectable("parchment", themeVariant == ThemeVariant.Parchment))
+            Gw.EndRow();
+
+            Gw.BeginRow("DTR bar", "the gil/day readout on the server bar");
+            var dtrBar = this.Config.DtrBar;
+            if (Gw.Toggle(ref dtrBar))
             {
-                this.Config.Theme = ThemeVariant.Parchment;
-                Theme.Apply(ThemeVariant.Parchment);
+                this.Config.DtrBar = dtrBar;
+                this.plugin.SaveConfig();
+                this.plugin.RefreshDtr();
+            }
+
+            Gw.EndRow();
+
+            Gw.BeginRow("Exception log", "diagnostic: first-chance exceptions to dalamud.log, after a reload");
+            var exceptionLog = this.Config.ExceptionLog;
+            if (Gw.Toggle(ref exceptionLog))
+            {
+                this.Config.ExceptionLog = exceptionLog;
                 this.plugin.SaveConfig();
             }
 
-            ImGui.EndCombo();
+            Gw.EndRow();
         }
 
-        ImGui.SameLine();
-        var exceptionLog = this.Config.ExceptionLog;
-        if (ImGui.Checkbox("exception log", ref exceptionLog))
+        Gw.EndSection();
+
+        if (Gw.BeginSection("World"u8))
         {
-            this.Config.ExceptionLog = exceptionLog;
-            this.plugin.SaveConfig();
-        }
+            var worlds = this.plugin.Worlds;
+            var world = this.plugin.ResolveWorld();
 
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Diagnostic: log first-chance exceptions to dalamud.log. Applies after a plugin reload.");
+            if (this.worldChoices.Length != worlds.Count)
+                this.worldChoices = worlds.ToArray();
 
-        ImGui.SameLine();
-        ImGui.SetNextItemWidth(150f);
-        var toastThreshold = (int)Math.Clamp(this.Config.ToastThreshold, 0, 200_000);
-        if (ImGui.SliderInt("##toast", ref toastThreshold, 0, 200_000, toastThreshold <= 0 ? "no alert" : "alert >= %d/day"))
-        {
-            this.Config.ToastThreshold = toastThreshold;
-            this.plugin.SaveConfig();
-        }
-
-        ImGui.SameLine();
-        ImGui.SetNextItemWidth(140f);
-        var autoScanHours = Math.Clamp(this.Config.AutoScanHours, 0, 48);
-        if (ImGui.SliderInt("##autoscan", ref autoScanHours, 0, 48, autoScanHours <= 0 ? "no auto-scan" : "auto every %dh"))
-        {
-            this.Config.AutoScanHours = autoScanHours;
-            this.plugin.SaveConfig();
-        }
-
-        UiKit.SectionHeader("World");
-        var worlds = this.plugin.Worlds;
-        var world = this.plugin.ResolveWorld();
-
-        ImGui.SetNextItemWidth(240f);
-        if (ImGui.BeginCombo("##world", string.IsNullOrEmpty(world) ? "select a world" : world))
-        {
-            foreach (var name in worlds)
+            Gw.BeginRow("World", "your current world unless you pin another");
+            var worldIndex = Array.IndexOf(this.worldChoices, world);
+            ImGui.SetNextItemWidth(240f);
+            if (this.worldChoices.Length > 0 && Gw.ComboBox(ref worldIndex, this.worldChoices))
             {
-                if (!ImGui.Selectable(name, name == world))
-                    continue;
-
-                config.WorldOverride = name;
+                config.WorldOverride = this.worldChoices[worldIndex];
                 this.plugin.SaveConfig();
             }
 
-            ImGui.EndCombo();
-        }
-
-        ImGui.SameLine();
-        if (ImGui.SmallButton("use current"))
-        {
-            config.WorldOverride = this.plugin.CurrentWorldName();
-            this.plugin.SaveConfig();
-        }
-
-        ImGui.Spacing();
-        ImGui.Separator();
-        UiKit.SectionHeader("Model");
-
-        var strategy = config.Strategy;
-        ImGui.SetNextItemWidth(220f);
-        if (ImGui.BeginCombo("##strategy", StrategyLabel(strategy)))
-        {
-            foreach (var value in Enum.GetValues<PricingStrategy>())
+            ImGui.SameLine();
+            if (Gw.Button("use current"u8, ButtonStyle.Plain, ButtonSize.Small))
             {
-                if (!ImGui.Selectable(StrategyLabel(value), value == strategy))
-                    continue;
-
-                config.Strategy = value;
+                config.WorldOverride = this.plugin.CurrentWorldName();
                 this.plugin.SaveConfig();
             }
 
-            ImGui.EndCombo();
+            Gw.EndRow();
         }
 
-        ImGui.SameLine();
-        Theme.Faint("where you sit in the price ladder");
+        Gw.EndSection();
 
-        var costMode = config.CostMode;
-        ImGui.SetNextItemWidth(220f);
-        if (ImGui.BeginCombo("##costmode", CostLabel(costMode)))
+        if (Gw.BeginSection("Model"u8))
         {
-            foreach (var value in Enum.GetValues<CostMode>())
-            {
-                if (!ImGui.Selectable(CostLabel(value), value == costMode))
-                    continue;
+            Gw.BeginRow("Tax", "3% outside the city-states, 5% inside");
+            ImGui.SetNextItemWidth(180f);
+            var tax = config.TaxPercent;
+            if (Gw.Slider(ref tax, 0f, 5f, "##tax"u8, 0f, "%.1f%%"))
+                config.TaxPercent = tax;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
 
-                config.CostMode = value;
+            Gw.BeginRow("Stack size", "units a listing holds");
+            ImGui.SetNextItemWidth(180f);
+            var stack = config.DefaultStackSize;
+            if (Gw.Slider(ref stack, 1, 99, "##stack"u8, 1))
+                config.DefaultStackSize = stack;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Dead after", "days to clear before a slot counts as dead");
+            ImGui.SetNextItemWidth(180f);
+            var deadDays = config.DeadAfterDays;
+            if (Gw.Slider(ref deadDays, 1, 120, "##dead"u8, 1, "%d d"))
+                config.DeadAfterDays = deadDays;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Minimum sales/day", "slower movers are left out of the model");
+            ImGui.SetNextItemWidth(180f);
+            var minVel = config.MinimumVelocity;
+            if (Gw.Slider(ref minVel, 0f, 20f, "##minvel"u8, 0f, "%.1f"))
+                config.MinimumVelocity = minVel;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Shortlist", "items priced exactly after the cheap pass");
+            ImGui.SetNextItemWidth(180f);
+            var shortlist = config.ShortlistSize;
+            if (Gw.Slider(ref shortlist, 50, 1500, "##shortlist"u8, 1))
+                config.ShortlistSize = shortlist;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Cache", "hours a quote stays fresh");
+            ImGui.SetNextItemWidth(180f);
+            var cacheHours = config.CacheHours;
+            if (Gw.Slider(ref cacheHours, 1, 48, "##cache"u8, 1, "%d h"))
+                config.CacheHours = cacheHours;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Auto-scan", "hours between scans, 0 for never");
+            ImGui.SetNextItemWidth(180f);
+            var autoScanHours = Math.Clamp(config.AutoScanHours, 0, 48);
+            if (Gw.Slider(ref autoScanHours, 0, 48, "##autoscan"u8, 1, autoScanHours <= 0 ? "off" : "%d h"))
+                config.AutoScanHours = autoScanHours;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Price strategy", "where you sit in the price ladder");
+            var strategyIndex = Array.IndexOf(StrategyValues, config.Strategy);
+            ImGui.SetNextItemWidth(220f);
+            if (Gw.ComboBox(ref strategyIndex, StrategyLabels))
+            {
+                config.Strategy = StrategyValues[strategyIndex];
                 this.plugin.SaveConfig();
             }
 
-            ImGui.EndCombo();
+            Gw.EndRow();
+
+            Gw.BeginRow("Cost basis", "revenue, buy, craft, or the cheaper of the two");
+            var costIndex = Array.IndexOf(CostValues, config.CostMode);
+            ImGui.SetNextItemWidth(220f);
+            if (Gw.ComboBox(ref costIndex, CostLabels))
+            {
+                config.CostMode = CostValues[costIndex];
+                this.plugin.SaveConfig();
+            }
+
+            Gw.EndRow();
         }
 
-        ImGui.SameLine();
-        Theme.Faint("cost basis: revenue, buy, craft, or the cheaper of the two");
+        Gw.EndSection();
 
-        var tax = config.TaxPercent;
-        ImGui.SetNextItemWidth(180f);
-        if (ImGui.SliderFloat("tax %", ref tax, 0f, 5f, "%.1f%%"))
-            config.TaxPercent = tax;
-
-        this.SaveAfterEdit();
-
-        ImGui.SameLine();
-        Theme.Faint("3% outside the city-states, 5% inside");
-
-        var stack = config.DefaultStackSize;
-        ImGui.SetNextItemWidth(180f);
-        if (ImGui.SliderInt("stack size", ref stack, 1, 99))
-            config.DefaultStackSize = stack;
-
-        this.SaveAfterEdit();
-
-        var deadDays = config.DeadAfterDays;
-        ImGui.SetNextItemWidth(180f);
-        if (ImGui.SliderInt("dead after (days)", ref deadDays, 1, 120))
-            config.DeadAfterDays = deadDays;
-
-        this.SaveAfterEdit();
-
-        var minVel = config.MinimumVelocity;
-        ImGui.SetNextItemWidth(180f);
-        if (ImGui.SliderFloat("min sales/day", ref minVel, 0f, 20f, "%.1f"))
-            config.MinimumVelocity = minVel;
-
-        this.SaveAfterEdit();
-
-        var shortlist = config.ShortlistSize;
-        ImGui.SetNextItemWidth(180f);
-        if (ImGui.SliderInt("shortlist", ref shortlist, 50, 1500))
-            config.ShortlistSize = shortlist;
-
-        this.SaveAfterEdit();
-
-        ImGui.SameLine();
-        Theme.Faint("items priced exactly after the cheap pass");
-
-        var cacheHours = config.CacheHours;
-        ImGui.SetNextItemWidth(180f);
-        if (ImGui.SliderInt("cache (hours)", ref cacheHours, 1, 48))
-            config.CacheHours = cacheHours;
-
-        this.SaveAfterEdit();
-
-        ImGui.Spacing();
-        ImGui.Separator();
-        UiKit.SectionHeader("Alerts");
-
-        var alertsOn = config.AlertsEnabled;
-        if (ImGui.Checkbox("chat alerts for undercuts and price drops", ref alertsOn))
+        if (Gw.BeginSection("Alerts"u8))
         {
-            config.AlertsEnabled = alertsOn;
-            this.plugin.SaveConfig();
+            Gw.BeginRow("Chat alerts", "undercuts and price drops");
+            var alertsOn = config.AlertsEnabled;
+            if (Gw.Toggle(ref alertsOn))
+            {
+                config.AlertsEnabled = alertsOn;
+                this.plugin.SaveConfig();
+            }
+
+            Gw.EndRow();
+
+            Gw.BeginRow("Also as a toast", "a brief popup on the same events");
+            var toasts = config.AlertToasts;
+            if (Gw.Toggle(ref toasts))
+            {
+                config.AlertToasts = toasts;
+                this.plugin.SaveConfig();
+            }
+
+            Gw.EndRow();
+
+            Gw.BeginRow("Poll every", "minutes between checks, one request per twenty watched items");
+            ImGui.SetNextItemWidth(180f);
+            var alertMinutes = config.AlertIntervalMinutes;
+            if (Gw.Slider(ref alertMinutes, 1, 120, "##alertpoll"u8, 1, "%d min"))
+                config.AlertIntervalMinutes = alertMinutes;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Undercut by", "how far below the current listing counts as undercut");
+            ImGui.SetNextItemWidth(180f);
+            var undercut = config.AlertUndercutPercent;
+            if (Gw.Slider(ref undercut, 0, 50, "##undercut"u8, 1, "%d%%"))
+                config.AlertUndercutPercent = undercut;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Price drop", "a fall this large triggers an alert");
+            ImGui.SetNextItemWidth(180f);
+            var drop = config.AlertPriceDropPercent;
+            if (Gw.Slider(ref drop, 1, 90, "##drop"u8, 1, "%d%%"))
+                config.AlertPriceDropPercent = drop;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Repeat after", "per-item cooldown, so one market cannot spam chat");
+            ImGui.SetNextItemWidth(180f);
+            var cooldownMinutes = config.AlertCooldownMinutes;
+            if (Gw.Slider(ref cooldownMinutes, 5, 1440, "##cooldown"u8, 5, "%d min"))
+                config.AlertCooldownMinutes = cooldownMinutes;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Pinned profit floor", "after a scan, pinned items above this say so");
+            ImGui.SetNextItemWidth(180f);
+            var floorGil = (int)Math.Clamp(config.AlertMinProfitPerDay, 0, 2_000_000);
+            if (Gw.Slider(ref floorGil, 0, 2_000_000, "##floor"u8, 1000, "%d gil/day"))
+                config.AlertMinProfitPerDay = floorGil;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Toast threshold", "the best gil/day that earns a toast, 0 for none");
+            ImGui.SetNextItemWidth(180f);
+            var toastThreshold = (int)Math.Clamp(config.ToastThreshold, 0, 200_000);
+            if (Gw.Slider(ref toastThreshold, 0, 200_000, "##toast"u8, 1000, toastThreshold <= 0 ? "off" : "%d/day"))
+                config.ToastThreshold = toastThreshold;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Check now", "/slotyield alerts does the same");
+            if (Gw.Button("Check now"u8, ButtonStyle.Plain, ButtonSize.Small))
+                this.plugin.RunAlertPoll(true);
+
+            Gw.EndRow();
         }
 
-        ImGui.SameLine();
-        var toasts = config.AlertToasts;
-        if (ImGui.Checkbox("also as a toast", ref toasts))
+        Gw.EndSection();
+
+        if (Gw.BeginSection("Repricing"u8))
         {
-            config.AlertToasts = toasts;
-            this.plugin.SaveConfig();
+            Gw.BeginRow("Minimum move", "gil between the old and new price before it is worth touching");
+            ImGui.SetNextItemWidth(180f);
+            var minMove = config.RepriceMinMoveGil;
+            if (Gw.Slider(ref minMove, 0, 5000, "##minmove"u8, 10, "%d gil"))
+                config.RepriceMinMoveGil = minMove;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Floor", "a price below this share of the current one is refused; 0 disables it");
+            ImGui.SetNextItemWidth(180f);
+            var floorPercent = config.RepriceFloorPercent;
+            if (Gw.Slider(ref floorPercent, 0, 100, "##floorpercent"u8, 1, "%d%%"))
+                config.RepriceFloorPercent = floorPercent;
+            if (Gw.Committed)
+                this.plugin.SaveConfig();
+            Gw.EndRow();
+
+            Gw.BeginRow("Auto-fill asking price", "when listing; /slotyield price does it on demand");
+            var autoPrice = config.AutoPriceSellDialog;
+            if (Gw.Toggle(ref autoPrice))
+            {
+                config.AutoPriceSellDialog = autoPrice;
+                this.plugin.SaveConfig();
+            }
+
+            Gw.EndRow();
         }
 
-        var alertMinutes = config.AlertIntervalMinutes;
-        ImGui.SetNextItemWidth(180f);
-        if (ImGui.SliderInt("poll every (min)", ref alertMinutes, 1, 120))
-            config.AlertIntervalMinutes = alertMinutes;
-
-        this.SaveAfterEdit();
-
-        ImGui.SameLine();
-        Theme.Faint("one quote request per twenty items watched");
-
-        var undercut = config.AlertUndercutPercent;
-        ImGui.SetNextItemWidth(180f);
-        if (ImGui.SliderInt("undercut by %", ref undercut, 0, 50))
-            config.AlertUndercutPercent = undercut;
-
-        this.SaveAfterEdit();
-
-        var drop = config.AlertPriceDropPercent;
-        ImGui.SetNextItemWidth(180f);
-        if (ImGui.SliderInt("price drop %", ref drop, 1, 90))
-            config.AlertPriceDropPercent = drop;
-
-        this.SaveAfterEdit();
-
-        var cooldownMinutes = config.AlertCooldownMinutes;
-        ImGui.SetNextItemWidth(180f);
-        if (ImGui.SliderInt("repeat after (min)", ref cooldownMinutes, 5, 1440))
-            config.AlertCooldownMinutes = cooldownMinutes;
-
-        this.SaveAfterEdit();
-
-        ImGui.SameLine();
-        Theme.Faint("per item, so one collapsing market does not spam chat");
-
-        var floorGil = (int)Math.Clamp(config.AlertMinProfitPerDay, 0, 2_000_000);
-        ImGui.SetNextItemWidth(180f);
-        if (ImGui.SliderInt("pinned profit floor (gil/day)", ref floorGil, 0, 2_000_000))
-            config.AlertMinProfitPerDay = floorGil;
-
-        this.SaveAfterEdit();
-
-        ImGui.SameLine();
-        Theme.Faint("after a scan, pinned items that climb above this say so");
-
-        if (ImGui.Button("Check now"))
-            this.plugin.RunAlertPoll(true);
-
-        ImGui.SameLine();
-        Theme.Faint("/slotyield alerts does the same");
-
-        ImGui.Spacing();
-        ImGui.Separator();
-        UiKit.SectionHeader("Repricing");
-
-        var minMove = config.RepriceMinMoveGil;
-        ImGui.SetNextItemWidth(180f);
-        if (ImGui.SliderInt("min move (gil)", ref minMove, 0, 5000))
-            config.RepriceMinMoveGil = minMove;
-
-        this.SaveAfterEdit();
-
-        ImGui.SameLine();
-        var floorPercent = config.RepriceFloorPercent;
-        ImGui.SetNextItemWidth(180f);
-
-        if (ImGui.SliderInt("floor %", ref floorPercent, 0, 100))
-            config.RepriceFloorPercent = floorPercent;
-
-        this.SaveAfterEdit();
-
-        ImGui.SameLine();
-        Theme.Faint("drops below this share of the current price are refused; 0 disables the floor");
-
-        var autoPrice = config.AutoPriceSellDialog;
-        if (ImGui.Checkbox("auto-fill the asking price when listing", ref autoPrice))
-        {
-            config.AutoPriceSellDialog = autoPrice;
-            this.plugin.SaveConfig();
-        }
-
-        ImGui.SameLine();
-        Theme.Faint("/slotyield price does it on demand");
-
-        ImGui.Spacing();
-        ImGui.Separator();
-        ImGui.TextWrapped(
-            "Model: a slot earns (units you capture per day) x (net price). You capture 1/(sellers at your " +
-            "price + 1) of the market's sales, because buyers work down the cheapest listings first. A deal " +
-            "takes 99 units to clear, so slow items are flagged as dead slots rather than quietly tying up gil.");
+        Gw.EndSection();
 
         ImGui.Spacing();
         Theme.Faint(
-            "Data: Universalis. This plugin only reads - it never buys, lists, or moves your character.");
+            "A slot earns (units you capture per day) x (net price). You capture 1/(sellers at your price + 1) " +
+            "of the market's sales, because buyers work down the cheapest listings first. A deal takes 99 units " +
+            "to clear, so slow items are flagged as dead slots rather than quietly tying up gil. Data: Universalis; " +
+            "this plugin only reads - it never buys, lists, or moves your character.");
     }
 
     // ------------------------------------------------------------------ helpers ----
@@ -3592,21 +3742,25 @@ public sealed class MainWindow : Window
         if (deltas.Count == 0)
             return;
 
-        UiKit.SectionHeader(title, color);
-
-        foreach (var delta in deltas)
+        if (Gw.BeginSection(title))
         {
-            var name = Truncate(this.plugin.Catalog.Name(delta.ItemId), 36);
-            var quality = delta.Quality == Quality.Hq ? "HQ" : "NQ";
-            var percent = delta.PriceChangePercent.ToString("+0.0%;-0.0%;0%");
-            var profit = delta.ProfitChange >= 0m
-                ? "+" + Money.Gil(delta.ProfitChange)
-                : "-" + Money.Gil(-delta.ProfitChange);
+            foreach (var delta in deltas)
+            {
+                var name = Truncate(this.plugin.Catalog.Name(delta.ItemId), 36);
+                var quality = delta.Quality == Quality.Hq ? "HQ" : "NQ";
+                var percent = delta.PriceChangePercent.ToString("+0.0%;-0.0%;0%");
+                var profit = delta.ProfitChange >= 0m
+                    ? "+" + Money.Gil(delta.ProfitChange)
+                    : "-" + Money.Gil(-delta.ProfitChange);
 
-            Theme.Colored(
-                color,
-                $"  {name,-36} {quality}  {Money.Gil(delta.Previous.Price),8} -> {Money.Gil(delta.Current.Price),8}   {percent,-7} profit {profit}");
+                Gw.Text(
+                    $"  {name,-36} {quality}  {Money.Gil(delta.Previous.Price),8} -> {Money.Gil(delta.Current.Price),8}   {percent,-7} profit {profit}",
+                    TextRole.Mono,
+                    Theme.ToColor(color));
+            }
         }
+
+        Gw.EndSection();
     }
 
     private void DrawEntrySection(string title, IReadOnlyList<SnapshotEntry> entries, Vector4 color)
@@ -3614,14 +3768,20 @@ public sealed class MainWindow : Window
         if (entries.Count == 0)
             return;
 
-        UiKit.SectionHeader(title, color);
-
-        foreach (var entry in entries)
+        if (Gw.BeginSection(title))
         {
-            var name = Truncate(this.plugin.Catalog.Name(entry.ItemId), 36);
-            var quality = entry.Quality == Quality.Hq ? "HQ" : "NQ";
-            Theme.Colored(color, $"  {name,-36} {quality}  {Money.Gil(entry.Price),8}   {Money.Gil(entry.ProfitPerDay),9}/day");
+            foreach (var entry in entries)
+            {
+                var name = Truncate(this.plugin.Catalog.Name(entry.ItemId), 36);
+                var quality = entry.Quality == Quality.Hq ? "HQ" : "NQ";
+                Gw.Text(
+                    $"  {name,-36} {quality}  {Money.Gil(entry.Price),8}   {Money.Gil(entry.ProfitPerDay),9}/day",
+                    TextRole.Mono,
+                    Theme.ToColor(color));
+            }
         }
+
+        Gw.EndSection();
     }
 
     private static string Truncate(string text, int max) => text.Length <= max ? text : text[..(max - 1)] + "~";

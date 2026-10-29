@@ -9,13 +9,13 @@ using SlotYield.Market;
 namespace SlotYield.UI;
 
 /// <summary>Side-by-side stats for the rows currently multi-selected.</summary>
-public sealed class CompareWindow : Window
+public sealed class CompareWindow : GlassWindow
 {
     private readonly Plugin plugin;
     private readonly MainWindow main;
 
     public CompareWindow(Plugin plugin, MainWindow main)
-        : base("Slot Yield - compare###SlotYieldCompare")
+        : base(plugin, "Slot Yield - compare###SlotYieldCompare")
     {
         this.plugin = plugin;
         this.main = main;
@@ -25,6 +25,21 @@ public sealed class CompareWindow : Window
 
     public override void Draw()
     {
+        try
+        {
+            this.DrawBody();
+            this.ReportDrawRecovered();
+        }
+        catch (Exception ex)
+        {
+            this.ReportDrawFailure(ex);
+        }
+    }
+
+    private void DrawBody()
+    {
+        this.DrawGlass();
+
         var result = this.plugin.State.Result;
         if (result is null)
         {

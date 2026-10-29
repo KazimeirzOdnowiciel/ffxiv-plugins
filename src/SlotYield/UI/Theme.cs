@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Glasswork;
 
 namespace SlotYield.UI;
 
@@ -11,13 +12,20 @@ public enum ThemeVariant
 }
 
 /// <summary>
-/// Slot Yield's palette: graphite panels, warm ledger text, brass as structure.
-/// Brass is the game's own market/gil colour, so the window reads as part of FFXIV rather
-/// than as a generic dark dashboard; green appears only on profit figures, never as chrome.
-/// The palette is swappable at runtime so a light "parchment" variant can be offered.
+/// Slot Yield's palette, read from the Glasswork <see cref="Look"/> the host owns.
 /// </summary>
+/// <remarks>
+/// N9: colour comes from the Look, never from literals. One assignment to
+/// <c>Plugin.Host.Look</c> restyles every widget, and this facade keeps the plugin's long-standing
+/// <c>Theme.*</c> names working on top of that, so the ~700 existing call sites did not have to
+/// change. The brass-on-graphite palette is preserved by the Eorzea Look, which is the game's own
+/// market/gil styling: gold accent, bronze hairlines, warm off-white ink.
+/// </remarks>
 public static class Theme
 {
+    /// <summary>The current Look, bound once by <see cref="Bind"/> at load and when the user switches.</summary>
+    public static Look Look { get; private set; } = Look.Eorzea();
+
     public static Vector4 Background { get; private set; }
     public static Vector4 Panel { get; private set; }
     public static Vector4 PanelHover { get; private set; }
@@ -30,10 +38,10 @@ public static class Theme
     public static Vector4 TextDim { get; private set; }
     public static Vector4 TextFaint { get; private set; }
 
-    /// <summary>Structural accent: brass, used for selection, focus and the slot strip.</summary>
+    /// <summary>Structural accent: the Look's accent, used for selection, focus and the slot strip.</summary>
     public static Vector4 Accent { get; private set; }
 
-    /// <summary>Brighter brass for the one emphasised figure on a row.</summary>
+    /// <summary>Brighter accent for the one emphasised figure on a row.</summary>
     public static Vector4 AccentBright { get; private set; }
 
     public static Vector4 Gold { get; private set; }
@@ -45,50 +53,39 @@ public static class Theme
     public static Vector4 Danger { get; private set; }
     public static Vector4 Hq { get; private set; }
 
-    static Theme() => Apply(ThemeVariant.Graphite);
-
-    public static void Apply(ThemeVariant variant)
+    /// <summary>
+    /// Rebinds every token to <paramref name="look"/>. Call when the Look changes, never per frame.
+    /// </summary>
+    public static void Bind(Look look)
     {
-        if (variant == ThemeVariant.Parchment)
-        {
-            Background = new Vector4(0.925f, 0.905f, 0.865f, 0.98f);
-            Panel = new Vector4(0.965f, 0.945f, 0.905f, 1f);
-            PanelHover = new Vector4(0.895f, 0.870f, 0.820f, 1f);
-            PanelRaised = new Vector4(0.835f, 0.810f, 0.760f, 1f);
-            Border = new Vector4(0.250f, 0.220f, 0.180f, 0.22f);
-            Hairline = new Vector4(0.250f, 0.220f, 0.180f, 0.12f);
-            Text = new Vector4(0.140f, 0.130f, 0.110f, 1f);
-            TextDim = new Vector4(0.360f, 0.340f, 0.300f, 1f);
-            TextFaint = new Vector4(0.500f, 0.470f, 0.420f, 1f);
-            Accent = new Vector4(0.630f, 0.460f, 0.130f, 1f);
-            AccentBright = new Vector4(0.780f, 0.600f, 0.200f, 1f);
-            Gold = new Vector4(0.700f, 0.540f, 0.180f, 1f);
-            Profit = new Vector4(0.180f, 0.450f, 0.220f, 1f);
-            Warn = new Vector4(0.620f, 0.400f, 0.100f, 1f);
-            Danger = new Vector4(0.620f, 0.170f, 0.150f, 1f);
-            Hq = new Vector4(0.240f, 0.360f, 0.600f, 1f);
-            return;
-        }
+        Look = look;
 
-        Background = new Vector4(0.0549f, 0.0706f, 0.0863f, 0.97f);
-        Panel = new Vector4(0.0784f, 0.1020f, 0.1255f, 1f);
-        PanelHover = new Vector4(0.1020f, 0.1333f, 0.1686f, 1f);
-        PanelRaised = new Vector4(0.1216f, 0.1569f, 0.1922f, 1f);
-        Border = new Vector4(0.902f, 0.855f, 0.776f, 0.10f);
-        Hairline = new Vector4(0.902f, 0.855f, 0.776f, 0.06f);
-        Text = new Vector4(0.902f, 0.882f, 0.839f, 1f);
-        TextDim = new Vector4(0.680f, 0.655f, 0.600f, 1f);
-        TextFaint = new Vector4(0.520f, 0.500f, 0.460f, 1f);
-        Accent = new Vector4(0.788f, 0.635f, 0.153f, 1f);
-        AccentBright = new Vector4(0.890f, 0.780f, 0.400f, 1f);
-        Gold = new Vector4(0.878f, 0.745f, 0.353f, 1f);
-        Profit = new Vector4(0.498f, 0.690f, 0.412f, 1f);
-        Warn = new Vector4(0.851f, 0.635f, 0.294f, 1f);
-        Danger = new Vector4(0.706f, 0.333f, 0.306f, 1f);
-        Hq = new Vector4(0.561f, 0.663f, 0.851f, 1f);
+        Background = look.Background.ToVector4();
+        Panel = look.SecondaryBackground.ToVector4();
+        PanelHover = look.Fill.ToVector4();
+        PanelRaised = look.TertiaryBackground.ToVector4();
+
+        Border = look.Separator.ToVector4();
+        Hairline = look.Separator.WithAlpha(look.Separator.A * 0.55f).ToVector4();
+
+        Text = look.Label.ToVector4();
+        TextDim = look.SecondaryLabel.ToVector4();
+        TextFaint = look.TertiaryLabel.ToVector4();
+
+        Accent = look.Accent.ToVector4();
+        AccentBright = look.Accent.Lighten(0.18f).ToVector4();
+        Gold = look.Accent.ToVector4();
+
+        Profit = look.Success.ToVector4();
+        Warn = look.Warning.ToVector4();
+        Danger = look.Destructive.ToVector4();
+        Hq = look.Info.ToVector4();
     }
 
     public static uint U32(Vector4 color) => ImGui.ColorConvertFloat4ToU32(color);
+
+    /// <summary>Adapter for the <c>Gw</c> widgets, which take a <see cref="Glasswork.Color"/>.</summary>
+    public static Glasswork.Color ToColor(Vector4 color) => new(color.X, color.Y, color.Z, color.W);
 
     public static uint WithAlpha(Vector4 color, float alpha) =>
         ImGui.ColorConvertFloat4ToU32(new Vector4(color.X, color.Y, color.Z, color.W * alpha));

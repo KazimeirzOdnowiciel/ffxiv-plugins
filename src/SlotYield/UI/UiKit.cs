@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Glasswork.Backend;
 
 namespace SlotYield.UI;
 
@@ -20,8 +21,9 @@ internal static class UiKit
         ImGui.GetWindowDrawList().AddLine(origin, origin + new Vector2(width, 0f), Theme.WithAlpha(Theme.Text, alpha));
     }
 
-    /// <summary>A drawn empty state: brass diamond, centred title, centred body.</summary>
-    public static void EmptyState(string title, string body)
+    /// <summary>A drawn empty state: brass diamond, centred title, centred body, optional action.</summary>
+    /// <returns>True when the optional action button was clicked.</returns>
+    public static bool EmptyState(string title, string body, string? action = null)
     {
         var drawList = ImGui.GetWindowDrawList();
         var origin = ImGui.GetCursorScreenPos();
@@ -47,6 +49,13 @@ internal static class UiKit
         ImGui.PopTextWrapPos();
         ImGui.PopStyleColor();
         ImGui.Spacing();
+
+        if (action is null)
+            return false;
+
+        var actionWidth = ImGui.CalcTextSize(action).X + 28f;
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + MathF.Max(0f, (width - actionWidth) * 0.5f));
+        return Gw.Button(action, Glasswork.Backend.ButtonStyle.Prominent, Glasswork.Backend.ButtonSize.Small);
     }
 
     /// <summary>A circular gauge: track plus an arc for the fraction used.</summary>
@@ -93,19 +102,13 @@ internal static class UiKit
         ImGui.Dummy(new Vector2(3f + (3f * 5.5f), ImGui.GetTextLineHeight()));
     }
 
-    /// <summary>A small rounded label, for scannable one-line lists (retainers, tags, statuses).</summary>
+    /// <summary>A small status label. Delegates to <c>Gw.Badge</c> so it shares the Look's badge metrics.</summary>
     public static void Chip(string label, Vector4 color)
     {
-        var drawList = ImGui.GetWindowDrawList();
-        var pos = ImGui.GetCursorScreenPos();
-        var textSize = ImGui.CalcTextSize(label);
-        const float padX = 7f;
-        const float padY = 2.5f;
-        var size = new Vector2(textSize.X + (padX * 2f), textSize.Y + (padY * 2f));
+        if (string.IsNullOrEmpty(label))
+            return;
 
-        drawList.AddRectFilled(pos, pos + size, Theme.WithAlpha(color, 0.22f), size.Y / 2f);
-        drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), pos + new Vector2(padX, padY), Theme.U32(color), label);
-        ImGui.Dummy(size);
+        Gw.Badge(label, Theme.ToColor(color));
     }
 
     /// <summary>
@@ -246,19 +249,37 @@ internal static class UiKit
     }
 
     /// <summary>
-    /// A filter toggle that reads as a chip instead of a bare ImGui checkbox: tinted when on,
-    /// outlined when off. Same interaction, far less "debug window".
+    /// A filter toggle that reads as a chip: a capsule the height of a control, tinted when on and
+    /// outlined when off. Drawn rather than themed over an ImGui button, because the Look's button
+    /// fill is the same card colour as the window and an unfilled button reads as loose text.
     /// </summary>
     public static bool ToggleChip(string label, ref bool value)
     {
-        ImGui.PushStyleColor(ImGuiCol.Button, value ? Theme.WithAlpha(Theme.Accent, 0.30f) : Theme.U32(Theme.PanelRaised));
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, value ? Theme.WithAlpha(Theme.Accent, 0.42f) : Theme.U32(Theme.PanelHover));
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.WithAlpha(Theme.Accent, 0.50f));
-        ImGui.PushStyleColor(ImGuiCol.Text, value ? Theme.Text : Theme.TextDim);
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3f);
-        var clicked = ImGui.Button(label);
-        ImGui.PopStyleVar();
-        ImGui.PopStyleColor(4);
+        var textSize = ImGui.CalcTextSize(label);
+        var height = ImGui.GetFrameHeight();
+        var size = new Vector2(MathF.Max(textSize.X + 20f, height + 10f), height);
+
+        var clicked = ImGui.InvisibleButton("##chip" + label, size);
+        var hovered = ImGui.IsItemHovered();
+        var held = ImGui.IsItemActive();
+        var pos = ImGui.GetItemRectMin();
+        var drawList = ImGui.GetWindowDrawList();
+
+        var fill = value
+            ? Theme.WithAlpha(Theme.Accent, held ? 0.46f : hovered ? 0.38f : 0.28f)
+            : hovered ? Theme.WithAlpha(Theme.PanelRaised, 0.95f) : Theme.WithAlpha(Theme.PanelRaised, 0.78f);
+        var border = value ? Theme.WithAlpha(Theme.Accent, 0.60f) : Theme.U32(Theme.Border);
+        var ink = value ? Theme.Text : Theme.TextDim;
+        var radius = height * 0.5f;
+
+        drawList.AddRectFilled(pos, pos + size, fill, radius);
+        drawList.AddRect(pos, pos + size, border, radius, 1f);
+        drawList.AddText(
+            ImGui.GetFont(),
+            ImGui.GetFontSize(),
+            pos + new Vector2((size.X - textSize.X) * 0.5f, (size.Y - textSize.Y) * 0.5f),
+            Theme.U32(ink),
+            label);
 
         if (clicked)
         {

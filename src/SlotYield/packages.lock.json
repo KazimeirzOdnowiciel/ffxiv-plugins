@@ -13,6 +13,40 @@
         "requested": "[1.2.39, )",
         "resolved": "1.2.39",
         "contentHash": "fcFN01tDTIQqDuTwr1jUQK/geofiwjG5DycJQOnC72i1SsLAk1ELe+apBOuZ11UMQG8YKFZG1FgvjZPbqHyatg=="
+      },
+      "Glasswork": {
+        "type": "Direct",
+        "requested": "[0.1.0-beta.2, )",
+        "resolved": "0.1.0-beta.2",
+        "contentHash": "gZ7bNpa0BWAUDWFt8Y5JdGgbJf0iYU6TPEC4ug0nh1ZUAHxG3cgkrsfJ0m75HR0cRSnYfFh9JbIQ3XJYKvhigA=="
+      },
+      "Glasswork.Backend": {
+        "type": "Direct",
+        "requested": "[0.1.0-beta.2, )",
+        "resolved": "0.1.0-beta.2",
+        "contentHash": "9hw9YpXEog0YL7SIYaBBJUg+WDA6bO9J2DGxhx3xwkYi3UPdirEghOz+nWHhkHFxeCiIWCJVdsEfvBJe61YK7A==",
+        "dependencies": {
+          "Glasswork": "0.1.0-beta.2",
+          "Glasswork.Glass": "0.1.0-beta.2"
+        }
+      },
+      "Glasswork.Dalamud": {
+        "type": "Direct",
+        "requested": "[0.1.0-beta.2, )",
+        "resolved": "0.1.0-beta.2",
+        "contentHash": "fAUjs6TdLIfEbwGZKuWbFrijJEzNVnrNF9tf46tlPGxTU/51qtVcnHZR3THok9+83lYSQ/t6JtjG6yjhsA+BfA==",
+        "dependencies": {
+          "Glasswork.Backend": "0.1.0-beta.2"
+        }
+      },
+      "Glasswork.Glass": {
+        "type": "Direct",
+        "requested": "[0.1.0-beta.2, )",
+        "resolved": "0.1.0-beta.2",
+        "contentHash": "nefh+fwXCGPu4/IjzsyDyLIRl2J1ju5o+L4E7b9ZvENkxw21WQEfWtDDQLmwx7lWPwGzMvwUySuKYSBDZof6vw==",
+        "dependencies": {
+          "Glasswork": "0.1.0-beta.2"
+        }
       }
     }
   }

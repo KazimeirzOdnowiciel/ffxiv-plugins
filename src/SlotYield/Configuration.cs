@@ -55,7 +55,7 @@ public sealed class WatchedItem
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 1;
+    public int Version { get; set; } = 2;
 
     public bool Enabled { get; set; } = true;
 
@@ -150,8 +150,17 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Items you want an alert for, regardless of the portfolio.</summary>
     public List<WatchedItem> Watchlist { get; set; } = new();
 
-    /// <summary>Colour palette variant.</summary>
+    /// <summary>Legacy palette choice. Migrated to <see cref="LookName"/> on load; kept so old saves read.</summary>
     public ThemeVariant Theme { get; set; } = ThemeVariant.Graphite;
+
+    /// <summary>
+    /// The Glasswork Look this plugin draws with: a built-in name (eorzea, aurora, liquid-light, …)
+    /// or the name of a theme in the config folder's <c>themes</c> directory.
+    /// </summary>
+    public string LookName { get; set; } = "eorzea";
+
+    /// <summary>Follow the player's game window theme instead of a fixed Look.</summary>
+    public bool FollowGameTheme { get; set; }
 
     /// <summary>Notify when a scan's best gil/day reaches this value (0 = off).</summary>
     public long ToastThreshold { get; set; }
@@ -229,6 +238,15 @@ public sealed class Configuration : IPluginConfiguration
 
     public void Normalize()
     {
+        if (this.Version < 2)
+        {
+            this.LookName = this.Theme == ThemeVariant.Parchment ? "eorzea-light" : "eorzea";
+            this.Version = 2;
+        }
+
+        if (string.IsNullOrWhiteSpace(this.LookName))
+            this.LookName = "eorzea";
+
         this.TaxPercent = Math.Clamp(this.TaxPercent, 0f, 10f);
         this.DefaultStackSize = Math.Clamp(this.DefaultStackSize, 1, 99);
         this.PortfolioSlots = Math.Clamp(this.PortfolioSlots, 1, 60);

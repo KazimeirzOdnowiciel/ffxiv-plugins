@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using Glasswork.Backend;
 using SlotYield.Core;
 
 namespace SlotYield.UI;
@@ -12,12 +13,17 @@ namespace SlotYield.UI;
 /// Compact, leave-on-screen valuation of everything you own. Deliberately small: total, trend, top
 /// categories, and how many stacks could not be priced.
 /// </summary>
-public sealed class WorthWindow : Window
+public sealed class WorthWindow : GlassWindow
 {
+    private static readonly string[] WorthModeLabels = { "min listing", "average sale" };
+
     private readonly Plugin plugin;
 
+    /// <summary>Sparkline samples, reused frame to frame so the chart allocates nothing.</summary>
+    private float[] sparkValues = Array.Empty<float>();
+
     public WorthWindow(Plugin plugin)
-        : base("Net worth###SlotYieldWorth")
+        : base(plugin, "Net worth###SlotYieldWorth")
     {
         this.plugin = plugin;
         this.Size = new Vector2(320f, 260f);
@@ -45,13 +51,28 @@ public sealed class WorthWindow : Window
 
     public override void Draw()
     {
+        try
+        {
+            this.DrawBody();
+            this.ReportDrawRecovered();
+        }
+        catch (Exception ex)
+        {
+            this.ReportDrawFailure(ex);
+        }
+    }
+
+    private void DrawBody()
+    {
+        this.DrawGlass();
+
         var snapshot = this.plugin.WorthSnapshot;
 
         if (snapshot is null)
         {
             Theme.Dimmed(this.plugin.WorthRefreshing ? "measuring your holdings..." : "not measured yet.");
 
-            if (ImGui.Button("Measure now"))
+            if (Gw.Button("Measure now"u8))
                 this.plugin.RefreshWorth();
 
             return;
@@ -128,33 +149,26 @@ public sealed class WorthWindow : Window
 
         ImGui.Spacing();
 
-        if (ImGui.Button("Refresh"))
+        if (Gw.Button("Refresh"u8))
             this.plugin.RefreshWorth();
 
         ImGui.SameLine();
 
         var mode = this.plugin.Configuration.WorthMode;
         ImGui.SetNextItemWidth(150f);
-        if (ImGui.BeginCombo("##worthmode", mode == WorthValuation.MinListing ? "min listing" : "average sale"))
+        var modeIndex = mode == WorthValuation.MinListing ? 0 : 1;
+        if (Gw.ComboBox(ref modeIndex, WorthModeLabels))
         {
-            foreach (var value in Enum.GetValues<WorthValuation>())
-            {
-                if (!ImGui.Selectable(value == WorthValuation.MinListing ? "min listing" : "average sale", value == mode))
-                    continue;
-
-                this.plugin.Configuration.WorthMode = value;
-                this.plugin.SaveConfig();
-                this.plugin.RefreshWorth();
-            }
-
-            ImGui.EndCombo();
+            this.plugin.Configuration.WorthMode = modeIndex == 0 ? WorthValuation.MinListing : WorthValuation.AverageSale;
+            this.plugin.SaveConfig();
+            this.plugin.RefreshWorth();
         }
 
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Minimum listing = liquidation value today; average sale = what it has been selling for.");
 
         var compactToggle = this.plugin.Configuration.WorthCompact;
-        if (ImGui.Checkbox("compact", ref compactToggle))
+        if (Gw.Checkbox(ref compactToggle, "compact"u8))
         {
             this.plugin.Configuration.WorthCompact = compactToggle;
             this.plugin.SaveConfig();
@@ -190,31 +204,16 @@ public sealed class WorthWindow : Window
             return;
         }
 
-        var height = 42f;
         var width = ImGui.GetContentRegionAvail().X;
-        var origin = ImGui.GetCursorScreenPos();
-        var drawList = ImGui.GetWindowDrawList();
 
-        var min = values.Min();
-        var max = values.Max();
-        var range = max - min;
-        if (range <= 0)
-            range = 1m;
+        if (this.sparkValues.Length != values.Count)
+            this.sparkValues = new float[values.Count];
 
-        var points = new Vector2[values.Count];
+        for (var index = 0; index < values.Count; index++)
+            this.sparkValues[index] = (float)values[index];
 
-        for (var i = 0; i < values.Count; i++)
-        {
-            var x = origin.X + (width * i / Math.Max(1, values.Count - 1));
-            var normalized = (float)((values[i] - min) / range);
-            var y = origin.Y + height - (normalized * height);
-            points[i] = new Vector2(x, y);
-        }
-
-        var color = Theme.WithAlpha(Theme.Accent, 0.9f);
-
-        for (var i = 1; i < points.Length; i++)
-            drawList.AddLine(points[i - 1], points[i], color, 1.5f);
-        ImGui.Dummy(new Vector2(width, height + 2f));
+        var sparkColor = Theme.Accent;
+        sparkColor.W *= 0.9f;
+        Gw.Sparkline(this.sparkValues, width, 42f, Theme.ToColor(sparkColor), true);
     }
 }

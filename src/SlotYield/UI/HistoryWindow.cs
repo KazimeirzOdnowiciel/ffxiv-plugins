@@ -3,19 +3,26 @@ using System.Numerics;
 using System.Linq;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
+using Glasswork.Backend;
+using Glasswork.Charts;
 using SlotYield.Core;
 
 namespace SlotYield.UI;
 
 /// <summary>A larger price-history chart with axes, for one item at a time.</summary>
-public sealed class HistoryWindow : Window
+public sealed class HistoryWindow : GlassWindow
 {
     private readonly Plugin plugin;
     private uint itemId;
     private Quality quality = Quality.Nq;
 
+    /// <summary>Chart inputs are rebuilt only when the item or the sample count changes.</summary>
+    private uint chartItem;
+    private float[] chartValues = Array.Empty<float>();
+    private ChartSeries[] chartSeries = Array.Empty<ChartSeries>();
+
     public HistoryWindow(Plugin plugin)
-        : base("Slot Yield - history###SlotYieldHistory")
+        : base(plugin, "Slot Yield - history###SlotYieldHistory")
     {
         this.plugin = plugin;
         this.Size = new Vector2(440f, 320f);
@@ -31,6 +38,21 @@ public sealed class HistoryWindow : Window
 
     public override void Draw()
     {
+        try
+        {
+            this.DrawBody();
+            this.ReportDrawRecovered();
+        }
+        catch (Exception ex)
+        {
+            this.ReportDrawFailure(ex);
+        }
+    }
+
+    private void DrawBody()
+    {
+        this.DrawGlass();
+
         var result = this.plugin.State.Result;
         if (result is null)
         {
@@ -73,13 +95,26 @@ public sealed class HistoryWindow : Window
         ImGui.Spacing();
         var series = current.Quote.PriceHistory;
 
-        var drawList = ImGui.GetWindowDrawList();
-        var origin = ImGui.GetCursorScreenPos();
+        if (this.chartItem != current.ItemId || this.chartValues.Length != series.Length)
+        {
+            this.chartItem = current.ItemId;
+            this.chartValues = new float[series.Length];
+            for (var index = 0; index < series.Length; index++)
+                this.chartValues[index] = (float)series[index];
+
+            this.chartSeries = new[] { new ChartSeries(this.chartValues, "price", Theme.ToColor(Theme.Accent)) };
+        }
+
         var available = ImGui.GetContentRegionAvail();
-        var width = available.X;
-        var height = MathF.Max(90f, available.Y - 26f);
-        var chartMin = origin;
-        var chartMax = origin + new Vector2(width, height);
+        var style = new ChartStyle
+        {
+            Axes = true,
+            Grid = true,
+            Hover = true,
+            Height = MathF.Max(90f, available.Y - 26f),
+        };
+
+        Gw.Chart("##history"u8, ChartKind.Line, this.chartSeries, style, available.X);
 
         var min = decimal.MaxValue;
         var max = decimal.MinValue;
@@ -89,30 +124,6 @@ public sealed class HistoryWindow : Window
             if (value > max) max = value;
         }
 
-        if (max <= min)
-            max = min + 1m;
-
-        drawList.AddRectFilled(chartMin, chartMax, Theme.WithAlpha(Theme.PanelRaised, 0.35f));
-
-        for (var grid = 0; grid <= 3; grid++)
-        {
-            var y = chartMin.Y + (height * grid / 3f);
-            drawList.AddLine(new Vector2(chartMin.X, y), new Vector2(chartMax.X, y), Theme.WithAlpha(Theme.Text, 0.06f));
-            drawList.AddText(ImGui.GetFont(), ImGui.GetFontSize(), new Vector2(chartMin.X + 4f, y + 1f), Theme.U32(Theme.TextFaint), Money.Gil(max - ((max - min) * grid / 3m)));
-        }
-
-        var previous = Vector2.Zero;
-        for (var index = 0; index < series.Length; index++)
-        {
-            var x = chartMin.X + (width * index / (series.Length - 1));
-            var normalized = (float)((series[index] - min) / (max - min));
-            var point = new Vector2(x, chartMax.Y - (height * normalized));
-            if (index > 0)
-                drawList.AddLine(previous, point, Theme.U32(Theme.Accent), 1.6f);
-            previous = point;
-        }
-
-        ImGui.Dummy(new Vector2(width, height + 4f));
         Theme.Faint($"{series.Length} days   low {Money.Gil(min)}   high {Money.Gil(max)}   now {Money.Gil(series[series.Length - 1])}");
     }
 }
