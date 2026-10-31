@@ -200,8 +200,11 @@ internal sealed class MountActions
     }
 
     /// <summary>
-    /// Opens the game's own Mount Guide, which is where a mount is shown as a 3D model. The guide is
-    /// its own addon ("MountNoteBook") driven by <c>AgentMountNoteBook</c>; the agent's inherited
+    /// Opens the game's own Mount Guide. It does <em>not</em> show the mount in 3D: the guide's
+    /// 192x192 preview is the same flat artwork the detail pane already draws, measured in the live
+    /// client (the preview node was pixel-identical across four minutes). What the hand-off buys is
+    /// the game's own list, its Ride action and the favourite/roulette controls. The guide is its own
+    /// addon ("MountNoteBook") driven by <c>AgentMountNoteBook</c>; the agent's inherited
     /// <c>Show()</c> virtual is what the game itself calls to open that window. The chat command
     /// <c>/mountguide</c> is handled by the game's command dispatcher, which
     /// <c>ICommandManager.ProcessCommand</c> does not reach from a plugin.

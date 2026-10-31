@@ -464,8 +464,10 @@ public sealed partial class MountbookView
             ImGui.SameLine(0f, spacing);
         }
 
-        // The game's Mount Guide is the only place a mount is drawn as a real 3D model, so this is
-        // the honest "see it in 3D" button: it hands the player to the native view.
+        // The guide is not a 3D viewport, whatever the old note here said: its 192x192 preview is the
+        // same flat artwork this pane already draws, and it was pixel-identical across four minutes in
+        // the live client. What the guide still adds is the game's own list with the Ride action and
+        // the favourite/roulette controls, which is why the button stays.
         var guideReason = Reason(state.GuideDisabledReason);
 
         ImGui.BeginDisabled(guideReason is not null);
