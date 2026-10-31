@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- Must match the plugin's TFM (Dalamud.NET.Sdk targets net10.0-windows). -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <StrictConventions>true</StrictConventions>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Mountbook.Tests</RootNamespace>
+
+    <!-- xunit v3 test projects are executables. That also makes `dotnet run` work as a
+         fallback anywhere `dotnet test` cannot spawn the VSTest testhost. -->
+    <OutputType>Exe</OutputType>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+
+    <!-- Makes `dotnet test` drive the Microsoft.Testing.Platform runner instead of the
+         VSTest testhost. -->
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="3.0.0" />
+  </ItemGroup>
+
+  <!--
+    The plugin's Dalamud-free logic is compiled INTO this project by path, and the plugin
+    project is deliberately NOT referenced.
+
+    That is the point: a Dalamud type used inside Services/ fails THIS build. CONTRIBUTING.md
+    T1 ("logic that can be tested has no Dalamud dependency") becomes a compiler check instead
+    of a review opinion, and new files under Services/ are picked up with no csproj edit.
+  -->
+  <ItemGroup>
+    <Compile Include="..\Mountbook\Services\**\*.cs" LinkBase="Linked\Services" />
+
+    <!-- The view states are Dalamud-free by design (T7), so their one-frame request contract can be
+         tested. ConfigViewState is linked too: it had the same contract and no test, and its reset was
+         missing a request. -->
+    <Compile Include="..\Mountbook\Views\MountViewState.cs" LinkBase="Linked\Views" />
+    <Compile Include="..\Mountbook\Views\ConfigViewState.cs" LinkBase="Linked\Views" />
+  </ItemGroup>
+
+  <!-- The shipped dataset is parsed by a test, so it has to sit next to the test binary. The
+       plugin itself embeds the same file as a resource (see Mountbook.csproj). -->
+  <ItemGroup>
+    <None Include="..\Mountbook\Data\mount-sources.json"
+          Link="mount-sources.json"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

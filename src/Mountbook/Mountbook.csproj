@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <Version>0.1.0.0</Version>
+    <Author>Deepseek</Author>
+    <Name>Mountbook</Name>
+    <Punchline>A collection book for every mount: how to obtain it, what it costs, what it sells for</Punchline>
+    <Description>Every mount in the game in one window: search and filter (with operators like tradeable:y or patch:&gt;=6.1), order it, group it by expansion, patch or acquire method, and read it as a card grid or a dense sortable table.
+
+The detail pane shows the game's artwork and flavour text, a "How to obtain" list where every row that names a duty, quest or achievement opens its page, a token price with your own progress ("12,000 Seafarer's Cowries - you have 3,400, 8,600 to go"), community rarity, and - for a tradeable mount, when you ask - the cheapest listing on your data center.
+
+The plugin reads the Mount, MountTransient and Item sheets and your own unlocked-mount state, and it writes nothing to the game. The Ride button uses the same mount action you could press yourself; the whistle link is an ordinary chat item link. Its one network call is the market price you ask for.</Description>
+    <RepoUrl>https://github.com/KazimeirzOdnowiciel/Deepseek-Kingdom</RepoUrl>
+    <Tags>mounts;collection;mount guide;how to obtain;market board;prices;glasswork</Tags>
+
+    <!-- Opts this project into warnings-as-errors, code-style enforcement and
+         nullable from Directory.Build.props. Do not remove. -->
+    <StrictConventions>true</StrictConventions>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Lets the previews project draw the internal view classes against a golden image. -->
+    <InternalsVisibleTo Include="Mountbook.Previews" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The obtain snapshot (patch, whistle item, source lines) generated at dev time by
+      scripts/generate-mount-sources. The LogicalName is pinned here and mirrored by
+      MountCatalog.ResourceName; letting MSBuild derive it would turn a folder rename into a
+      runtime "missing resource" bug.
+    -->
+    <EmbeddedResource Include="Data/mount-sources.json"
+                      LogicalName="Mountbook.Data.mount-sources.json" />
+  </ItemGroup>
+
+  <!--
+    Glasswork: real refracting glass behind the window and themed widgets in place of ImGui's.
+    MIT, four prerelease packages, API 15. Ships ~900 KB of its own assemblies in the plugin zip.
+
+    The TerraFX Reference is NOT optional and is NOT a package: the glass renderer compiles
+    against the TerraFX.Interop.Windows that Dalamud itself ships. $(DalamudLibPath) is defined
+    by Dalamud.NET.Sdk; Private=false keeps that 28 MB file out of the plugin.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Glasswork" Version="0.1.0-beta.2" />
+    <PackageReference Include="Glasswork.Glass" Version="0.1.0-beta.2" />
+    <PackageReference Include="Glasswork.Backend" Version="0.1.0-beta.2" />
+    <PackageReference Include="Glasswork.Dalamud" Version="0.1.0-beta.2" />
+    <Reference Include="TerraFX.Interop.Windows">
+      <HintPath>$(DalamudLibPath)TerraFX.Interop.Windows.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

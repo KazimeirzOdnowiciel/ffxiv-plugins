@@ -1,0 +1,17 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <!-- The preview assembly must not be packaged as a plugin. -->
+    <Use_DalamudPackager>false</Use_DalamudPackager>
+    <RootNamespace>Mountbook.Previews</RootNamespace>
+    <StrictConventions>true</StrictConventions>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mountbook\Mountbook.csproj" />
+    <Reference Include="TerraFX.Interop.Windows">
+      <HintPath>$(DalamudLibPath)TerraFX.Interop.Windows.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

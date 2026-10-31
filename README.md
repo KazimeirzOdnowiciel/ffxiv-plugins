@@ -20,6 +20,7 @@ version does not show up right away.
 
 | Plugin | Version | What it does |
 |---|---|---|
+| **Mountbook** | 0.1.0.0 | Every mount in the game in one window: a card grid or a dense sortable table, search operators, ordering (including market price and a seeded "surprise me"), grouping by expansion, patch or acquire method, a wanted list with JSON export and import, and a detail pane with the game's artwork, community rarity, token prices with your own progress, market prices on demand and a "How to obtain" list whose rows open the wiki page they name. |
 | **Slot Yield** | 0.2.0.2 | Treats your retainer slots as a portfolio: scans the market board via Universalis, models how much of each item's daily sales you can actually capture, and picks the items that earn the most gil per slot per day. Also tracks your own listings, alerts on undercuts, plans crafts from your bags, and can reprice or list for you on request. |
 | **Roulette Bingo** | 0.1.0.1 | A generated 5×5 bingo card for every duty you enter, filled with the small disasters and rituals of party content. Auto-detects deaths, wipes, vuln stacks and the chat classics; every card is seeded so a code reproduces the same board. |
 | **Duty Recap** | 0.0.0.1 | A post-duty scorecard: who died and how often, wipes, chat chatter and peak vuln stacks, graded and compared against your personal best for that duty. |
