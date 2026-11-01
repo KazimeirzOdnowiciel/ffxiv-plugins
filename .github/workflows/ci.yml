@@ -3,7 +3,8 @@ name: CI
 # The gate that release.yml was missing: Mountbook's test suite and its golden
 # renders. release.yml calls this workflow (`uses: ./.github/workflows/ci.yml`),
 # so a red test blocks a release even on a direct push to main; a pull request
-# runs it on its own.
+# runs it on its own. It deliberately has no push trigger of its own: on main it
+# would run twice, once here and once inside release.yml.
 #
 # Both jobs are deliberately separate: the test project compiles Services/ by
 # path and references no Dalamud assembly, so it needs neither the Dalamud
@@ -12,8 +13,6 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
-  push:
     branches: [main]
   workflow_call:
 

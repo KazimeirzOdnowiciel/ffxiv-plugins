@@ -45,6 +45,23 @@ the images you meant to move. A scene is any public parameterless `IPreviewScree
 member and `--scale` is refused with `--assembly` - so scale-dependent defects are caught by audit and by
 a fix's own reasoning, not by an image.
 
+The suite and the golden compare run in CI too: `.github/workflows/ci.yml` has a **Tests** job
+(`dotnet run` on the xunit v3 project, nothing else - it compiles `Services/` by path and
+references no Dalamud assembly, so it needs no `DALAMUD_HOME`) and a **Goldens** job (Dalamud
+assemblies, `glasswork.preview 0.1.0-beta.2` pinned, then `--compare` with `--out`).
+
+The goldens are gating, not a local-only habit. The question was whether a runner with no GPU
+can render them at all; it can. `--list-adapters` on `windows-latest` reports only "Microsoft
+Basic Render Driver", and the ten committed goldens still come back with 0 differing pixels and
+max delta 0 in 9 s for all ten (job: 75 s, mostly the Dalamud download and the build). The
+tests job is ~45 s, 11 s of it the suite. A failure uploads the actuals and diffs as the
+`previews` artifact.
+
+Two things follow from that: the renderer version in `ci.yml` is pinned because a bump moves
+pixels and must be a re-baseline decision, and a new scene needs its golden committed in the
+same change - CI renders every `IPreviewScreen` in the assembly, so an uncommitted golden is a
+red build, not a quiet skip.
+
 `dotnet test` does not start in this environment (the test host cannot get a named pipe); `dotnet run` on
 the xunit v3 project is the portable path.
 
@@ -73,6 +90,10 @@ map cannot read); the committed file is replaced only when nothing is an error. 
 the runbook - the flags, what every finding code means, and the rest of the release path.
 
 ## Release
+
+CI gates all of it: `release.yml` calls `.github/workflows/ci.yml` as a `needs:` job, so a red
+test or a moved golden stops the run before `build.ps1` and nothing is committed. A pull request
+runs the same workflow on its own.
 
 1. Bump `AssemblyVersion` in `src/<Name>/<Name>.csproj`. Dalamud only offers an update when this
    number changes, so a rebuild without a bump is invisible to users.

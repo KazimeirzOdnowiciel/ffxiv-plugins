@@ -12,6 +12,7 @@ on:
       - "src/**"
       - "build.ps1"
       - ".github/workflows/release.yml"
+      - ".github/workflows/ci.yml"
   workflow_dispatch:
 
 concurrency:
