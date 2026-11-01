@@ -19,6 +19,10 @@
 
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="3.0.0" />
+
+    <!-- The same deserialiser Dalamud uses, so a fixture is read the way the plugin's own load path reads it:
+         PluginConfigurations.LoadForType<T> is JsonConvert.DeserializeObject<T> with TypeNameHandling.None. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
   </ItemGroup>
 
   <!--
@@ -37,6 +41,18 @@
          missing a request. -->
     <Compile Include="..\Mountbook\Views\MountViewState.cs" LinkBase="Linked\Views" />
     <Compile Include="..\Mountbook\Views\ConfigViewState.cs" LinkBase="Linked\Views" />
+
+    <!-- The settings shape and its migration ladder, by path for the same reason as Services/: a Dalamud type in
+         Configuration.Shape.cs fails this build, and an old config file can be run through the real Migrate. The
+         Dalamud half (Configuration.cs) is deliberately not linked - it is the only part that may name the
+         plugin interface. -->
+    <Compile Include="..\Mountbook\Configuration.Shape.cs" LinkBase="Linked" />
+  </ItemGroup>
+
+  <!-- Real settings files from three earlier builds, plus one hand-damaged copy. They are read as files, not as
+       string literals, so what the test parses is the bytes a user's disk holds. -->
+  <ItemGroup>
+    <None Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- The shipped dataset is parsed by a test, so it has to sit next to the test binary. The

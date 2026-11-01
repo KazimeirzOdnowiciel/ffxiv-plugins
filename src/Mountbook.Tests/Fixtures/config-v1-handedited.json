@@ -1,0 +1,50 @@
+{
+  "$type": "Mountbook.Configuration, Mountbook",
+  "Version": 1,
+  "MainWindowOpen": true,
+  "SearchText": null,
+  "Ownership": 99,
+  "Expansion": -3,
+  "Order": 77,
+  "ViewMode": 42,
+  "GroupBy": -1,
+  "SelectedMountId": 192,
+  "WantedMounts": null,
+  "SavedSource": "pvp ",
+  "KnownOwnedIds": null,
+  "RecentCollected": null,
+  "LookName": "   ",
+  "Grinds": {
+    "5": null,
+    "7": {
+      "Have": -4,
+      "Want": 0,
+      "Note": "   ",
+      "UpdatedAt": 0
+    },
+    "9": {
+      "Have": 300,
+      "Want": 0,
+      "Note": "saved 300",
+      "UpdatedAt": 1730000000
+    }
+  },
+  "Watches": {
+    "11": null,
+    "12": {
+      "Threshold": 0,
+      "CheckedAt": 0,
+      "LastSeen": 0,
+      "Alerted": false
+    },
+    "13": {
+      "Threshold": 500000,
+      "CheckedAt": -12,
+      "LastSeen": -1,
+      "Alerted": true
+    }
+  },
+  "BoardSort": 9,
+  "BoardWindowOpen": false,
+  "FollowGameTheme": true
+}

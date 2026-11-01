@@ -1,0 +1,61 @@
+{
+  "$type": "Mountbook.Configuration, Mountbook",
+  "Version": 1,
+  "MainWindowOpen": true,
+  "SearchText": "",
+  "Ownership": 3,
+  "Expansion": 4,
+  "Order": 5,
+  "ViewMode": 1,
+  "GroupBy": 2,
+  "SelectedMountId": 192,
+  "WantedMounts": [
+    192,
+    82,
+    300
+  ],
+  "SavedSource": "Gold Saucer",
+  "KnownOwnedIds": [
+    1,
+    6,
+    9,
+    15,
+    18
+  ],
+  "RecentCollected": {
+    "82": 1731111111,
+    "192": 1730000000
+  },
+  "LookName": "graphite",
+  "Grinds": {
+    "82": {
+      "Have": 640,
+      "Want": 1200,
+      "Note": "shared fate runs",
+      "UpdatedAt": 1731200000
+    },
+    "300": {
+      "Have": 450,
+      "Want": 0,
+      "Note": null,
+      "UpdatedAt": 1731112222
+    }
+  },
+  "Watches": {
+    "82": {
+      "Threshold": 250000,
+      "CheckedAt": 1731200000,
+      "LastSeen": 0,
+      "Alerted": true
+    },
+    "192": {
+      "Threshold": 900000,
+      "CheckedAt": 1731200500,
+      "LastSeen": 875000,
+      "Alerted": false
+    }
+  },
+  "BoardSort": 1,
+  "BoardWindowOpen": true,
+  "FollowGameTheme": false
+}

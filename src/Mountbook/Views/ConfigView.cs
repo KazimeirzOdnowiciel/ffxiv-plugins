@@ -180,6 +180,53 @@ public sealed class ConfigView
             }
 
             Gw.EndRow();
+
+            // Everything, not just the filters above: this is the one control in the window that can take the
+            // wanted list, the grind records and the watches with it, so it asks first (ConfigReset decides
+            // whether there is anything to ask about). The view raises the request; the window owns the
+            // pending flag, because a confirmation has to survive the frame the click landed in.
+            Gw.BeginRow(Loc.T("config.resetAll"), Loc.T("config.resetAll.subtitle"));
+
+            if (!state.ResetConfirmOpen
+                && Gw.Button(Loc.T("config.resetAll"), ButtonStyle.Default))
+            {
+                state.ResetAllRequested = true;
+            }
+
+            Gw.EndRow();
+
+            if (state.ResetConfirmOpen)
+            {
+                // Two lines rather than one: the counts line is what the Fit() below would trim first, and a
+                // confirmation whose "there is no undo" got cut is not a confirmation. Both are footnote
+                // weight, which is what the section's own footer uses.
+                Gw.Text(
+                    Fit(
+                        Loc.F(
+                            "config.resetAll.confirm",
+                            state.ResetImpact.Wanted,
+                            state.ResetImpact.Grinds,
+                            state.ResetImpact.Watches),
+                        ImGui.GetContentRegionAvail().X,
+                        TextRole.Footnote),
+                    TextRole.Footnote);
+
+                Gw.Text(Loc.T("config.resetAll.noUndo"), TextRole.Footnote);
+
+                var gap = Frame.Look.SpaceSmall * Frame.Scale;
+
+                if (Gw.Button(Loc.T("config.resetAll.yes"), ButtonStyle.Plain, ButtonSize.Small))
+                {
+                    state.ResetConfirmRequested = true;
+                }
+
+                ImGui.SameLine(0f, gap);
+
+                if (Gw.Button(Loc.T("config.resetAll.cancel"), ButtonStyle.Plain, ButtonSize.Small))
+                {
+                    state.ResetCancelRequested = true;
+                }
+            }
         }
 
         Gw.EndSection();

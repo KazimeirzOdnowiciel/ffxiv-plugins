@@ -1,0 +1,45 @@
+{
+  "$type": "Mountbook.Configuration, Mountbook",
+  "Version": 1,
+  "MainWindowOpen": false,
+  "SearchText": "wondrous",
+  "Ownership": 3,
+  "Expansion": 0,
+  "Order": 2,
+  "ViewMode": 0,
+  "GroupBy": 1,
+  "SelectedMountId": 82,
+  "WantedMounts": [
+    192,
+    82,
+    300
+  ],
+  "SavedSource": "Achievement",
+  "KnownOwnedIds": [
+    1,
+    6,
+    9,
+    15
+  ],
+  "RecentCollected": {
+    "82": 1731111111
+  },
+  "LookName": "graphite",
+  "Grinds": {
+    "82": {
+      "Have": 300,
+      "Want": 1200,
+      "Note": "shared fate runs",
+      "UpdatedAt": 1731111111
+    },
+    "300": {
+      "Have": 450,
+      "Want": 0,
+      "Note": null,
+      "UpdatedAt": 1731112222
+    }
+  },
+  "BoardSort": 1,
+  "BoardWindowOpen": true,
+  "FollowGameTheme": false
+}

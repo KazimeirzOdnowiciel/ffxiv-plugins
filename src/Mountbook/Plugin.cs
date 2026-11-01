@@ -115,12 +115,19 @@ public sealed class Plugin : IDalamudPlugin
     /// reports as a hitch, kept out of the log on every later frame.</summary>
     private bool firstFrameCostLogged;
 
+    /// <summary>
+    /// The line to show once on the first frame after an unreadable settings file was moved aside, or null.
+    /// A toast is the only notice a player is likely to see - the file is read before login, when there is no
+    /// chat window to write to - so it is drawn once rather than logged and forgotten.
+    /// </summary>
+    private string? configRecoveryNotice;
+
     public Plugin()
     {
         // Before anything else builds a label: the views read their strings once, at the first draw.
         Localisation.Apply(PluginInterface, Log);
 
-        Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        Configuration = LoadConfiguration();
         Configuration.Migrate();
 
         Host = new GlassworkHost(PluginInterface, Log);
@@ -483,6 +490,14 @@ public sealed class Plugin : IDalamudPlugin
 
             afterSetup = firstFrame?.Elapsed.TotalMilliseconds ?? 0d;
 
+            // Queued by LoadConfiguration when the settings file could not be read. Once, and inside the
+            // frame the host has already opened: Gw.Toast only queues, the host draws the capsule.
+            if (configRecoveryNotice is { } notice)
+            {
+                configRecoveryNotice = null;
+                Gw.Toast(notice, ToastKind.Error);
+            }
+
             // The price watch's clock, and the only thing that makes this plugin touch the network on its
             // own. It never waits on a socket: requests are started as tasks and read back on a later frame.
             TickWatchPoll();
@@ -687,6 +702,53 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception ex)
         {
             Log.Debug(ex, "Saving the configuration failed.");
+        }
+    }
+
+    /// <summary>
+    /// Reads the settings file, and treats an unreadable one as "start from defaults" instead of as a
+    /// reason not to load at all.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Measured against the shipped loader (Dalamud 15.0.3.9): <c>GetPluginConfig()</c> reflects into
+    /// <c>PluginConfigurations.LoadForType&lt;T&gt;</c>, whose <c>JsonConvert.DeserializeObject&lt;T&gt;</c>
+    /// throws on a truncated or garbage file - and nothing between there and this constructor catches it, so
+    /// the plugin would sit in <c>LoadError</c> and never appear. Defaults are what an *empty* file or the
+    /// literal <c>null</c> gives; a corrupt one is the case this method exists for.
+    /// </para>
+    /// <para>
+    /// The file is moved aside rather than overwritten, so a wanted list that cost the player an evening can
+    /// be recovered from it by hand. <see cref="ConfigRecovery"/> does the moving and the rename is logged
+    /// with the exception that caused it; the note to the player is queued for the first frame, because a
+    /// toast needs the UI and this runs before login.
+    /// </para>
+    /// </remarks>
+    private Configuration LoadConfiguration()
+    {
+        try
+        {
+            return PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Could not read the Mountbook settings file; starting from defaults.");
+
+            string path = PluginInterface.ConfigFile.FullName;
+            string? backup = ConfigRecovery.TryMoveAside(path, DateTimeOffset.UtcNow);
+
+            if (backup is null)
+            {
+                Log.Error("The unreadable settings file at {Path} could not be moved aside; the next save will overwrite it.", path);
+            }
+            else
+            {
+                Log.Error("The unreadable settings file was kept as {Backup}.", backup);
+            }
+
+            configRecoveryNotice = Loc.T("toast.configRecovered");
+
+            return new Configuration();
         }
     }
 

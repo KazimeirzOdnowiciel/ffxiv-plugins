@@ -1,3 +1,5 @@
+using Mountbook.Services;
+
 namespace Mountbook.Views;
 
 /// <summary>
@@ -72,6 +74,27 @@ public sealed class ConfigViewState
     /// <summary>True when the player asked to reset the saved browse state.</summary>
     public bool ResetBrowseRequested { get; set; }
 
+    /// <summary>
+    /// What a reset to defaults would take with it. Copied from the config every frame so the confirmation can
+    /// name it without the view knowing where it came from.
+    /// </summary>
+    public ConfigResetImpact ResetImpact { get; set; }
+
+    /// <summary>
+    /// True while the confirmation row is open. The window owns the pending flag (it survives the frame the
+    /// click happened in) and copies it in here, so the view draws the row from its state like everything else.
+    /// </summary>
+    public bool ResetConfirmOpen { get; set; }
+
+    /// <summary>True when the player clicked "Reset everything". Confirmed or not is the window's decision.</summary>
+    public bool ResetAllRequested { get; set; }
+
+    /// <summary>True when the player confirmed the reset in the confirmation row.</summary>
+    public bool ResetConfirmRequested { get; set; }
+
+    /// <summary>True when the player backed out of the confirmation row.</summary>
+    public bool ResetCancelRequested { get; set; }
+
     /// <summary>True when the player asked to put the wanted list on the clipboard as JSON.</summary>
     public bool CopyWantedRequested { get; set; }
 
@@ -90,6 +113,9 @@ public sealed class ConfigViewState
         CopyThemeRequested = false;
         OpenThemesFolderRequested = false;
         ResetBrowseRequested = false;
+        ResetAllRequested = false;
+        ResetConfirmRequested = false;
+        ResetCancelRequested = false;
         CopyWantedRequested = false;
         ImportWantedRequested = false;
     }

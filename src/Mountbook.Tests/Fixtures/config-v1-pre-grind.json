@@ -1,0 +1,27 @@
+{
+  "$type": "Mountbook.Configuration, Mountbook",
+  "Version": 1,
+  "MainWindowOpen": true,
+  "SearchText": "trial",
+  "Ownership": 2,
+  "Expansion": 3,
+  "Order": 4,
+  "ViewMode": 1,
+  "GroupBy": 2,
+  "SelectedMountId": 373,
+  "WantedMounts": [
+    192,
+    82
+  ],
+  "SavedSource": "Trial",
+  "KnownOwnedIds": [
+    1,
+    6,
+    9
+  ],
+  "RecentCollected": {
+    "192": 1730000000
+  },
+  "LookName": "aurora",
+  "FollowGameTheme": true
+}

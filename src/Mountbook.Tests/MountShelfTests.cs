@@ -234,7 +234,7 @@ public sealed class MountShelfTests
         Assert.Equal(0, shelf.Count);
     }
 
-[Fact]
+    [Fact]
     public void ReadsTheHeaderThisBuildUnderstands()
     {
         const string json = """

@@ -27,6 +27,13 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
     /// <summary>Set on open: the next draw grows the window if the body it drew does not fit.</summary>
     private bool fitOnNextDraw;
 
+    /// <summary>
+    /// True from the click that asked for a reset to defaults until the player answers the confirmation row.
+    /// It lives here rather than in the view state because the state is rebuilt every frame and a
+    /// confirmation has to survive that.
+    /// </summary>
+    private bool resetConfirmPending;
+
     private int cachedOwned = -1;
 
     private int cachedTotal = -1;
@@ -73,6 +80,10 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
     {
         ImGui.SetNextWindowCollapsed(false, ImGuiCond.Always);
         fitOnNextDraw = true;
+
+        // A confirmation belongs to the visit that opened it: a player who clicked Reset everything, closed the
+        // window and came back should not find a data-destroying prompt still waiting for an answer.
+        resetConfirmPending = false;
         base.OnOpen();
     }
 
@@ -174,6 +185,33 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
 
             config.Order = MountOrder.Name;
             config.SelectedMountId = 0;
+            changed = true;
+        }
+
+        // The reset to defaults asks before it takes anything the player typed in. One rule, in Services, so
+        // "it asked before clearing the wanted list" is a test and not a read of this method.
+        if (state.ResetAllRequested)
+        {
+            if (ConfigReset.NeedsConfirmation(state.ResetImpact))
+            {
+                resetConfirmPending = true;
+            }
+            else
+            {
+                ResetToDefaults(config);
+                changed = true;
+            }
+        }
+
+        if (state.ResetCancelRequested)
+        {
+            resetConfirmPending = false;
+        }
+
+        if (state.ResetConfirmRequested)
+        {
+            resetConfirmPending = false;
+            ResetToDefaults(config);
             changed = true;
         }
 
@@ -290,6 +328,22 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
             added > 0 ? ToastKind.Success : ToastKind.Info);
 
         return added > 0;
+    }
+
+    /// <summary>
+    /// Puts every setting back to its default, including the wanted list, the grind records and the watches -
+    /// the caller has already confirmed when any of those held something.
+    /// </summary>
+    /// <remarks>
+    /// Mutates the live configuration rather than replacing it: the frame saves once at the end, and the main
+    /// window may still be holding the set it copied this frame. The toast is the receipt, because a reset
+    /// that worked looks exactly like a window that failed to draw anything.
+    /// </remarks>
+    /// <param name="config">The configuration the windows are drawing from.</param>
+    private static void ResetToDefaults(Configuration config)
+    {
+        config.ResetToDefaults();
+        Gw.Toast(Loc.T("toast.resetAll"), ToastKind.Success);
     }
 
     /// <summary>The catalog's id → name, built once per click rather than cached: an import or an
@@ -411,6 +465,13 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
             ThemeIndex = index,
             FollowGameTheme = config.FollowGameTheme,
             ThemesDirectory = plugin.ThemesDirectory,
+            // What the reset confirmation would name, and whether it is open. Both are read here rather than
+            // in the view: the view may not touch the config (T7).
+            ResetImpact = new ConfigResetImpact(
+                config.WantedMounts.Count,
+                config.Grinds.Count,
+                config.Watches.Count),
+            ResetConfirmOpen = resetConfirmPending,
         };
     }
 
