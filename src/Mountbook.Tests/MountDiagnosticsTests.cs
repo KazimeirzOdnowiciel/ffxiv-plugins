@@ -51,6 +51,27 @@ public sealed class MountDiagnosticsTests
     }
 
     [Fact]
+    public void CarriesTheSheetCrossCheckLineWhenTheSnapshotRecordedOne()
+    {
+        // Seats and movement come from the game's sheet, so the only thing worth reporting is whether
+        // the site's copies were checked against it - and the line has to sit under "Obtain data", the
+        // fact it qualifies.
+        var text = MountDiagnostics.Build(
+            "v1",
+            "1 of 2 mounts collected.",
+            "2 mounts, 2 with obtain data",
+            "ffxivcollect.com, 2026-11-01, schema v3",
+            "neutral",
+            false,
+            "356/356 seats, 356/356 movement (Mount.ExtraSeats, Mount.IsAirborne)");
+
+        Assert.Contains("Sheet cross-check: 356/356 seats, 356/356 movement", text, StringComparison.Ordinal);
+        Assert.Equal(6, text.Split(Environment.NewLine).Length);
+        Assert.True(
+            text.IndexOf("Obtain data:", StringComparison.Ordinal) < text.IndexOf("Sheet cross-check:", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void RejectsNull() =>
         Assert.Throws<ArgumentNullException>(() => MountDiagnostics.Build(null!, "p", "c", "d", "t", false));
 

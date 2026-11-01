@@ -1,8 +1,15 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "generated": "2026-11-01",
   "source": "ffxivcollect.com",
   "enrichment": "full",
+  "sheetCrossCheck": {
+    "sheet": "Mount",
+    "fields": ["ExtraSeats", "IsAirborne"],
+    "mounts": 356,
+    "seats": 356,
+    "movement": 356
+  },
   "attribution": "Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.",
   "attributionUrl": "https://ffxivcollect.com",
   "mounts": [

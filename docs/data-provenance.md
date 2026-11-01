@@ -17,7 +17,7 @@ budget and the schema version. `docs/patch-day.md` is the runbook that uses them
 | `tradeable` | FFXIV Collect `tradeable` | Gates the price-watch UI |
 | `customMusic` | FFXIV Collect `custom_music` | Whether the mount overrides the BGM |
 | `sources[]` | FFXIV Collect `sources[]` (`type`, `text`, `related_type`, `related_id`) | The "How to obtain" list. `type` is the site's own 28-value taxonomy, adopted rather than invented |
-| mount name, description, tooltip, icon, artwork, seats, movement | **The game's own sheets** (`Mount`, `MountTransient`, `Item`) | Read at runtime through Lumina. None of it is taken from the site |
+| mount name, description, tooltip, icon, artwork, seats, movement | **The game's own sheets** (`Mount`, `MountTransient`, `Item`) | Read at runtime through Lumina. None of it is taken from the site — and the two fields the site also publishes (seats, movement) are cross-checked against the sheet at build time instead (§7) |
 
 Two fields the site also publishes are deliberately **not** shipped: the mount's `description` /
 `enhanced_description` / `tooltip` copy, and its `image` / `icon` / `bgm` URLs. The text is Square Enix's
@@ -99,7 +99,7 @@ decision about every player's download and belongs in a commit message, not a qu
 1. **In the file itself** — `attribution` + `attributionUrl` in the snapshot header, so the credit travels
    with the data and any future consumer inherits it.
 2. **In the settings window** — the "Obtain data" row prints the snapshot's own description
-   (`ffxivcollect.com, 2026-11-01, schema v2`, and "built offline" when that is what it is), and under it the
+   (`ffxivcollect.com, 2026-11-01, schema v3`, and "built offline" when that is what it is), and under it the
    credit line: `Obtain data from ffxivcollect.com, a volunteer community project.`
 3. **In the detail pane** — `Source data: ffxivcollect.com`, drawn under the "How to obtain" list. It is
    gated on the mount having source lines *and* the snapshot naming a source, so an unenriched mount does
@@ -120,10 +120,17 @@ The header is what makes a stale file distinguishable from a fresh one:
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "generated": "2026-11-01",
   "source": "ffxivcollect.com",
   "enrichment": "full",
+  "sheetCrossCheck": {
+    "sheet": "Mount",
+    "fields": ["ExtraSeats", "IsAirborne"],
+    "mounts": 356,
+    "seats": 356,
+    "movement": 356
+  },
   "attribution": "Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.",
   "attributionUrl": "https://ffxivcollect.com",
   "mounts": [ ... ]
@@ -143,11 +150,75 @@ The header is what makes a stale file distinguishable from a fresh one:
 - **Bumping it**: change both constants in the same commit as the generator change, and say in the commit
   message which field moved. A bump without a generator rerun makes every snapshot in the wild stale; a
   rerun without a bump ships a file whose shape the reader mis-describes.
-- **v1 → v2** (this change) added the header itself: `schemaVersion`, `generated`, `source`,
+- **v1 → v2** added the header itself: `schemaVersion`, `generated`, `source`,
   `enrichment`, `attribution`, `attributionUrl`. The row shape did not move, which is why a v1 file still
   parses and still draws.
+- **v2 → v3** (this change) added `sheetCrossCheck` to the header: the record of the build-time
+  comparison of the site's seats and movement against the game's `Mount` sheet (§7). The row shape did
+  not move again — a v2 file still parses, it just cannot say whether that check ran, which is what
+  `crosscheck-missing` reports.
 
-## 7. When the site is gone
+## 7. Seats and movement: the two facts the snapshot does not carry
+
+FFXIV Collect publishes two more fields that this snapshot deliberately does **not** ship: `seats` and
+`movement` (`Airborne` / `Terrestrial`). The reason is not size — they would cost about 7.9 KB — but
+authority: the game's own `Mount` sheet already answers both for every row, and the plugin reads that
+sheet at runtime.
+
+| Site field | Game sheet column | How the plugin gets it |
+| --- | --- | --- |
+| `seats` | `Mount.ExtraSeats + 1` | `MountCatalog.TryBuild` → `MountShelfItem.Seats`, drawn as a badge and in the sheet-fact line |
+| `movement` | `Mount.IsAirborne` | not drawn; the hovering/grounded axis the site calls movement |
+
+The sheet is the only source that cannot be stale: it ships with the player's client, while the snapshot
+ships inside the DLL. A copy in the file could contradict a patched game — a mount that gains a seat
+keeps the old count until somebody regenerates the data.
+
+`Mount.IsFlying` is the easy confusion, and it is a different fact: it is set on 404 of 451 rows and
+means "can fly once flight is unlocked in this zone", which is what the plugin's `Flies` badge and
+`flying:` search operator answer. `Mount.IsAirborne` is true on 115 rows and is the column the site's
+movement field matches, mount for mount.
+
+### What replaces the copy: a build-time cross-check
+
+`mdlrip --facts` writes `out/mount-sheet-facts.csv` (one row per `Mount` row:
+`mount_id, extra_seats, is_airborne`), and `tools/generate-mount-sources.ps1` reads it at `-SheetFacts`
+to compare every record the site returns:
+
+- an id the sheet does not have → the run stops, **nothing written** (the validator's `unknown-mount-id`
+  catches the same drift later for a file written some other way);
+- `seats` that is not `Mount.ExtraSeats + 1` → the run stops, naming the mounts;
+- a `movement` that is neither `Airborne` nor `Terrestrial`, or that disagrees with `Mount.IsAirborne` →
+  the run stops.
+
+Measured 2026-11-01 from `D:\ff14\...\sqpack` through Lumina 7 (the reader the plugin itself uses),
+against the 356 records the site returned:
+
+| Fact | Rows compared | Agreed |
+| --- | --- | --- |
+| `seats` vs `Mount.ExtraSeats + 1` | 356 | 356 |
+| `movement` vs `Mount.IsAirborne` | 356 | 356 (103 Airborne, 253 Terrestrial) |
+
+The outcome is recorded in the header, so the file states what was checked instead of leaving a reader to
+assume a check happened:
+
+```json
+"sheetCrossCheck": {
+  "sheet": "Mount",
+  "fields": ["ExtraSeats", "IsAirborne"],
+  "mounts": 356,
+  "seats": 356,
+  "movement": 356
+}
+```
+
+`null` there means the check did **not** run — an offline build, or a machine without the sheet facts.
+The validator reports that as `crosscheck-missing` (a warning: the data is still usable, but a human has
+to read it), and a block that covers fewer rows than the file carries, disagrees, or names other columns
+is an error (`crosscheck-drift`, `crosscheck-fields`) — that file was either edited by hand or built
+against another game build.
+
+## 8. When the site is gone
 
 The site is one volunteer's project, so "it is down" is a normal condition, not an emergency:
 
@@ -163,7 +234,7 @@ The site is one volunteer's project, so "it is down" is a normal condition, not 
 - **What is never acceptable** is an empty or silently partial file: the row floor throws, the row band
   fails, and both paths still write a file that parses and that the plugin can read.
 
-## 8. What this document does not settle
+## 9. What this document does not settle
 
 - It is an honest reading of a published paragraph, **not legal advice**.
 - The terms are a paragraph on a documentation page, not a versioned licence: the site can change them,

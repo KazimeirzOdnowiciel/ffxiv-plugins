@@ -249,6 +249,15 @@ public static class MountSourcesValidator
     /// <summary>The snapshot was built offline, so nothing in it was refreshed from the site.</summary>
     public const string SheetOnlyCode = "enrichment-sheet-only";
 
+    /// <summary>The snapshot records no comparison of the site's seats/movement against the Mount sheet.</summary>
+    public const string CrossCheckMissingCode = "crosscheck-missing";
+
+    /// <summary>The recorded comparison did not cover every row, or did not agree on every row.</summary>
+    public const string CrossCheckDriftCode = "crosscheck-drift";
+
+    /// <summary>The recorded comparison names sheet columns that are not the seats/movement ones.</summary>
+    public const string CrossCheckFieldsCode = "crosscheck-fields";
+
     /// <summary>No sheet ids were supplied, so ids were checked for shape only.</summary>
     public const string SheetSkippedCode = "sheet-skipped";
 
@@ -281,6 +290,7 @@ public static class MountSourcesValidator
         long candidateBytes = options.CandidateBytes ?? Encoding.UTF8.GetByteCount(candidateJson);
 
         CheckHeader(candidate, candidateJson, candidateBytes, issues, options);
+        CheckCrossCheck(candidate, issues);
         CheckIds(scan, issues, options);
         CheckRowCount(candidate.Count, baseline?.Count ?? 0, candidate.IsSheetOnly, issues, options);
         CheckSheet(candidate, sheet, issues, options);
@@ -357,6 +367,61 @@ public static class MountSourcesValidator
                 MountSourcesIssueSeverity.Warning,
                 SheetOnlyCode,
                 $"The snapshot says it was built offline (enrichment \"{MountShelfHeader.SheetOnlyEnrichment}\"): {candidate.Count} mounts keep whatever the committed file carried and nothing was refreshed from ffxivcollect. Ship it only when the site is unreachable and the alternative is no snapshot at all."));
+        }
+    }
+
+    /// <summary>
+    /// Checks the record of the one comparison the snapshot cannot make itself: the site's seat counts and
+    /// Airborne/Terrestrial values against the game's <c>Mount</c> sheet. The file does not carry those two
+    /// facts (the sheet answers them for every row, and a copy could contradict a patched client), so this
+    /// block is the only evidence the check ran - and a check that covered fewer rows than the file carries,
+    /// or that agreed on fewer than it covered, must not ship.
+    /// </summary>
+    /// <remarks>
+    /// A snapshot built offline has nothing to compare and is skipped: <see cref="CheckHeader" />'s
+    /// <c>enrichment-sheet-only</c> warning already says nothing was refreshed. Every other snapshot that
+    /// records no block gets a warning rather than an error, because a machine without the game can still
+    /// regenerate the data - it just cannot verify it, and the report has to say so.
+    /// </remarks>
+    private static void CheckCrossCheck(MountShelf candidate, List<MountSourcesIssue> issues)
+    {
+        if (candidate.IsSheetOnly)
+        {
+            return;
+        }
+
+        MountShelfCrossCheck? cross = candidate.CrossCheck;
+        if (cross is null)
+        {
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Warning,
+                CrossCheckMissingCode,
+                $"The snapshot records no sheet cross-check, so the site's seat counts and Airborne/Terrestrial values were never compared against the game's Mount sheet for {candidate.Count} mount(s). They are the two facts the file deliberately does not carry. Regenerate with the sheet facts (`mdlrip --facts`, then tools/generate-mount-sources.ps1) so this is recorded."));
+            return;
+        }
+
+        if (!cross.NamesSheetFacts)
+        {
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Error,
+                CrossCheckFieldsCode,
+                $"The recorded cross-check names the sheet columns [{string.Join(", ", cross.Fields)}], but seats come from Mount.{MountShelfCrossCheck.SeatsField} (+1) and movement from Mount.{MountShelfCrossCheck.MovementField}. A comparison of other columns says nothing about these two facts."));
+        }
+
+        if (cross.RowsChecked < candidate.Count)
+        {
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Error,
+                CrossCheckDriftCode,
+                $"The recorded cross-check covers {cross.RowsChecked} of the snapshot's {candidate.Count} mount(s): the rest were never compared against the game's Mount sheet. Regenerate with the full sheet facts."));
+        }
+
+        if (!cross.Agrees)
+        {
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Error,
+                CrossCheckDriftCode,
+                $"The site and the game's Mount sheet disagree: {cross.SeatsAgreed}/{cross.RowsChecked} seat counts and {cross.MovementAgreed}/{cross.RowsChecked} movement values agreed. The generator refuses to write such a snapshot, so either this file was edited by hand or the sheet facts come from another game build. Regenerate both before shipping."));
         }
     }
 

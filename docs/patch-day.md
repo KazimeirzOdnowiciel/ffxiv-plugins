@@ -24,16 +24,24 @@ the run.**
 ## 1. Refresh the model map (the sheet export)
 
 The model map is one row per `Mount` sheet row - id, name, model path, whether the file exists - so it
-doubles as the "what is a mount in this game build" list the validator checks ids against.
+doubles as the "what is a mount in this game build" list the validator checks ids against. The sheet
+facts next to it are the seats and movement columns the snapshot cross-checks against (see step 2).
 
 ```powershell
 cd D:\Deepseek\tools\mdlrip
 dotnet run -c Release -- --resolve
+dotnet run -c Release -- --facts
 ```
 
 Expect `wrote ...\out\mount-model-map.csv` and three counts: `demihuman/exists`, `monster/exists`,
 `placeholder/missing`. On 2026-11-01 they were `33 / 400 / 17`, for 450 rows. **A different total is the
 patch's new mounts** - note it, because step 2's `mount-added` note should agree with it.
+
+`--facts` writes `out\mount-sheet-facts.csv` (`mount_id, extra_seats, is_airborne`, 450 rows, 115
+airborne on 2026-11-01). It is the build-time half of the seats/movement check: the snapshot does not
+carry those two fields, so this file is how the generator proves the site's copies agree with the game.
+Skip it and the run still works, but the candidate says `"sheetCrossCheck": null` and validation warns
+(`crosscheck-missing`).
 
 ## 2. One command: regenerate and validate
 
@@ -46,7 +54,9 @@ It does five things, in this order, and stops at the first problem:
 1. copies the committed snapshot aside as the **baseline** (the only reference that can answer "what
    changed");
 2. regenerates a **candidate** from ffxivcollect into a scratch file - the committed file is not
-   touched yet;
+   touched yet. With `out\mount-sheet-facts.csv` present (step 1) it also cross-checks every record's
+   seats and movement against the game's `Mount` sheet, and **refuses to write** when one disagrees -
+   so a drift stops the run here, before validation, with nothing written;
 3. converts the model map's `mount_id` column into the **sheet ids** the validator wants;
 4. runs `src/Mountbook.Tools` (the same `Services/` code the plugin and its tests compile) over the
    candidate, the baseline and the sheet ids;
@@ -64,6 +74,7 @@ candidate in its scratch directory for inspection. The report is also written as
 | `-SkipSheet` | skip the Mount sheet ids check (offline, or no model map) |
 | `-SheetIds <file>` | the sheet ids from somewhere else: one id per line, or a model map CSV |
 | `-ModelMap <file>` | a different model map (default: the `tools/mdlrip` copy) |
+| `-SheetFacts <file>` | the Mount sheet facts (`mount_id, extra_seats, is_airborne`) the generator cross-checks seats/movement against (default: the `tools/mdlrip` copy). Without it the candidate builds unverified and validation warns `crosscheck-missing` |
 | `-ReportPath <file>` | where the markdown report goes |
 | `-AllowedShrink/-AllowedGrowth/-Minimum` | widen the row band deliberately (see `row-count`) |
 | `-Offline` | build the candidate from the game's `Mount` sheet plus the committed snapshot (the site is down). The candidate says `"enrichment": "sheet-only"` and the validator warns |
@@ -96,12 +107,16 @@ carries a code, and the code is what the table below is for.
 | `attribution-missing` | error | the snapshot credits no one (`attribution` + `attributionUrl`) | the obtain data is a volunteer project's work: never ship it uncredited. See `docs/data-provenance.md` §5 |
 | `size-budget` | error | the file is over 120 KiB | drop a field. The API's `description`/`tooltip` copy is the usual offender and is refused separately |
 | `description-copy` | error | rows carry the API's own `description`/`enhancedDescription`/`tooltip` | the game's `MountTransient` sheet already has that text, and the copy triples the file. Take metadata only |
+| `crosscheck-missing` | warning | the snapshot records no comparison of the site's seats/movement against the `Mount` sheet (`sheetCrossCheck` is null) | run `mdlrip --facts` (step 1) and regenerate. The data is still usable; the recorded check is what proves the site has not drifted from the game |
+| `crosscheck-drift` | error | the recorded comparison covered fewer rows than the file carries, or some rows disagreed | the file was hand-edited, or built against another game build. Regenerate the facts and the candidate together |
+| `crosscheck-fields` | error | the recorded comparison names sheet columns other than `Mount.ExtraSeats`/`Mount.IsAirborne` | fix the generator: comparing other columns says nothing about seats or movement |
 | `enrichment-sheet-only` | warning | the snapshot was built offline: nothing was refreshed from the site | intended only when the site is unreachable. Read it, say so in the changelog, then commit |
 | `sheet-skipped` | note | no sheet ids were supplied | the ids were only checked for shape. Rerun with the model map before shipping |
 
 The validator judges whether the snapshot can be described honestly. It cannot judge whether the site's
-data is *right*, and it cannot see a `Mount` sheet column being renamed (that is the API audit's job) or
-a new localisation of a source type.
+data is *right*, and it cannot see a `Mount` sheet column being renamed: that surfaces earlier, as
+`mdlrip --facts` failing to compile against the renamed field, or as the generator stopping because the
+facts file no longer lets every seat count and movement value agree.
 
 The licence reading behind the attribution and the size budget, and the measurements they come from, are in
 `docs/data-provenance.md` — read it before changing what the generator takes.
@@ -202,3 +217,4 @@ release gate.
 | 2026-11-01 | `5db67a4` | 356 | none | none | first run, followed end to end on a non-patch day to prove the runbook. `mdlrip --resolve` refreshed the model map (450 rows: 33 demihuman, 400 monster, 17 placeholder); the regeneration moved only the `generated` date and five ownership percentages (`ownership-drift`); 13/13 goldens byte-identical; 335 tests in the committed tree (358 in the working tree, which also carried other tasks' uncommitted test files); `build.ps1` packaged 10 plugins and the rest of the path - version bump, artifacts, one commit - was rehearsed in a scratch clone rather than on the live tree (a version bump and a publish are the owner's call); the client pass was skipped because an unattended selling loop was running in the session - the build was checked instead (the Release assembly embeds the 2026-11-01 snapshot, 356 rows), and the in-game pass stays with the 1.0.0 release gate |
 | 2026-11-01 | `(this commit)` | 356 | none | none | replay from a clean worktree at `5db67a4` to prove the runbook end to end on a non-patch day: `-SkipRegenerate` passed (356 rows, 450 sheet ids, 94 uncovered), 335 tests green, `dotnet format --verify-no-changes` clean, 10/10 goldens byte-identical; the offline half was rehearsed with a real bump (0.1.0.0 -> 0.1.0.1): `build.ps1` produced `dist/Mountbook-0.1.0.1.zip` + its icon and rewrote `repo.json`'s version and link, then the worktree was discarded - nothing published. The map-age warning now compares the snapshot's `generated` date instead of file mtimes, because a fresh checkout made it fire on a fresh map |
 | 2026-11-01 | `(this commit)` | 356 | none | none | the snapshot gained its header (`schemaVersion` 2, `generated`, `source`, `enrichment`, `attribution`, `attributionUrl`): rows byte-for-byte unchanged, 110,738 -> 110,953 bytes (108.4 KiB, budget 120 KiB). Validated against the model map (450 sheet ids, 94 uncovered, `sheet-coverage` note only); the offline path rehearsed with `patch-day.ps1 -NoWrite -SkipSheet -Offline` (356 rows carried over, `enrichment-sheet-only` warning, nothing written); a short fetch was proven to throw with nothing written (`-Minimum 5000`, exit 1). 485 tests, `config` and `sources` goldens re-baselined after inspection, thirteen byte-identical. Terms and measurements: `docs/data-provenance.md` |
+| 2026-11-01 | `(this commit)` | 356 | none | none | `schemaVersion` 3 added the `sheetCrossCheck` block: the site's `seats` and `movement` were compared against `Mount.ExtraSeats + 1` and `Mount.IsAirborne` for all 356 rows (`mdlrip --facts` -> `out/mount-sheet-facts.csv`, 450 rows) and agreed 356/356 (103 Airborne, 253 Terrestrial), which is why neither is copied into the file. Rows byte-for-byte unchanged, 110,953 -> 111,104 bytes (+151, the block) of the 120 KiB budget. A one-seat drift in the facts was proven to stop the generator with exit 1 and no file; the offline path still declares no check. 496 tests, `config` golden re-baselined after inspection (it prints `schema v3`), fourteen byte-identical. Cross-check rules and measurements: `docs/data-provenance.md` §7 |

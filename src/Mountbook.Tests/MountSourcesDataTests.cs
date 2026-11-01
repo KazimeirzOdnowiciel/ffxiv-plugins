@@ -97,6 +97,25 @@ public sealed class MountSourcesDataTests
     }
 
     [Fact]
+    public void ShippedDatasetRecordsTheSheetCrossCheckOfSeatsAndMovement()
+    {
+        // Seats and movement are deliberately not rows in the file: the game's Mount sheet answers both
+        // for every mount, and a copy here could contradict a patched client. The cross-check block is
+        // what proves the site's copies were compared against that sheet before this file shipped.
+        MountShelf shelf = MountShelf.Parse(ReadDataset());
+
+        Assert.True(shelf.HasCrossCheck, "The shipped snapshot records no sheet cross-check for seats/movement.");
+        MountShelfCrossCheck cross = shelf.CrossCheck!;
+
+        Assert.Equal("Mount", cross.Sheet);
+        Assert.True(cross.NamesSheetFacts, $"The cross-check names [{string.Join(", ", cross.Fields)}].");
+        Assert.Equal(shelf.Count, cross.RowsChecked);
+        Assert.True(
+            cross.Agrees,
+            $"{cross.SeatsAgreed}/{cross.RowsChecked} seat counts and {cross.MovementAgreed}/{cross.RowsChecked} movement values agreed.");
+    }
+
+    [Fact]
     public void ShippedDatasetCarriesNoApiProse()
     {
         // Every one of these is the site's copy of text the game's own sheets carry; shipping it is

@@ -32,7 +32,7 @@ public sealed class MountShelf
     /// The shape this reader understands; the generator writes the same number. Kept in the reader
     /// rather than derived from the file so a snapshot cannot declare its own compatibility.
     /// </summary>
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     /// <summary>The snapshot that ships without a header, i.e. before <see cref="CurrentSchemaVersion"/>.</summary>
     public const int LegacySchemaVersion = 0;
@@ -68,6 +68,16 @@ public sealed class MountShelf
 
     /// <summary>The URL the credit line points at, or empty when the file carries none.</summary>
     public string AttributionUrl => Header.AttributionUrl;
+
+    /// <summary>
+    /// The build-time sheet comparison recorded in the header, or null when the snapshot does not
+    /// record one (built offline, or by a run with no sheet facts). Null is "not checked", which is why
+    /// no caller may treat it as "checked and fine".
+    /// </summary>
+    public MountShelfCrossCheck? CrossCheck => Header.CrossCheck;
+
+    /// <summary>True when the snapshot records a sheet cross-check that actually ran.</summary>
+    public bool HasCrossCheck => Header.HasCrossCheck;
 
     /// <summary>True when every mount in this snapshot came from the game sheets, not the site.</summary>
     public bool IsSheetOnly => string.Equals(Enrichment, MountShelfHeader.SheetOnlyEnrichment, StringComparison.OrdinalIgnoreCase);
@@ -125,6 +135,17 @@ public sealed class MountShelf
         }
 
         return text.ToString();
+    }
+
+    /// <summary>
+    /// One line for the diagnostics block about the build-time sheet check of the two facts the snapshot
+    /// does not carry: <c>356/356 seats, 356/356 movement (Mount.ExtraSeats, Mount.IsAirborne)</c>, or the
+    /// honest alternative when no check was recorded.
+    /// </summary>
+    public string DescribeCrossCheck()
+    {
+        return CrossCheck?.Describe()
+            ?? "not recorded: seats and movement were not checked against the Mount sheet";
     }
 
     /// <summary>
@@ -210,7 +231,47 @@ public sealed class MountShelf
             ReadString(root, "source"),
             ReadString(root, "enrichment"),
             ReadString(root, "attribution"),
-            ReadString(root, "attributionUrl"));
+            ReadString(root, "attributionUrl"),
+            ReadCrossCheck(root));
+    }
+
+    /// <summary>
+    /// Reads the <c>sheetCrossCheck</c> block: which sheet columns the build compared the site's seats and
+    /// movement against, and how many rows agreed. A missing block, a null one, or one with no usable
+    /// counts reads as null - "no check ran" - never as a pass, because the counts are the evidence and a
+    /// module that guessed them would be worse than no evidence at all.
+    /// </summary>
+    private static MountShelfCrossCheck? ReadCrossCheck(JsonElement root)
+    {
+        if (!TryGetProperty(root, "sheetCrossCheck", out JsonElement cross) || cross.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        int rows = ReadInt32(cross, "mounts");
+        if (rows <= 0)
+        {
+            return null;
+        }
+
+        var fields = new List<string>();
+        if (TryGetProperty(cross, "fields", out JsonElement fieldValues) && fieldValues.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement field in fieldValues.EnumerateArray())
+            {
+                if (field.ValueKind == JsonValueKind.String && field.GetString() is { Length: > 0 } name)
+                {
+                    fields.Add(name);
+                }
+            }
+        }
+
+        return new MountShelfCrossCheck(
+            ReadString(cross, "sheet"),
+            fields,
+            rows,
+            ReadInt32(cross, "seats"),
+            ReadInt32(cross, "movement"));
     }
 
     private static int ReadInt32(JsonElement element, string name)

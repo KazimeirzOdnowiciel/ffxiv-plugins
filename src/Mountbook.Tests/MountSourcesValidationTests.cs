@@ -351,7 +351,7 @@ public sealed class MountSourcesValidationTests
         // The obtain data is a volunteer project's work; shipping it uncredited is the one thing the
         // licence asks for, so the build refuses rather than leaving it to review.
         string candidate = SnapshotWithHeader(
-            "  \"schemaVersion\": 2,\n  \"attributionUrl\": \"https://ffxivcollect.com\",\n",
+            "  \"schemaVersion\": 3,\n  \"attributionUrl\": \"https://ffxivcollect.com\",\n",
             (1, "7.0", 1));
 
         MountSourcesValidationReport report = MountSourcesValidator.Validate(
@@ -403,7 +403,7 @@ public sealed class MountSourcesValidationTests
         // patch and no source refresh. It must ship as a warning - a reader has to accept it - and
         // the row band must not fire on it, or the only way out of an outage is a broken build.
         string candidate = SnapshotWithHeader(
-            "  \"schemaVersion\": 2,\n"
+            "  \"schemaVersion\": 3,\n"
             + "  \"enrichment\": \"sheet-only\",\n"
             + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
             + "  \"attributionUrl\": \"https://ffxivcollect.com\",\n",
@@ -419,6 +419,96 @@ public sealed class MountSourcesValidationTests
         Assert.Contains(MountSourcesValidator.PatchMissingCode, Codes(report));
         Assert.Equal(0, report.ErrorCount);
         Assert.DoesNotContain(MountSourcesValidator.RowCountCode, Codes(report));
+        // Nothing was compared offline, so the missing cross-check must not be asked for twice.
+        Assert.DoesNotContain(MountSourcesValidator.CrossCheckMissingCode, Codes(report));
+    }
+
+    [Fact]
+    public void AFullSnapshotWithoutASheetCrossCheckIsAWarningAndNotAnError()
+    {
+        // A machine without the game can still regenerate the data; it just cannot verify the two
+        // facts the file does not carry. The report has to say so, without blocking the build.
+        string candidate = SnapshotWithHeader(
+            "  \"schemaVersion\": 3,\n"
+            + "  \"enrichment\": \"full\",\n"
+            + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
+            + "  \"attributionUrl\": \"https://ffxivcollect.com\",\n",
+            (1, "7.0", 1));
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.True(report.IsValid, report.ToText());
+        Assert.Contains(MountSourcesValidator.CrossCheckMissingCode, Codes(report));
+        Assert.Equal(1, report.WarningCount);
+    }
+
+    [Fact]
+    public void ACrossCheckThatCoversFewerRowsThanTheSnapshotFails()
+    {
+        // The block is the evidence the comparison happened. Covering fewer rows than the file carries
+        // means some mounts were never compared, which is not the same thing as "they agreed".
+        string candidate = SnapshotWithHeader(
+            "  \"schemaVersion\": 3,\n"
+            + "  \"enrichment\": \"full\",\n"
+            + "  \"sheetCrossCheck\": { \"sheet\": \"Mount\", \"fields\": [\"ExtraSeats\", \"IsAirborne\"], \"mounts\": 1, \"seats\": 1, \"movement\": 1 },\n"
+            + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
+            + "  \"attributionUrl\": \"https://ffxivcollect.com\",\n",
+            (1, "7.0", 1),
+            (2, "7.0", 1));
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.False(report.IsValid);
+        Assert.Contains(MountSourcesValidator.CrossCheckDriftCode, Codes(report));
+        Assert.Contains("covers 1 of the snapshot's 2", ReportText(report), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACrossCheckThatDisagreedFails()
+    {
+        // The generator refuses to write a disagreeing snapshot, so reaching this means the file was
+        // edited by hand or the sheet facts came from another game build. Either way it must not ship.
+        string candidate = SnapshotWithHeader(
+            "  \"schemaVersion\": 3,\n"
+            + "  \"enrichment\": \"full\",\n"
+            + "  \"sheetCrossCheck\": { \"sheet\": \"Mount\", \"fields\": [\"ExtraSeats\", \"IsAirborne\"], \"mounts\": 2, \"seats\": 1, \"movement\": 2 },\n"
+            + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
+            + "  \"attributionUrl\": \"https://ffxivcollect.com\",\n",
+            (1, "7.0", 1),
+            (2, "7.0", 1));
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.False(report.IsValid);
+        Assert.Contains(MountSourcesValidator.CrossCheckDriftCode, Codes(report));
+        Assert.Contains("1/2 seat counts", ReportText(report), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACrossCheckOfOtherSheetColumnsFails()
+    {
+        // A block that compared Order and UIPriority says nothing about seats or movement, however
+        // healthy its counts look.
+        string candidate = SnapshotWithHeader(
+            "  \"schemaVersion\": 3,\n"
+            + "  \"enrichment\": \"full\",\n"
+            + "  \"sheetCrossCheck\": { \"sheet\": \"Mount\", \"fields\": [\"Order\", \"UIPriority\"], \"mounts\": 1, \"seats\": 1, \"movement\": 1 },\n"
+            + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
+            + "  \"attributionUrl\": \"https://ffxivcollect.com\",\n",
+            (1, "7.0", 1));
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.False(report.IsValid);
+        Assert.Contains(MountSourcesValidator.CrossCheckFieldsCode, Codes(report));
     }
 
     [Fact]
@@ -470,17 +560,26 @@ public sealed class MountSourcesValidationTests
     }
 
     /// <summary>
-    /// Builds a snapshot in the generator's shape: the v2 header this build reads, then one row per
-    /// tuple with <c>count</c> obtain lines. Tests that are about a missing or different header use
-    /// <see cref="LegacySnapshot"/> or edit the version in place.
+    /// Builds a snapshot in the generator's shape: the v3 header this build reads, including the
+    /// agreeing sheet cross-check a normal online run records, then one row per tuple with
+    /// <c>count</c> obtain lines. Tests that are about a missing or different header use
+    /// <see cref="SnapshotWithHeader"/> or edit the version in place.
     /// </summary>
     private static string Snapshot(params (uint Id, string Patch, int Sources)[] rows) =>
         SnapshotWithHeader(
-            "  \"schemaVersion\": 2,\n"
+            "  \"schemaVersion\": 3,\n"
             + "  \"enrichment\": \"full\",\n"
+            + CrossCheckLine(rows.Length)
             + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
             + "  \"attributionUrl\": \"https://ffxivcollect.com\",\n",
             rows);
+
+    /// <summary>The agreeing cross-check block a normal online run writes for <paramref name="rows"/> rows.</summary>
+    private static string CrossCheckLine(int rows) =>
+        "  \"sheetCrossCheck\": { \"sheet\": \"Mount\", \"fields\": [\"ExtraSeats\", \"IsAirborne\"], "
+        + "\"mounts\": " + rows.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        + ", \"seats\": " + rows.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        + ", \"movement\": " + rows.ToString(System.Globalization.CultureInfo.InvariantCulture) + " },\n";
 
     /// <summary>
     /// Builds a snapshot with a caller-supplied header: the way to test "no schemaVersion" (an empty

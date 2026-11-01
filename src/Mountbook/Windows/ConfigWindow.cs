@@ -350,7 +350,8 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
                 state.CatalogText,
                 state.DatasetText,
                 plugin.Configuration.LookName,
-                plugin.Configuration.FollowGameTheme));
+                plugin.Configuration.FollowGameTheme,
+                state.DatasetCrossCheckText));
             Gw.Toast(Loc.T("toast.diagnosticsCopied"), ToastKind.Success);
         }
         catch (Exception ex)
@@ -398,6 +399,8 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
             // built offline. Empty only when the catalog could not be built at all.
             DatasetText = plugin.Catalog.DatasetText,
             DatasetSource = plugin.Catalog.DatasetSource,
+            // Copied, never drawn: which seats/movement check the snapshot records, for a bug report.
+            DatasetCrossCheckText = plugin.Catalog.DatasetCrossCheckText,
             // The assembly version, not the manifest: IPluginManifest has no Version member in API 15, and
             // the assembly version is what the packager stamps anyway.
             VersionText = Loc.F(

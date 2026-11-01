@@ -14,12 +14,24 @@
 #     game's own Mount and MountTransient sheets for that text, and the site's copy of it is
 #     Square Enix's prose. Dropping it is also what keeps the file inside the size budget:
 #     251 KB with the copy, 83 KB metadata only, budget 120 KB.
+#   * seats and movement - the site publishes both, and the game's Mount sheet already answers
+#     them for every row: seats is ExtraSeats + 1 and movement is IsAirborne (Airborne) or its
+#     absence (Terrestrial). Measured 2026-11-01: 356/356 agreement on both. Copying them would
+#     duplicate a sheet fact for 356 of the sheet's 450 mounts, leave 94 rows blank, and let a
+#     stale snapshot contradict the player's own client - the sheet can never be stale. What this
+#     script does instead is CROSS-CHECK them: with the sheet facts at -SheetFacts (written by
+#     `mdlrip --facts`) every site record is compared against the sheet, a disagreement anywhere
+#     stops the run with nothing written, and the outcome is recorded in the header as
+#     `sheetCrossCheck`. A site record whose id is not a Mount sheet row also stops the run here,
+#     before the validator would catch it later.
 #   * anything else ffxivcollect adds to a record that is not one of the fields above.
 #
 # The snapshot carries `schemaVersion` (the shape this generator writes and MountShelf's reader
 # understands), `attribution` + `attributionUrl` (the credit line the plugin shows and the
-# notices repeat) and `enrichment` (`full` when the site answered, `sheet-only` when this run was
-# offline), so a stale or unenriched file can be told apart from a fresh one without guessing.
+# notices repeat), `enrichment` (`full` when the site answered, `sheet-only` when this run was
+# offline) and `sheetCrossCheck` (how many site rows were compared against the Mount sheet's
+# seats/movement, and how many agreed; null when no sheet facts were supplied), so a stale or
+# unenriched file can be told apart from a fresh one without guessing.
 #
 # Two ways to run it:
 #
@@ -59,6 +71,7 @@ param(
     [switch] $Offline,
     [string] $SheetIds,
     [string] $ModelMap = 'D:\Deepseek\tools\mdlrip\out\mount-model-map.csv',
+    [string] $SheetFacts = 'D:\Deepseek\tools\mdlrip\out\mount-sheet-facts.csv',
     [string] $CarryOver,
     [int] $MaxBytes = 122880
 )
@@ -68,8 +81,8 @@ $ErrorActionPreference = 'Stop'
 
 # The shape this generator writes. MountShelf.CurrentSchemaVersion must match it and the validator
 # fails the snapshot when it does not, so a plugin build and a snapshot can never drift apart
-# silently.
-$schemaVersion = 2
+# silently. v3 added `sheetCrossCheck` to the header.
+$schemaVersion = 3
 $apiUrl = 'https://ffxivcollect.com/api/mounts'
 $attribution = 'Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.'
 $attributionUrl = 'https://ffxivcollect.com'
@@ -395,8 +408,70 @@ function Read-SnapshotRows {
     return $rows
 }
 
+# Reads the Mount sheet facts the site is not trusted alone about: the seat count (the sheet stores
+# ExtraSeats, i.e. seats minus the rider) and whether the mount hovers (IsAirborne, which the site
+# calls Airborne / Terrestrial). The file is written by `mdlrip --facts`, one row per Mount sheet
+# row, and its absence is not an error: a checkout without the game still generates a snapshot, and
+# the header then records `sheetCrossCheck: null` instead of claiming a check that did not happen.
+function Read-SheetFacts {
+    param([string] $Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path)) {
+        return $null
+    }
+
+    $lines = [System.IO.File]::ReadAllLines($Path)
+    if ($lines.Count -lt 2) {
+        throw "the Mount sheet facts at $Path carry a header but no row."
+    }
+
+    $header = $lines[0].Split(',')
+    $idAt = [System.Array]::IndexOf($header, 'mount_id')
+    $seatsAt = [System.Array]::IndexOf($header, 'extra_seats')
+    $airAt = [System.Array]::IndexOf($header, 'is_airborne')
+    if ($idAt -lt 0 -or $seatsAt -lt 0 -or $airAt -lt 0) {
+        throw ("the Mount sheet facts at {0} need the columns mount_id, extra_seats and is_airborne, and it has `"{1}`". Regenerate it with: dotnet run --project D:\Deepseek\tools\mdlrip -- --facts" -f $Path, $lines[0])
+    }
+
+    $facts = @{}
+    for ($index = 1; $index -lt $lines.Count; $index++) {
+        $line = $lines[$index].Trim()
+        if ($line.Length -eq 0) {
+            continue
+        }
+
+        $fields = $line.Split(',')
+        if ($fields.Length -le $airAt) {
+            throw "the Mount sheet facts at $Path carry a short row: `"$line`"."
+        }
+
+        $id = [uint32] 0
+        if (-not [uint32]::TryParse($fields[$idAt].Trim(), [ref] $id) -or $id -eq 0) {
+            continue
+        }
+
+        $extraSeats = 0
+        if (-not [int]::TryParse($fields[$seatsAt].Trim(), [ref] $extraSeats)) {
+            throw "the Mount sheet facts at $Path carry a seat count that is not a number on mount ${id}: `"$($fields[$seatsAt])`"."
+        }
+
+        $facts[$id] = [pscustomobject] @{
+            Seats      = $extraSeats + 1
+            IsAirborne = ($fields[$airAt].Trim() -eq '1')
+        }
+    }
+
+    if ($facts.Count -eq 0) {
+        throw "the Mount sheet facts at $Path carry no mount row."
+    }
+
+    return $facts
+}
+
 $rowsById = @{}
 $enrichment = 'full'
+$crossCheck = $null
+$factsByMount = $null
 
 if ($Offline) {
     Write-Host 'Offline: building the snapshot from the game sheets alone (ffxivcollect is not called).' -ForegroundColor Yellow
@@ -468,9 +543,29 @@ if ($Offline) {
     }
 
     $enrichment = 'sheet-only'
+    Write-Host '  seats and movement: not cross-checked - the site was not consulted, so there is nothing to compare.' -ForegroundColor Yellow
 }
 else {
     Write-Host "Fetching mounts from $apiUrl (limit $PageSize) ..."
+
+    # The sheet side of the cross-check. Everything the site says about seats and movement is
+    # compared against it, and a disagreement anywhere stops the run before a byte is written: a
+    # snapshot that disagrees with the player's own client would be believed, and the client is the
+    # authority. Ids the sheet does not have are a hard failure for the same reason.
+    $factsByMount = Read-SheetFacts -Path $SheetFacts
+    $checkedRows = 0
+    $airborneRows = 0
+    $unknownIds = New-Object System.Collections.Generic.List[string]
+    $seatDrift = New-Object System.Collections.Generic.List[string]
+    $movementDrift = New-Object System.Collections.Generic.List[string]
+
+    if ($null -eq $factsByMount) {
+        Write-Host ("  no Mount sheet facts at {0}: seats and movement are NOT cross-checked on this run." -f $SheetFacts) -ForegroundColor Yellow
+    }
+    else {
+        Write-Host ("  {0} Mount sheet rows of facts from {1}" -f $factsByMount.Count, $SheetFacts)
+    }
+
     $page = 1
     while ($page -le $MaxPages) {
         $response = Invoke-MountPage -Page $page
@@ -498,6 +593,37 @@ else {
 
             $rowsById[$id] = ConvertTo-ApiRow -Mount $result
             $new++
+
+            if ($null -ne $factsByMount) {
+                if (-not $factsByMount.ContainsKey($id)) {
+                    $unknownIds.Add([string] $id)
+                    continue
+                }
+
+                $fact = $factsByMount[$id]
+                $checkedRows++
+                if ($fact.IsAirborne) {
+                    $airborneRows++
+                }
+
+                $seats = Get-MemberValue $result 'seats'
+                if ($null -eq $seats -or [int] $seats -ne $fact.Seats) {
+                    $seatDrift.Add(("{0}: site {1}, Mount.ExtraSeats+1 = {2}" -f `
+                                $id,
+                            $(if ($null -eq $seats) { 'nothing' } else { [string] $seats }),
+                            $fact.Seats))
+                }
+
+                $movement = [string] (Get-MemberValue $result 'movement')
+                $siteAirborne = $movement -eq 'Airborne'
+                if ($movement -ne 'Airborne' -and $movement -ne 'Terrestrial') {
+                    $movementDrift.Add(("{0}: site `"{1}`" is neither Airborne nor Terrestrial" -f $id, $movement))
+                }
+                elseif ($siteAirborne -ne $fact.IsAirborne) {
+                    $movementDrift.Add(("{0}: site {1}, Mount.IsAirborne = {2}" -f `
+                                $id, $movement, $(if ($fact.IsAirborne) { 'true' } else { 'false' })))
+                }
+            }
         }
 
         Write-Host ("page {0}: {1} rows ({2} new, {3} total)" -f $page, $results.Count, $new, $rowsById.Count)
@@ -510,6 +636,39 @@ else {
             break
         }
         $page++
+    }
+
+    # The cross-check's verdict. This is the one place the site's word is refused outright: a seat
+    # count or a movement value that disagrees with the game's Mount sheet means one of the two is
+    # wrong, and guessing which one would ship a lie. Nothing is written; the committed snapshot
+    # stands.
+    $disagreements = New-Object System.Collections.Generic.List[string]
+    if ($unknownIds.Count -gt 0) {
+        $disagreements.Add(("{0} site id(s) are not rows in the game's Mount sheet: {1}" -f `
+                    $unknownIds.Count, (($unknownIds | Select-Object -First 10) -join ', ')))
+    }
+    if ($seatDrift.Count -gt 0) {
+        $disagreements.Add(("{0} seat count(s) disagree: {1}" -f `
+                    $seatDrift.Count, (($seatDrift | Select-Object -First 10) -join '; ')))
+    }
+    if ($movementDrift.Count -gt 0) {
+        $disagreements.Add(("{0} movement value(s) disagree: {1}" -f `
+                    $movementDrift.Count, (($movementDrift | Select-Object -First 10) -join '; ')))
+    }
+
+    if ($disagreements.Count -gt 0) {
+        throw ("the site and the game's Mount sheet disagree, so nothing was written. {0}. Check the sheet facts are from this game build (mdlrip --facts), and if the game really changed, regenerate them and rerun." -f ($disagreements -join '; '))
+    }
+
+    if ($null -ne $factsByMount) {
+        $crossCheck = [pscustomobject] @{
+            Mounts   = $checkedRows
+            Seats    = $checkedRows - $seatDrift.Count
+            Movement = $checkedRows - $movementDrift.Count
+        }
+
+        Write-Host ("  cross-checked against the Mount sheet: {0} mounts, seats {1}/{0}, movement {2}/{0} ({3} airborne, {4} terrestrial)" -f `
+                $checkedRows, $crossCheck.Seats, $crossCheck.Movement, $airborneRows, ($checkedRows - $airborneRows))
     }
 }
 
@@ -532,6 +691,22 @@ $lines.Add(('  "schemaVersion": {0},' -f $schemaVersion))
 $lines.Add(('  "generated": {0},' -f (ConvertTo-JsonText $generated)))
 $lines.Add(('  "source": {0},' -f (ConvertTo-JsonText 'ffxivcollect.com')))
 $lines.Add(('  "enrichment": {0},' -f (ConvertTo-JsonText $enrichment)))
+
+if ($null -eq $crossCheck) {
+    # Offline, or a run without the sheet facts: say so rather than leaving the reader to assume a
+    # check happened. The validator warns about this shape (crosscheck-missing).
+    $lines.Add('  "sheetCrossCheck": null,')
+}
+else {
+    $lines.Add('  "sheetCrossCheck": {')
+    $lines.Add('    "sheet": "Mount",')
+    $lines.Add('    "fields": ["ExtraSeats", "IsAirborne"],')
+    $lines.Add(('    "mounts": {0},' -f $crossCheck.Mounts))
+    $lines.Add(('    "seats": {0},' -f $crossCheck.Seats))
+    $lines.Add(('    "movement": {0}' -f $crossCheck.Movement))
+    $lines.Add('  },')
+}
+
 $lines.Add(('  "attribution": {0},' -f (ConvertTo-JsonText $attribution)))
 $lines.Add(('  "attributionUrl": {0},' -f (ConvertTo-JsonText $attributionUrl)))
 $lines.Add('  "mounts": [')
@@ -595,8 +770,9 @@ $utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
 
 $byteLength = (Get-Item -LiteralPath $resolvedOutput).Length
 $sizeKb = [math]::Round($byteLength / 1KB, 1)
-Write-Host ("Wrote {0} mounts ({1} source lines) to {2} ({3} KB, schema v{4}, enrichment {5})" -f `
-        $mounts.Count, $sourceCount, $resolvedOutput, $sizeKb, $schemaVersion, $enrichment)
+Write-Host (("Wrote {0} mounts ({1} source lines) to {2} ({3} KB, schema v{4}, enrichment {5}, sheet cross-check {6})" -f `
+        $mounts.Count, $sourceCount, $resolvedOutput, $sizeKb, $schemaVersion, $enrichment,
+        $(if ($null -eq $crossCheck) { 'not run' } else { '{0}/{0} seats, {1}/{0} movement' -f $crossCheck.Mounts, $crossCheck.Movement })))
 
 if ($byteLength -gt $MaxBytes) {
     throw ('the snapshot is {0} bytes, over the {1}-byte budget. Drop a field rather than raising the budget: the plugin embeds this file and ships it to every player.' -f $byteLength, $MaxBytes)

@@ -13,19 +13,27 @@ public static class MountDiagnostics
 {
     /// <summary>
     /// One line per fact, in a stable order: plugin version, collection progress, catalog size, the
-    /// obtain dataset it is reading, and the theme. Empty inputs are written as-is rather than
-    /// replaced, so the result never claims a fact it does not have.
+    /// obtain dataset it is reading, the snapshot's sheet cross-check when it recorded one, and the
+    /// theme. Empty inputs are written as-is rather than replaced, so the result never claims a fact it
+    /// does not have.
     /// </summary>
     /// <exception cref="ArgumentNullException">Any argument is null.</exception>
-    public static string Build(string version, string progress, string catalog, string dataset, string theme, bool followsGameTheme)
+    public static string Build(string version, string progress, string catalog, string dataset, string theme, bool followsGameTheme, string crossCheck = "")
     {
         ArgumentNullException.ThrowIfNull(version);
         ArgumentNullException.ThrowIfNull(progress);
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(dataset);
         ArgumentNullException.ThrowIfNull(theme);
+        ArgumentNullException.ThrowIfNull(crossCheck);
 
         var newline = Environment.NewLine;
+
+        // The cross-check line only appears when there is something to say: a diagnostics block that
+        // claims a verification it did not make is worse than one that stays quiet.
+        string crossCheckLine = crossCheck.Length == 0
+            ? string.Empty
+            : newline + "Sheet cross-check: " + crossCheck;
 
         return string.Concat(
             "Mountbook ",
@@ -39,6 +47,7 @@ public static class MountDiagnostics
             newline,
             "Obtain data: ",
             dataset,
+            crossCheckLine,
             newline,
             "Theme: ",
             theme,

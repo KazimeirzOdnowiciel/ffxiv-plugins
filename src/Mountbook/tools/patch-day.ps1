@@ -13,6 +13,10 @@
 #   -SkipSheet      skip the Mount sheet ids check (see -SheetIds / -ModelMap)
 #   -SheetIds <f>   sheet ids: one mount id per line, or the mdlrip model map CSV
 #   -ModelMap <f>   the mdlrip model map to read sheet ids from (default: the tools/mdlrip copy)
+#   -SheetFacts <f> the Mount sheet facts (mount_id, extra_seats, is_airborne) the generator
+#                   cross-checks the site's seats/movement against (default: the tools/mdlrip copy).
+#                   Without it the candidate still builds, but records no cross-check and the
+#                   validator warns (crosscheck-missing)
 #   -Offline        build the candidate from the sheets alone (ffxivcollect is down): the committed
 #                   snapshot's rows are carried over and pruned to the sheet. The candidate says
 #                   "enrichment": "sheet-only" and the validator warns - read that before -NoWrite
@@ -28,6 +32,7 @@
 param(
     [string] $SheetIds,
     [string] $ModelMap = 'D:\Deepseek\tools\mdlrip\out\mount-model-map.csv',
+    [string] $SheetFacts = 'D:\Deepseek\tools\mdlrip\out\mount-sheet-facts.csv',
     [switch] $SkipRegenerate,
     [switch] $SkipSheet,
     [switch] $NoWrite,
@@ -158,7 +163,7 @@ elseif ($Offline) {
 else {
     Write-Host "  ffxivcollect.com -> $candidate"
     try {
-        & $generator -OutputPath $candidate
+        & $generator -OutputPath $candidate -SheetFacts $SheetFacts
     }
     catch {
         Stop-WithError "the generator failed ($($_.Exception.Message)); $dataFile is untouched."

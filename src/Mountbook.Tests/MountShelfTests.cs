@@ -239,7 +239,7 @@ public sealed class MountShelfTests
     {
         const string json = """
             {
-              "schemaVersion": 2,
+              "schemaVersion": 3,
               "generated": "2026-11-01",
               "source": "ffxivcollect.com",
               "enrichment": "full",
@@ -290,7 +290,7 @@ public sealed class MountShelfTests
     {
         // The two mismatches are different facts: an older file is missing fields, a newer one has
         // fields this build ignores. Reporting either as the other hides which side to fix.
-        MountShelf shelf = MountShelf.Parse("""{ "schemaVersion": 3, "mounts": [ { "id": 1, "patch": "2.0" } ] }""");
+        MountShelf shelf = MountShelf.Parse("""{ "schemaVersion": 4, "mounts": [ { "id": 1, "patch": "2.0" } ] }""");
 
         Assert.True(shelf.IsNewer);
         Assert.False(shelf.IsStale);
@@ -300,7 +300,7 @@ public sealed class MountShelfTests
     public void ASheetOnlySnapshotSaysSo()
     {
         MountShelf shelf = MountShelf.Parse("""
-            { "schemaVersion": 2, "enrichment": "sheet-only", "mounts": [ { "id": 1, "patch": "" } ] }
+            { "schemaVersion": 3, "enrichment": "sheet-only", "mounts": [ { "id": 1, "patch": "" } ] }
             """);
 
         Assert.True(shelf.IsSheetOnly);
@@ -310,27 +310,27 @@ public sealed class MountShelfTests
     public void DescribeNamesTheSourceTheDateAndTheVersion()
     {
         MountShelf shelf = MountShelf.Parse("""
-            { "schemaVersion": 2, "generated": "2026-11-01", "source": "ffxivcollect.com", "enrichment": "full", "mounts": [] }
+            { "schemaVersion": 3, "generated": "2026-11-01", "source": "ffxivcollect.com", "enrichment": "full", "mounts": [] }
             """);
 
-        Assert.Equal("ffxivcollect.com, 2026-11-01, schema v2", shelf.Describe());
+        Assert.Equal("ffxivcollect.com, 2026-11-01, schema v3", shelf.Describe());
     }
 
     [Fact]
     public void DescribeCallsOutAnOfflineBuildAndAnOldSnapshot()
     {
         MountShelf sheetOnly = MountShelf.Parse("""
-            { "schemaVersion": 2, "generated": "2026-11-01", "source": "ffxivcollect.com", "enrichment": "sheet-only", "mounts": [] }
+            { "schemaVersion": 3, "generated": "2026-11-01", "source": "ffxivcollect.com", "enrichment": "sheet-only", "mounts": [] }
             """);
         MountShelf stale = MountShelf.Parse("""
             { "generated": "2026-01-01", "source": "ffxivcollect.com", "mounts": [] }
             """);
 
         Assert.Equal(
-            "ffxivcollect.com, 2026-11-01, schema v2 (built offline: no obtain data refreshed)",
+            "ffxivcollect.com, 2026-11-01, schema v3 (built offline: no obtain data refreshed)",
             sheetOnly.Describe());
         Assert.Equal(
-            "ffxivcollect.com, 2026-01-01, schema v0 (older than this build reads: v2)",
+            "ffxivcollect.com, 2026-01-01, schema v0 (older than this build reads: v3)",
             stale.Describe());
     }
 
@@ -339,7 +339,7 @@ public sealed class MountShelfTests
     {
         string text = MountShelf.Parse("""{ "mounts": [] }""").Describe();
 
-        Assert.Equal("unknown source, schema v0 (older than this build reads: v2)", text);
+        Assert.Equal("unknown source, schema v0 (older than this build reads: v3)", text);
     }
 
     [Fact]
@@ -352,5 +352,92 @@ public sealed class MountShelfTests
     public void NonArrayMountsIsRejected()
     {
         Assert.Throws<FormatException>(() => MountShelf.Parse("""{ "mounts": {} }"""));
+    }
+
+    [Fact]
+    public void ReadsTheSheetCrossCheckTheGeneratorRecorded()
+    {
+        // Seats and movement are sheet facts, so the file does not carry them per mount: this block is
+        // the only evidence the site's copies were compared against the game at build time.
+        MountShelf shelf = MountShelf.Parse("""
+            {
+              "schemaVersion": 3,
+              "enrichment": "full",
+              "sheetCrossCheck": {
+                "sheet": "Mount",
+                "fields": ["ExtraSeats", "IsAirborne"],
+                "mounts": 356,
+                "seats": 356,
+                "movement": 356
+              },
+              "mounts": [ { "id": 1, "patch": "2.0" } ]
+            }
+            """);
+
+        Assert.True(shelf.HasCrossCheck);
+        MountShelfCrossCheck cross = shelf.CrossCheck!;
+        Assert.Equal("Mount", cross.Sheet);
+        Assert.Equal(new[] { "ExtraSeats", "IsAirborne" }, cross.Fields);
+        Assert.Equal(356, cross.RowsChecked);
+        Assert.True(cross.Agrees);
+        Assert.True(cross.NamesSheetFacts);
+        Assert.Equal(
+            "356/356 seats, 356/356 movement (Mount.ExtraSeats, Mount.IsAirborne)",
+            shelf.DescribeCrossCheck());
+    }
+
+    [Fact]
+    public void ASnapshotWithoutACrossCheckSaysItWasNotChecked()
+    {
+        // Null is "no check ran", and the diagnostics line has to say that rather than imply a pass.
+        MountShelf shelf = MountShelf.Parse("""
+            { "schemaVersion": 3, "enrichment": "full", "sheetCrossCheck": null, "mounts": [ { "id": 1 } ] }
+            """);
+
+        Assert.False(shelf.HasCrossCheck);
+        Assert.Null(shelf.CrossCheck);
+        Assert.StartsWith("not recorded", shelf.DescribeCrossCheck(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACrossCheckWithNoCountsIsNotACheck()
+    {
+        // A block that names the fields but claims nothing covers no row: reading it as a pass would be
+        // exactly the kind of half-understood shape N4 forbids.
+        MountShelf shelf = MountShelf.Parse("""
+            { "schemaVersion": 3, "sheetCrossCheck": { "fields": ["ExtraSeats", "IsAirborne"] }, "mounts": [] }
+            """);
+
+        Assert.False(shelf.HasCrossCheck);
+    }
+
+    [Fact]
+    public void ACrossCheckThatDisagreedIsNotAnAgreement()
+    {
+        MountShelf shelf = MountShelf.Parse("""
+            {
+              "schemaVersion": 3,
+              "sheetCrossCheck": { "sheet": "Mount", "fields": ["ExtraSeats", "IsAirborne"], "mounts": 356, "seats": 355, "movement": 356 },
+              "mounts": []
+            }
+            """);
+
+        Assert.True(shelf.HasCrossCheck);
+        Assert.False(shelf.CrossCheck!.Agrees);
+        Assert.Contains("DISAGREEMENT", shelf.DescribeCrossCheck(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ACrossCheckOfOtherColumnsDoesNotNameTheSheetFacts()
+    {
+        MountShelf shelf = MountShelf.Parse("""
+            {
+              "schemaVersion": 3,
+              "sheetCrossCheck": { "sheet": "Mount", "fields": ["Order"], "mounts": 10, "seats": 10, "movement": 10 },
+              "mounts": []
+            }
+            """);
+
+        Assert.False(shelf.CrossCheck!.NamesSheetFacts);
     }
 }

@@ -29,6 +29,13 @@ public sealed class ConfigViewState
     /// </summary>
     public string DatasetSource { get; set; } = string.Empty;
 
+    /// <summary>
+    /// What the snapshot's build-time cross-check of seats and movement against the game's Mount sheet
+    /// found, e.g. <c>356/356 seats, 356/356 movement</c>. Copied into the diagnostics block only - the
+    /// settings window does not draw it, and no player needs it to use the plugin.
+    /// </summary>
+    public string DatasetCrossCheckText { get; set; } = string.Empty;
+
     /// <summary>True when the player asked to copy the diagnostics to the clipboard.</summary>
     public bool CopyDiagnosticsRequested { get; set; }
 

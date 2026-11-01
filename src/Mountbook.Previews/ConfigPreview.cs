@@ -21,7 +21,7 @@ public sealed class ConfigPreview : IPreviewScreen
         ProgressText = "136 of 369 mounts collected.",
         ProgressFraction = 136f / 369f,
         CatalogText = "369 mounts, 356 with obtain data",
-        DatasetText = "ffxivcollect.com, 2026-11-01, schema v2",
+        DatasetText = "ffxivcollect.com, 2026-11-01, schema v3",
         DatasetSource = "ffxivcollect.com",
         VersionText = "v0.1.0.0",
         ThemeLabels = ["Eorzea", "Graphite", "Parchment"],

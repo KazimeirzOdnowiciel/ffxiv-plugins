@@ -97,6 +97,12 @@ internal sealed class MountCatalog
     /// </summary>
     public string DatasetText => shelf is null ? string.Empty : shelf.Describe();
 
+    /// <summary>
+    /// One line about the build-time cross-check the snapshot records for the two facts it does not
+    /// carry (seats and Airborne/Terrestrial), or the honest "not recorded" line. Diagnostics only.
+    /// </summary>
+    public string DatasetCrossCheckText => shelf is null ? string.Empty : shelf.DescribeCrossCheck();
+
     /// <summary>True when the shipped snapshot was built without the site, so nothing was refreshed.</summary>
     public bool DatasetIsSheetOnly => shelf?.IsSheetOnly ?? false;
 

@@ -25,13 +25,18 @@ namespace Mountbook.Services;
 /// <param name="Enrichment">"full" or "sheet-only"; empty when absent.</param>
 /// <param name="Attribution">The credit line, empty when absent.</param>
 /// <param name="AttributionUrl">The credit link, empty when absent.</param>
+/// <param name="CrossCheck">
+/// The build-time comparison of the site's seats and movement against the game's <c>Mount</c> sheet, or
+/// null when the run could not make one (offline, or no sheet facts on that machine).
+/// </param>
 public sealed record MountShelfHeader(
     int SchemaVersion,
     string Generated,
     string Source,
     string Enrichment,
     string Attribution,
-    string AttributionUrl)
+    string AttributionUrl,
+    MountShelfCrossCheck? CrossCheck = null)
 {
     /// <summary>The enrichment word for a snapshot the site answered: every row may carry data.</summary>
     public const string FullEnrichment = "full";
@@ -42,6 +47,9 @@ public sealed record MountShelfHeader(
     /// a stale "How to obtain" list as if it were current.
     /// </summary>
     public const string SheetOnlyEnrichment = "sheet-only";
+
+    /// <summary>True when the snapshot records a sheet cross-check that actually ran.</summary>
+    public bool HasCrossCheck => CrossCheck is not null;
 
     /// <summary>A header for a document that has none: version zero, nothing claimed.</summary>
     public static MountShelfHeader Empty { get; } = new(0, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty);
