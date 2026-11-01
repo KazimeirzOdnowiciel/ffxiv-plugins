@@ -143,8 +143,29 @@ public sealed partial class MountbookView
 
         Gw.Heading(Loc.T("window.main"));
 
+        // The heading's own box, before anything is drawn over the row: the filtered-count line rides it when
+        // it fits there, which is what keeps that line from costing the list a row of cards. Measured from the
+        // item rect rather than assumed from a type role, because the heading's box is the Look's, not ours.
+        var headingMin = ImGui.GetItemRectMin();
+        var headingMax = ImGui.GetItemRectMax();
+
         var at = ImGui.GetCursorScreenPos();
         var contentRight = at.X + ImGui.GetContentRegionAvail().X;
+
+        // A short pane folds the two rows into one: the title keeps its corner and the ring and the counters
+        // stand beside it. The title's own line is the last thing the header can give the list at the window's
+        // 820x520 minimum, where the counters alone left the card row one pixel short of whole - and a book
+        // whose expansion strip takes a third line left it 14 px shorter still (see
+        // LayoutMeasure.HeaderFoldBelowPaneHeight). Everything below reads `at`, so the block needs no second
+        // layout: only the row it starts on moves.
+        var folded = LayoutMeasure.HeaderFolds((paneBottomScreenY - at.Y) / scale);
+
+        if (folded)
+        {
+            at = new Vector2(headingMax.X + (look.SpaceLarge * scale), headingMin.Y);
+        }
+
+
         var textLeft = at.X + ringPx + gap;
 
         // Measure the text block first: the actions and the strip both have to clear it.
@@ -172,6 +193,26 @@ public sealed partial class MountbookView
         var rarestLeft = textLeft + countWidth + (look.SpaceLarge * scale);
         RefillRarest(state.RarestMissing);
         var rarestLine = RarestLine(lineRight - rarestLeft);
+
+        // "0 of 233 shown collected (0 %)" - the line that says a filter is narrowing the list. It is drawn
+        // right-aligned on the heading's row when it fits beside the title, which is space the header never used
+        // for anything; when it does not fit (a long translation) it falls back to the line it used to own under
+        // the counters, because moved is what it may be and dropped is what it may not.
+        var summary = FilterSummary(state);
+        var summaryWidth = summary.Length == 0 ? 0f : TextWidth(summary, TextRole.Footnote, scale);
+        var summaryLeft = contentRight - summaryWidth;
+        // Not on a folded row: there the right end of the title's line belongs to the header actions, and a
+        // sentence drawn over them would be two pieces of chrome on one another. The line under the counters is
+        // the fallback that keeps the sentence visible; it costs the list 20 px of the 51 the fold gives back.
+        var summaryInline = !folded
+            && summaryWidth > 0f
+            && summaryLeft >= headingMax.X + (look.SpaceLarge * scale);
+
+        if (summaryInline)
+        {
+            ImGui.SetCursorScreenPos(new Vector2(summaryLeft, headingMin.Y + ((headingMax.Y - headingMin.Y - secondLine) * 0.5f)));
+            Gw.Text(summary, TextRole.Footnote);
+        }
 
         // The ring carries the percentage...
         ImGui.SetCursorScreenPos(at);
@@ -290,7 +331,9 @@ public sealed partial class MountbookView
         var stripHeight = stripBelow ? secondLine + stackGap : 0f;
         var blockHeight = MathF.Max(ringPx, firstLine + secondLine + stackGap + badgeHeight + stripHeight);
 
-        ImGui.SetCursorScreenPos(new Vector2(at.X, at.Y + blockHeight + (look.SpaceSmall * scale)));
+        // The card's own left edge, not `at.X`: with the title beside it the block starts to the right of the
+        // margin, and the first-run hint and the divider under it belong to the card.
+        ImGui.SetCursorScreenPos(new Vector2(headingMin.X, at.Y + blockHeight + (look.SpaceSmall * scale)));
 
         // First run: one line naming the two controls a new player cannot find on their own - the search
         // box, which is the only way to narrow the whole book, and the Cards/Table switch, which changes how
@@ -304,13 +347,12 @@ public sealed partial class MountbookView
                 look.TertiaryLabel);
         }
 
-        // When a filter or a search narrows the list, say how much of the collection is on screen:
-        // "136 of 369 collected" alone gives no feedback that the filter is doing anything.
-        // Only when there is something on screen to describe: "0 of 0 shown collected (0%)" above an empty
-        // list says nothing the empty state does not already say better.
-        if (state.Items.Count > 0 && state.Items.Count != state.Total)
+        // The fallback placement for the filtered-count line: the heading's row had no room for it beside the
+        // title, so it takes the line under the counters it used to own. Silence is not an option - the sentence
+        // is the only feedback that a filter is doing anything.
+        if (!summaryInline && summary.Length > 0)
         {
-            Gw.Text(RefreshFilterCounts(state), TextRole.Footnote);
+            Gw.Text(summary, TextRole.Footnote);
         }
 
         Gw.Divider();
@@ -463,6 +505,17 @@ public sealed partial class MountbookView
             expansionCounts[index, 1] = expansion.Total;
         }
     }
+
+    /// <summary>
+    /// The line that says how much of the collection the filter is showing, or empty when nothing narrows the
+    /// list. Only when there is something on screen to describe: "0 of 0 shown collected (0 %)" above an empty
+    /// list says nothing the empty state does not already say better.
+    /// </summary>
+    /// <param name="state">The state whose list to describe.</param>
+    private string FilterSummary(MountViewState state) =>
+        state.Items.Count > 0 && state.Items.Count != state.Total
+            ? RefreshFilterCounts(state)
+            : string.Empty;
 
     private void RefreshCounts(MountViewState state)
     {

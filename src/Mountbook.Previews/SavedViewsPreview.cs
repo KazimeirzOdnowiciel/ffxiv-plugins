@@ -14,11 +14,12 @@ namespace Mountbook.Previews;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This is the one golden that proves the row exists and that it costs the filter block a line rather than a
-/// block: every other scene draws with no presets at all, so they are byte-identical to the build before the
-/// feature, and the difference between those images and this one is exactly what a player who saves a view sees.
-/// The first preset is the untouched filter, so it is the applied one - the image therefore shows the prominent
-/// and the plain chip side by side, which a row of identical chips would not.
+/// This is the one golden that proves the row exists, and that it costs the filter block no line at all where the
+/// column can afford it: every other scene draws with no presets, so they are byte-identical to the build before
+/// the feature, and the difference between those images and this one is exactly what a player who saves a view
+/// sees. The presets ride the ownership chips here - the applied one drawn prominent beside them, with the Manage
+/// door after it - which is the form the row takes while the chips still draw every label whole. The line above
+/// the search box is the fallback for a column too narrow for that, and it is drawn by the scenes below 340 px.
 /// </para>
 /// <para>
 /// The list is the scene's frozen sample, not the result of these filters: the subject is the filter block, and

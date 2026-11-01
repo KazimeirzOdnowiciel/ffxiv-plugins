@@ -244,6 +244,47 @@ public sealed class LayoutMeasureTests
         Assert.Equal(0, LayoutMeasure.ViewsThatFit(190f, 150f, 8f, [40f]));
     }
 
+    /// <summary>
+    /// The presets ride the ownership row only while the chips can still draw every label whole beside the
+    /// applied chip and its Manage door: the rule that gave the window's 820x520 minimum its card row back.
+    /// </summary>
+    /// <remarks>
+    /// The chip row's own need is <c>cells x (widest + 2 x inset) + slack</c> - 4 x (64.5 + 2 x 4) + 4 = 294 for
+    /// the full book's "Unowned 233" - and the reserve is what the applied chip and its Manage door take out of
+    /// the column before the chips may have it. A reserve that leaves less than the row needs is not a tighter
+    /// fit: it is a clipped chip, which is the bug the measured shape exists to prevent.
+    /// </remarks>
+    [Fact]
+    public void ThePresetsRideTheOwnershipRowOnlyWhileTheChipsFitWhole()
+    {
+        const float widest = 64.5f;
+        const float inset = 4f;
+        const float slack = 4f;
+        const float reserve = 146f;
+
+        float need = LayoutMeasure.ChipsWidth(4, widest, inset, slack);
+
+        // Four cells of 73 px (the label plus its inset either side) and the slack: 296 px for the full book.
+        Assert.Equal(296f, need, 3);
+
+        // The window's 820x520 minimum column is 462 px wide: 462 - 146 = 316 against the row's 296, so the
+        // chips keep their whole labels and the presets ride the row.
+        Assert.True(LayoutMeasure.ViewsInline(462f, 4, widest, inset, slack, reserve));
+
+        // A 328 px column (the narrow window) leaves 182: the presets take their own line instead.
+        Assert.False(LayoutMeasure.ViewsInline(328f, 4, widest, inset, slack, reserve));
+
+        // With no presets nothing is reserved, so the row is judged on its own width alone - which is exactly
+        // the call the chip row made before this rule existed.
+        Assert.Equal(
+            LayoutMeasure.ChipsFit(462f, 4, widest, inset, slack),
+            LayoutMeasure.ViewsInline(462f, 4, widest, inset, slack, 0f));
+
+        // And the boundary is the row's need, not a window size: one pixel under it the presets move out.
+        Assert.False(LayoutMeasure.ViewsInline(need + reserve - 1f, 4, widest, inset, slack, reserve));
+        Assert.True(LayoutMeasure.ViewsInline(need + reserve, 4, widest, inset, slack, reserve));
+    }
+
     [Fact]
     public void ThePairGateSitsBetweenTheNarrowAndTheMinimumColumn()
     {

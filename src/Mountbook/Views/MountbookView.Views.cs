@@ -20,6 +20,13 @@ namespace Mountbook.Views;
 /// that does not deliberately save one stays byte-identical.
 /// </para>
 /// <para>
+/// It has two forms, and which one is drawn is measured, never chosen by window size. On a column wide enough for
+/// the applied chip and the Manage door to sit beside the ownership chips, the presets ride that row
+/// (<see cref="DrawSavedViewsInline"/>): the row costs the list nothing, which at the window's 820x520 minimum is
+/// the difference between one whole card and none. On a column too narrow for that, the presets keep the line
+/// above the search box this type draws, because a chip that has to be clipped to fit is worse than a line.
+/// </para>
+/// <para>
 /// The dialog is the one surface that works from nothing, and it is opened by a right-click on the filter
 /// block as well as by the row's button: with no presets the row is absent, so a row-only door would be a
 /// feature nobody can start using. A right-click costs no pixels in any scene (a closed popup draws nothing),
@@ -107,6 +114,95 @@ public sealed partial class MountbookView
         }
 
         if (Gw.Button(manage, ButtonStyle.Plain, ButtonSize.Small))
+        {
+            state.ViewsDialogOpen = true;
+        }
+
+        Gw.TooltipFor(ImGui.IsItemHovered(), Loc.T("views.manage.tooltip"));
+    }
+
+    /// <summary>
+    /// Where the preset row goes this frame, and how much of the ownership row it takes when it rides there.
+    /// </summary>
+    /// <param name="Inline">True when the applied chip and the Manage door share the ownership row.</param>
+    /// <param name="Reserve">What the inline form takes from that row's width, in pixels; zero when it does not.</param>
+    private readonly record struct SavedViewRow(bool Inline, float Reserve);
+
+    /// <summary>
+    /// Decides whether the presets ride the ownership row: they do when the chip row still draws every label
+    /// whole beside the applied chip and its Manage door, and take a line of their own when it would not.
+    /// </summary>
+    /// <remarks>
+    /// Measured rather than chosen by window size, like every other width decision in this block: the answer
+    /// depends on how wide the counts in the chip labels are, so it has to be taken against the same numbers
+    /// <c>Gw.Segmented</c> divides into cells. With no presets there is nothing to place and nothing is reserved,
+    /// which is what keeps every scene without a view byte-identical.
+    /// </remarks>
+    /// <param name="state">The state whose presets and current filter decide the form.</param>
+    /// <param name="width">The filter column's width, in pixels.</param>
+    /// <param name="cells">How many ownership chips are drawn.</param>
+    /// <param name="widestChipLabel">The widest chip label's advance width, in pixels.</param>
+    /// <param name="chipInset">The chip row's inset from a cell's edge to its ink, in pixels.</param>
+    /// <param name="chipSlack">Slack for rounding and hinting, in pixels.</param>
+    /// <param name="gap">The gutter between two controls, in pixels.</param>
+    private static SavedViewRow PlanSavedViews(
+        MountViewState state,
+        float width,
+        int cells,
+        float widestChipLabel,
+        float chipInset,
+        float chipSlack,
+        float gap)
+    {
+        if (state.SavedViews.Count == 0)
+        {
+            return new SavedViewRow(false, 0f);
+        }
+
+        var look = Frame.Look;
+        var scale = Frame.Scale;
+        var reserve = SmallButtonWidth(Loc.T("views.manage"), look, scale) + gap;
+        int applied = AppliedView(state);
+
+        if (applied >= 0 && applied < state.SavedViews.Count)
+        {
+            reserve += SmallButtonWidth(state.SavedViews[applied].Name, look, scale) + gap;
+        }
+
+        var inline = LayoutMeasure.ViewsInline(width, cells, widestChipLabel, chipInset, chipSlack, reserve);
+        return new SavedViewRow(inline, inline ? reserve : 0f);
+    }
+
+    /// <summary>
+    /// The inline form of the preset row: the applied preset's chip and the button that opens the dialog, on
+    /// the ownership row. Drawn only when <see cref="PlanSavedViews"/> measured that the chips still fit.
+    /// </summary>
+    /// <remarks>
+    /// One chip rather than the row's other presets: a row half filled with chips that the fit test then had to
+    /// drop would hide the one chip that answers "which filter am I looking at" - and that chip is the carried
+    /// meaning of the row, not its length. The rest stay in the dialog, which Manage is the door to.
+    /// </remarks>
+    /// <param name="state">The state whose presets to read and write back into.</param>
+    private static void DrawSavedViewsInline(MountViewState state)
+    {
+        var gap = Frame.Look.SpaceSmall * Frame.Scale;
+        int applied = AppliedView(state);
+
+        if (applied >= 0 && applied < state.SavedViews.Count)
+        {
+            ImGui.SameLine(0f, gap);
+
+            if (Gw.Button(state.SavedViews[applied].Name, ButtonStyle.Prominent, ButtonSize.Small))
+            {
+                state.ApplyViewIndex = applied;
+            }
+
+            Gw.TooltipFor(ImGui.IsItemHovered(), Loc.T("views.chip.tooltip"));
+        }
+
+        ImGui.SameLine(0f, gap);
+
+        if (Gw.Button(Loc.T("views.manage"), ButtonStyle.Plain, ButtonSize.Small))
         {
             state.ViewsDialogOpen = true;
         }

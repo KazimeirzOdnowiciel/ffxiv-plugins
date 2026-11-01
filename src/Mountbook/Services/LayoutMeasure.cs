@@ -35,6 +35,30 @@ public static class LayoutMeasure
     }
 
     /// <summary>
+    /// The pane height under which the title and the counters share one row, in logical units.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Measured in the pane - the card's content height, not the window's - because that is what the header and
+    /// the columns divide: a window is a title bar and a frame taller than the pane it hands the view, so a
+    /// threshold in window units would fold at one height in the game and another in a golden.
+    /// </para>
+    /// <para>
+    /// The header at its full height (title on its own line, the ring and the counters beneath) is 125 px of the
+    /// panel, which is 26% of the 472 px a 820x520 window leaves the pane and 20% of the 612 px a 1040x660 one
+    /// does. At the minimum that line is the difference between one card row and a card row whose caption is
+    /// clipped: the full header left the list 91 px against a 90.75 px card, and a book whose expansion strip
+    /// takes a third line left it 77. One row for the title and the counters together gives that state back
+    /// 51 px - and the pane at 1040x660, where the list already has 231 px, keeps its airy two-row header.
+    /// </para>
+    /// </remarks>
+    public const float HeaderFoldBelowPaneHeight = 550f;
+
+    /// <summary>True when the pane is short enough that the title and the counters should share one row.</summary>
+    /// <param name="paneHeight">The card's content height, in logical units.</param>
+    public static bool HeaderFolds(float paneHeight) => paneHeight < HeaderFoldBelowPaneHeight;
+
+    /// <summary>
     /// The narrowest detail pane that draws the two-column header, in logical units. The arithmetic floor is
     /// lower - the artwork's 96px minimum, its mat and gutter, and the title column's 170px need ~294 - but at
     /// 330 the title column keeps ~192px, which is where even the longest mount names draw whole instead of
@@ -125,6 +149,40 @@ public static class LayoutMeasure
     public static bool ChipsFit(float columnWidthPx, int cells, float widestLabelPx, float insetPx, float slackPx)
         => cells > 0
             && columnWidthPx >= ChipsWidth(cells, widestLabelPx, insetPx, slackPx);
+
+    /// <summary>
+    /// True when the saved-view chip and its Manage door fit on the ownership row without taking the chip row
+    /// below the width its labels need whole.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The presets used to own a line of the filter block at every size. At the window's 820x520 minimum that
+    /// line was the last thing the list could not afford: with a full book, a saved view and a filtered count
+    /// the list measured 23 px in the preview and 65 px in the client, so no card and no table row was drawn
+    /// whole. The row is what pays for it, so the row is what gives it back - but only where the chips can
+    /// still draw every label, because a chip that does not fit truncates ("Unown?") and a shape that silently
+    /// clips is worse than an extra line.
+    /// </para>
+    /// <para>
+    /// Pure and pinned in a test for the same reason as <see cref="ViewsThatFit"/>: the answer depends on the
+    /// counts in the labels - "Unowned 233" is 26 px wider than "Unowned 3" - so the alternative is a
+    /// measured rule that only the goldens exercise with one book.
+    /// </para>
+    /// </remarks>
+    /// <param name="columnWidthPx">The filter column's width, in pixels.</param>
+    /// <param name="cells">How many cells the chip row draws.</param>
+    /// <param name="widestLabelPx">The widest chip label's advance width, in pixels.</param>
+    /// <param name="insetPx">The chip row's inset from a cell's edge to its ink, in pixels.</param>
+    /// <param name="slackPx">Slack for rounding and hinting, in pixels.</param>
+    /// <param name="reservePx">What the applied chip, the Manage door and their gutters take, in pixels.</param>
+    public static bool ViewsInline(
+        float columnWidthPx,
+        int cells,
+        float widestLabelPx,
+        float insetPx,
+        float slackPx,
+        float reservePx)
+        => ChipsFit(columnWidthPx - reservePx, cells, widestLabelPx, insetPx, slackPx);
 
     /// <summary>
     /// How many of the saved-view chips fit across the filter column, leaving the trailing button that opens the

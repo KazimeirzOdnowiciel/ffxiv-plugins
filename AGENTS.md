@@ -28,13 +28,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 
 Mountbook is the one plugin kept in the full multi-project shape it was built in: `src/Mountbook`,
 `src/Mountbook.Tests`, `src/Mountbook.Previews` and `src/Mountbook.Tools` sit side by side, and its
-twenty-eight goldens live in `src/Mountbook.Previews/goldens`. Its gate (the last line is the only one that proves the layout: it
+thirty goldens live in `src/Mountbook.Previews/goldens`. Its gate (the last line is the only one that proves the layout: it
 exits 1 on any mismatch, and `--out` is **not** optional - without it the tool prints its help and exits
 0, which reads exactly like a pass):
 
 ```powershell
 dotnet build src/Mountbook/Mountbook.csproj -c Release
-dotnet run --project src/Mountbook.Tests/Mountbook.Tests.csproj -c Release   # 766 tests committed
+dotnet run --project src/Mountbook.Tests/Mountbook.Tests.csproj -c Release   # 768 tests committed
 dotnet build src/Mountbook.Previews/Mountbook.Previews.csproj -c Release
 ~/.dotnet/tools/glasswork-preview.exe --assembly src/Mountbook.Previews/bin/Release/Mountbook.Previews.dll --compare src/Mountbook.Previews/goldens --out artifacts/previews/Mountbook
 ```
@@ -56,6 +56,13 @@ widest chip is "Unowned 233" at 64.5 px against the sample's 53.2), and `chipcom
 replaces them in a 266 px column. The chip row is measured - four equal cells of the widest label plus the
 knob inset - so a count, a translation or a UI scale that widens a label moves the row's shape instead of
 clipping it.
+
+`minimum-real` and `minimum-real-table` are the two scenes at the window's 820x520 minimum in the state a
+player has rather than the easiest one the view can be in: a full book (369 mounts, 136 collected), a saved
+view, and a filter narrow enough that the header says how much of the collection is on screen. They exist
+because `minimum` draws neither the saved-view row nor the filtered-count line, and with those two rows the
+list measured 65 px in the client - no card, no table row - while `minimum` stayed green. The numbers they
+pin are in the scenes' own remarks: the list is 118 px in the cards view and 166 px in the table there.
 
 The suite and the golden compare run in CI too: `.github/workflows/ci.yml` has a **Tests** job
 (`dotnet run` on the xunit v3 project, nothing else - it compiles `Services/` by path and

@@ -150,9 +150,20 @@ public sealed partial class MountbookView
             var paired = LayoutMeasure.FilterPairFits(width / scale);
             var half = MathF.Max((width - gap) * 0.5f, 1f);
 
-            // The presets own a line of their own above the search box, and no line at all when there are none
-            // (see DrawSavedViewRow): the block's four rows are the space the list was given back.
-            DrawSavedViewRow(state);
+            // The presets ride the ownership row when the applied chip and its Manage door leave that row's
+            // labels whole, and own a line above the search box when they do not; no line at all when there
+            // are no presets (see DrawSavedViewRow). At the window's 820x520 minimum the line they used to own
+            // was the one the list could not spare - the measured list was 23 px - so the row gives it back
+            // wherever the chips still fit whole, and the fallback keeps a narrow translation as it was.
+            var chipLabels = RefreshOwnershipLabels(state);
+            var chipInset = Frame.Look.SwitchKnobInset * scale;
+            var chipSlack = Frame.Look.SpaceSmall * scale;
+            var views = PlanSavedViews(state, width, chipLabels.Length, widestChipLabel, chipInset, chipSlack, gap);
+
+            if (!views.Inline)
+            {
+                DrawSavedViewRow(state);
+            }
 
             // The switch keeps its natural width - two cells of its own widest label - so the search field gets
             // the rest of the row. It never takes more than half the row, so a long translation cannot starve
@@ -188,7 +199,6 @@ public sealed partial class MountbookView
             }
 
             var ownership = (int)state.Ownership;
-            var chipLabels = RefreshOwnershipLabels(state);
 
             // Chips across the filter column, or one picker when the column cannot hold them. What the row needs
             // is measured, never budgeted: Gw.Segmented gives its cells equal widths, so the widest label sets
@@ -196,17 +206,24 @@ public sealed partial class MountbookView
             // "Unowned 3". The row used to change shape at a fixed 380 px column, a number unrelated to the label
             // and to the room the control actually had (it took ImGui's default item width, a fraction of the
             // column), so a bigger book drew cells too narrow and the label clipped to "Unown?".
-            var chipInset = Frame.Look.SwitchKnobInset * scale;
-            var chipSlack = Frame.Look.SpaceSmall * scale;
 
-            // Both shapes take the whole column, so the row lines up with the ones above and below it.
-            ImGui.SetNextItemWidth(width);
+            // Both shapes take the whole column, so the row lines up with the ones above and below it - less
+            // whatever the saved-view chip and its Manage door hold, when they ride this row.
+            var chipsWidth = MathF.Max(width - views.Reserve, 1f);
+            ImGui.SetNextItemWidth(chipsWidth);
 
             // A chip that does not fit truncates rather than wraps, so below the measured width the control
             // changes shape: the picker is worse to use and better than "Unown?".
-            if (LayoutMeasure.ChipsFit(width, chipLabels.Length, widestChipLabel, chipInset, chipSlack))
+            if (LayoutMeasure.ChipsFit(chipsWidth, chipLabels.Length, widestChipLabel, chipInset, chipSlack))
             {
                 _ = Gw.Segmented(ref ownership, chipLabels);
+
+                // Drawn inside the same row as the chips they will not fit beside: the applied preset is what
+                // says which filter is on screen, and Manage is the row's only door into the dialog.
+                if (views.Inline)
+                {
+                    DrawSavedViewsInline(state);
+                }
             }
             else
             {
