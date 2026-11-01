@@ -33,8 +33,8 @@ public sealed partial class MountbookView
         // The table id carries the order, so a different order is a different ImGui table. ImGui remembers
         // a table's sort spec and its column widths by id - across sessions - so a shared id left the caret
         // (and the widths) of whichever order was drawn last. A fresh id per order keeps each order's table
-        // to itself; what the id still restores is repaired below, where the report is read. Surprise has no
-        // id of its own on purpose: it draws the name column's caret, so it shares the name order's table.
+        // to itself; what the id still restores is overruled below, every frame. Surprise has no id of its
+        // own on purpose: it draws the name column's caret, so it shares the name order's table.
         ReadOnlySpan<byte> tableId = state.Order switch
         {
             MountOrder.OldestFirst => "##mountsTable1"u8,
@@ -84,20 +84,32 @@ public sealed partial class MountbookView
         // exists - so believing every report replaced the player's saved order with whatever column that id
         // was last left on (a persisted "Newest first" opened as "Owned first"), and one click could
         // cascade: every order is its own id, and each one restored a spec of its own.
-        if (Gw.TableSortChanged(out int column, out bool descending))
-        {
-            if (MountTable.ClickedOrder(column, descending, HeaderPressed()) is { } order)
-            {
-                state.Order = order;
-            }
+        //
+        // The report is read for its column and direction every frame, not only on the frame it returns
+        // true: Gw.TableSortChanged fills those two from the live spec either way, and the report itself
+        // only fires while the spec is dirty - on a click, on a table's first frame, or after ImGui drops
+        // its transient buffers. It does not fire when a table drawn earlier in the session becomes
+        // current again, which is exactly the return that used to keep a stale caret: a header click is
+        // applied by ImGui to the table that is being drawn, i.e. to the id of the order being left, so
+        // coming back to that order re-enters a table still sorted by the column that was clicked to leave
+        // it, while the rows are already in the new order.
+        bool changed = Gw.TableSortChanged(out int column, out bool descending);
 
-            // The caret is put where the rows are, which is also what replaces a restored spec: a declared
-            // default sort carries no direction, so a descending order drew an ascending caret over rows
-            // sorted the other way, and the stale spec would come back whenever the table is re-created.
-            if (!MountTable.DescribedBy(state.Order, column, descending))
-            {
-                SetCaret(state.Order);
-            }
+        if (changed && MountTable.ClickedOrder(column, descending, HeaderPressed()) is { } order)
+        {
+            state.Order = order;
+        }
+
+        // The caret follows the rows, which are the single source of truth: the column that shows the
+        // order, in the direction it sorts. Repairing it here rather than only on the report is what makes
+        // a restored spec harmless - including the one ImGui loads from the ini at startup - and a
+        // declared default sort cannot do it alone: it carries no direction, so a descending order drew
+        // an ascending caret over rows sorted the other way. DescribedBy is one comparison per frame and
+        // keeps the write to the frames the spec actually lies; on the returning frame ImGui has already
+        // computed the header, so the caret is right on the next one.
+        if (!MountTable.DescribedBy(state.Order, column, descending))
+        {
+            SetCaret(state.Order);
         }
 
         var accent = Frame.Look.Accent;
@@ -159,8 +171,9 @@ public sealed partial class MountbookView
     /// <remarks>
     /// The table has no other way to know the direction: <c>Gw.TableColumn</c> declares a column as the
     /// default sort without one, and ImGui prefers that declaration only while it has no saved spec for the
-    /// id, so the direction has to be stated. This marks the table's settings dirty, which is why it is
-    /// called only when the report disagrees - a per-frame call would rewrite the ini every frame.
+    /// id, so the direction has to be stated. This marks the table's settings dirty, which is why the caller
+    /// asks <see cref="MountTable.DescribedBy"/> first - an unconditional call would rewrite the ini every
+    /// frame.
     /// </remarks>
     /// <param name="order">The order the rows are in.</param>
     private static void SetCaret(MountOrder order) =>
