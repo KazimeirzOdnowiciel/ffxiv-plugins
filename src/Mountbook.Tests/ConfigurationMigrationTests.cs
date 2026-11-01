@@ -320,6 +320,9 @@ public sealed class ConfigurationMigrationTests
         Assert.Equal(fresh.BoardWindowOpen, config.BoardWindowOpen);
         Assert.Equal(fresh.FollowGameTheme, config.FollowGameTheme);
 
+        // A reset is a fresh install, so the onboarding line comes back with it.
+        Assert.False(config.FirstRunHintSeen);
+
         Assert.Empty(config.WantedMounts);
         Assert.Empty(config.RecentCollected);
         Assert.Empty(config.Grinds);
@@ -344,6 +347,26 @@ public sealed class ConfigurationMigrationTests
         Assert.Same(grinds, config.Grinds);
         Assert.Empty(wanted);
         Assert.Empty(grinds);
+    }
+
+    [Fact]
+    public void AFileWrittenBeforeTheFirstRunLineShowsItOnce()
+    {
+        // The line is onboarding, so the two readings have to differ: a file that predates it says nothing
+        // about it and the hint is shown (the upgrade case is the one player it is still news to), while a
+        // file that says true must never show it again.
+        Configuration before = Load("config-v1-pre-grind.json");
+        before.Migrate();
+
+        Assert.False(before.FirstRunHintSeen);
+
+        Configuration seen = JsonConvert.DeserializeObject<Configuration>(
+            """{ "Version": 4, "FirstRunHintSeen": true }""")!;
+
+        seen.Migrate();
+
+        Assert.True(seen.FirstRunHintSeen);
+        Assert.Equal(Configuration.CurrentVersion, seen.Version);
     }
 
     [Fact]

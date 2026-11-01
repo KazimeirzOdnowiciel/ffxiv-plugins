@@ -309,4 +309,15 @@ public sealed class MountViewState
     /// old advance widths survived a theme switch and the chrome drifted off the card edge.
     /// </summary>
     public int MeasurementGeneration { get; set; }
+
+    /// <summary>
+    /// True while the window shows its one-line onboarding hint: the search box below and the Cards/Table
+    /// switch are the two controls a new player has no way to guess at, and the line retires for good once
+    /// the window records that it drew it.
+    /// </summary>
+    /// <remarks>
+    /// A value rather than a config read, for the same reason as everything else here: the view draws what
+    /// the window hands it, so the golden for it can be rendered without a settings file (T7).
+    /// </remarks>
+    public bool FirstRunHint { get; set; }
 }

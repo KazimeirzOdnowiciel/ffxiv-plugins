@@ -108,6 +108,73 @@ public sealed class NoMatchPreview : IPreviewScreen
 }
 
 /// <summary>
+/// The no-match empty state at the window's enforced minimum: 820x520, the size dragging the window down
+/// stops at, where the filter column leaves the list about a tenth of the card.
+/// </summary>
+/// <remarks>
+/// <c>empty</c> and <c>nomatch</c> are 1040x760 so the whole block - title, hint, operator line and button -
+/// is in the image. That height is why the defect this scene exists for went unseen: the block was reserved
+/// as a constant, and at the minimum the reservation was taller than the list, so the button landed on the
+/// hint and was clipped by the child. The acceptance is not "the block looks right at 1040" but "the state
+/// still names one action where the player can actually be", which needs the small window.
+/// </remarks>
+public sealed class EmptyMinimumPreview : IPreviewScreen
+{
+    private readonly MountbookView view = new();
+
+    private readonly MountViewState state = EmptyStatePreview.CreateState(MountOwnership.All, "zzz");
+
+    /// <summary>Also the golden's file name: <c>goldens/empty-minimum.png</c>.</summary>
+    public string Name => "empty-minimum";
+
+    /// <summary>Exactly the window's enforced minimum, like <see cref="MinimumPreview"/>.</summary>
+    public Vector2 WindowSize => new(820f, 520f);
+
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+
+    public ReadOnlySpan<PreviewInput> Script => [];
+
+    public void Draw() => view.Draw(state);
+}
+
+/// <summary>
+/// The first run: the same sample as <c>main</c>, with the one-line onboarding hint that points at the search
+/// box and the Cards/Table switch.
+/// </summary>
+/// <remarks>
+/// The hint is drawn exactly once per install, so no other scene reaches that branch and a regression in it -
+/// a line that wraps into the shelf, a colour that disappears on a light card - would ship unseen. It is its
+/// own scene rather than a flag on <c>main</c> for the same reason: adding it there would re-baseline the
+/// flagship golden for something a returning player never sees.
+/// </remarks>
+public sealed class FirstRunPreview : IPreviewScreen
+{
+    private readonly MountbookView view = new();
+
+    private readonly MountViewState state = CreateState();
+
+    /// <summary>Also the golden's file name: <c>goldens/firstrun.png</c>.</summary>
+    public string Name => "firstrun";
+
+    /// <summary>The flagship window size, so a diff against <c>main</c> is the hint line and nothing else.</summary>
+    public Vector2 WindowSize => new(1040f, 660f);
+
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+
+    public ReadOnlySpan<PreviewInput> Script => [];
+
+    public void Draw() => view.Draw(state);
+
+    /// <summary>The browse state <c>main</c> draws, with the first-run flag the window sets on a fresh install.</summary>
+    private static MountViewState CreateState()
+    {
+        MountViewState built = MountbookPreview.CreateState();
+        built.FirstRunHint = true;
+        return built;
+    }
+}
+
+/// <summary>
 /// The wanted ("hunting") list: three mounts marked, the filter showing that view, and one of them
 /// selected so the detail pane draws <c>Unwant</c> instead of <c>Want</c>.
 /// </summary>

@@ -130,6 +130,16 @@ public sealed class MainWindow : GlassWindow, IDisposable
     /// <summary>Set by <see cref="OnOpen"/> so the first draw after opening re-reads the collection.</summary>
     private bool refreshOnOpen;
 
+    /// <summary>
+    /// Whether this session's window shows the first-run line, decided on the first draw and then held.
+    /// </summary>
+    /// <remarks>
+    /// The flag it reads is persisted on the very frame the line is drawn, so re-reading the config each
+    /// frame showed the line for one frame and then retired it before anyone could read it. Null, not false,
+    /// because "not decided yet" and "decided against" are different states here.
+    /// </remarks>
+    private bool? firstRunHint;
+
     /// <summary>Set once a draw has failed, so the failure is logged on the transition (N4).</summary>
     private bool loggedDrawFailure;
 
@@ -447,6 +457,11 @@ public sealed class MainWindow : GlassWindow, IDisposable
         // it goes through the string table and the draw path may not allocate per frame.
         RefreshWatchLine(config);
 
+        // Decided once per open and then held: the flag below is cleared on the frame it is drawn, so a
+        // per-frame read would retire the line immediately (see the field).
+        firstRunHint ??= !config.FirstRunHintSeen;
+        state.FirstRunHint = firstRunHint.Value;
+
         view.Draw(state);
 
         // A wanted toggle is a config write like any other: apply it before the browse-state diff
@@ -459,6 +474,15 @@ public sealed class MainWindow : GlassWindow, IDisposable
 
         // The watch toggle and its threshold are config writes like the two above.
         var watchChanged = ApplyWatch(config);
+
+        // The first-run line is one-shot: recording it as seen on the frame it was drawn is what stops it
+        // coming back next session. The held field is what keeps it on screen for the rest of this one.
+        var firstRunChanged = state.FirstRunHint && !config.FirstRunHintSeen;
+
+        if (firstRunChanged)
+        {
+            config.FirstRunHintSeen = true;
+        }
 
         // The header's wanted badge is the board's only door (the task asked for no new header button).
         if (state.BoardRequested)
@@ -498,7 +522,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
 
         var browseChanged = ApplyBrowseState(config);
 
-        if (wantedChanged || browseChanged || grindChanged || watchChanged)
+        if (wantedChanged || browseChanged || grindChanged || watchChanged || firstRunChanged)
         {
             Plugin.SaveConfigSafe(config);
         }

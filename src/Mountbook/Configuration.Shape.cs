@@ -36,6 +36,16 @@ public sealed partial class Configuration
     /// <summary>Persisted so a reopened window comes back where the user left it.</summary>
     public bool MainWindowOpen { get; set; }
 
+    /// <summary>
+    /// True once the main window has drawn its first-run line, so the onboarding hint is shown exactly once.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately outside the version ladder: a missing <c>bool</c> keeps this initialiser, and <c>false</c>
+    /// is the right reading for both a brand-new file and one written before the line existed - which is also
+    /// what makes the hint reach a player upgrading from an older build, the one case where it is still news.
+    /// </remarks>
+    public bool FirstRunHintSeen { get; set; }
+
     /// <summary>What was typed into the search box when the window was last used.</summary>
     public string SearchText { get; set; } = string.Empty;
 
@@ -222,6 +232,7 @@ public sealed partial class Configuration
 
         Version = CurrentVersion;
         MainWindowOpen = fresh.MainWindowOpen;
+        FirstRunHintSeen = fresh.FirstRunHintSeen;
         SearchText = fresh.SearchText;
         Ownership = fresh.Ownership;
         Expansion = fresh.Expansion;

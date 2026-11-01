@@ -19,6 +19,13 @@ public sealed partial class MountbookView
     /// <summary>The mount the current lift belongs to, so the glow never follows the pointer around.</summary>
     /// <summary>The card the pointer was over on the last draw, which the hover ease follows.</summary>
     private uint hoveredCardId;
+
+    /// <summary>The filter block's own height, measured on an earlier frame; not positive until the first measurement lands.</summary>
+    private float filtersHeightPx = -1f;
+
+    /// <summary>The UI scale <see cref="filtersHeightPx"/> was measured at; a scale change re-measures it.</summary>
+    private float filtersHeightScale = -1f;
+
     private void DrawFilterColumn(MountViewState state, float width, float height)
     {
         if (!ImGui.BeginChild("##filters"u8, new Vector2(width, height)))
@@ -27,7 +34,28 @@ public sealed partial class MountbookView
             return;
         }
 
+        var filtersTop = ImGui.GetCursorScreenPos().Y;
+
+        // At the window's 820x520 minimum the filter block alone is taller than the column, so the list is
+        // left no height at all - and the empty state is drawn into the list, which put "no mounts match" and
+        // its one action below the fold of a scrolling child: measured, the room left was 1 px. The filters'
+        // height is only known after they are drawn, so it is remembered from the previous frame (the same
+        // shape as the card's bottom inset) and, while the room left is under the floor of the state, the
+        // state is drawn first as one row above the search box. The condition reads the filters, never the
+        // state, so it cannot flip between frames.
+        var squeezed = state.Items.Count == 0
+            && filtersHeightScale == Frame.Scale
+            && (height - filtersHeightPx) < EmptyStateFloorHeight();
+
+        if (squeezed)
+        {
+            DrawCompactEmptyState(state);
+        }
+
         DrawFilters(state);
+
+        filtersHeightPx = ImGui.GetCursorScreenPos().Y - filtersTop;
+        filtersHeightScale = Frame.Scale;
 
         var gridHeight = MathF.Max(ImGui.GetContentRegionAvail().Y, 1f);
 
@@ -35,7 +63,11 @@ public sealed partial class MountbookView
         // window the child is only ~100 px tall, so a state block drawn in it was clipped and faded.
         if (state.Items.Count == 0)
         {
-            DrawEmptyState(state, gridHeight);
+            if (!squeezed)
+            {
+                DrawEmptyState(state, gridHeight);
+            }
+
             ImGui.EndChild();
             return;
         }
@@ -200,46 +232,117 @@ public sealed partial class MountbookView
         Loc.F("filter.source.option", UiText.Source(option.Kind), option.Mounts);
 
     /// <summary>
-    /// The no-results state: a heading, one line that says what to do, and a button that does it.
+    /// The least height the empty state can take and still name its one action: the heading, a gap and the
+    /// button, with neither explanatory line. <see cref="DrawFilterColumn"/> compares the room the list has
+    /// against it to decide whether the state can live in the list at all.
+    /// </summary>
+    private static float EmptyStateFloorHeight()
+    {
+        var scale = Frame.Scale;
+        var look = Frame.Look;
+
+        return (look.Type.LineHeight(TextRole.Title) * scale)
+            + (look.SpaceSmall * scale)
+            + (look.SpaceMedium * scale)
+            + (MathF.Max(look.ControlHeight, look.MinHit) * scale);
+    }
+
+    /// <summary>
+    /// The squeezed-window form of the empty state: the heading and its button on one row, above the filters,
+    /// for a column the filters have already filled.
+    /// </summary>
+    /// <remarks>
+    /// It keeps the same promise in less room - the state is named and exactly one action is offered - and it
+    /// drops the explanatory lines entirely rather than truncating them: at this size the search box it would
+    /// point at is itself scrolled out of the column, so a sentence about filters would be advice the player
+    /// cannot see the target of.
+    /// </remarks>
+    private static void DrawCompactEmptyState(MountViewState state)
+    {
+        var scale = Frame.Scale;
+        var onWantedList = state.Ownership == MountOwnership.Wanted;
+
+        Gw.Text(Loc.T(onWantedList ? "empty.wanted.title" : "empty.match.title"), TextRole.Subheadline);
+        ImGui.SameLine(0f, Frame.Look.SpaceSmall * scale);
+
+        if (Gw.Button(Loc.T(onWantedList ? "empty.wanted.button" : "empty.match.button"), ButtonStyle.Default, ButtonSize.Small))
+        {
+            state.ClearFiltersRequested = true;
+        }
+    }
+
+    /// <summary>
+    /// The no-results state: a heading, one line naming the next action, and the button that takes it.
     /// Placed about a third of the way down the card rather than at the very top, so it reads as a
     /// state of the list instead of a stray label.
     /// </summary>
+    /// <remarks>
+    /// The block is measured before it is placed. The old shape reserved "a title, two footnote lines and a
+    /// button" as a constant, which is one Look at one UI scale: the hint and the operator line both wrap,
+    /// and at the window's 820x520 minimum the filter column leaves the list under a hundred pixels, so the
+    /// button was drawn on top of the hint and clipped by the child. What yields is the grammar line, then
+    /// the hint - the button is the one action the state names and it is the last thing to go.
+    /// </remarks>
     private static void DrawEmptyState(MountViewState state, float height)
     {
         var scale = Frame.Scale;
         var look = Frame.Look;
-        // The hint under the title wraps to two lines at the narrow sizes, so the block reserves them:
-        // reserving one put the button on top of the second line in the 620 px window.
-        var blockHeight = (look.Type.LineHeight(TextRole.Title) * scale)
-            + (look.Type.LineHeight(TextRole.Footnote) * scale * 2f)
-            + (look.ControlHeight * scale)
-            + (look.SpaceMedium * scale * 2f);
-        var top = ImGui.GetCursorScreenPos().Y + MathF.Max((height - blockHeight) * 0.5f, 0f);
-        var left = ImGui.GetCursorScreenPos().X;
 
         // An empty *wanted* list is not a filter problem: it is a list with nothing on it yet, and the hint
         // should say how to add something rather than how to widen a filter.
         var onWantedList = state.Ownership == MountOwnership.Wanted;
+        var hint = Loc.T(onWantedList ? "empty.wanted.hint" : "empty.match.hint");
+        var action = Loc.T(onWantedList ? "empty.wanted.button" : "empty.match.button");
+        var width = MathF.Max(ImGui.GetContentRegionAvail().X, 1f);
 
-        ImGui.SetCursorScreenPos(new Vector2(left, top));
-        Gw.Heading(onWantedList ? Loc.T("empty.wanted.title") : Loc.T("empty.match.title"));
+        var gap = look.SpaceSmall * scale;
 
-        Gw.Text(
-            onWantedList
-                ? Loc.T("empty.wanted.hint")
-                : Loc.T("empty.match.hint"),
-            TextRole.Footnote);
+        var headingHeight = look.Type.LineHeight(TextRole.Title) * scale;
+        var hintHeight = TextPaint.MeasureWrapped(hint, TextRole.Footnote, in look, scale, width, 0).Y;
 
         // An empty list is where a player learns the grammar: the same sentence the search field's
-        // tooltip carries, so "no mounts match" also says how to ask a better question.
-        if (!onWantedList)
+        // tooltip carries, so "no mounts match" also says how to ask a better question. A wanted list has
+        // no grammar to teach, so it has no line at all.
+        var grammarHeight = onWantedList
+            ? 0f
+            : TextPaint.MeasureWrapped(SearchHint, TextRole.Footnote, in look, scale, width, 0).Y;
+
+        // Gw reserves an item as Max(drawn size, Look.MinHit), so a button row is MinHit tall, not
+        // ControlHeight - reserving the smaller one is a constant few pixels short and reads as a clipped
+        // button rather than as arithmetic.
+        var buttonHeight = MathF.Max(look.ControlHeight, look.MinHit) * scale;
+
+        float BlockHeight(bool withHint, bool withGrammar) =>
+            headingHeight
+            + gap
+            + (withHint ? hintHeight + gap : 0f)
+            + (withGrammar ? grammarHeight + gap : 0f)
+            + (look.SpaceMedium * scale)
+            + buttonHeight;
+
+        var showHint = BlockHeight(true, false) <= height;
+        var showGrammar = !onWantedList && showHint && BlockHeight(true, true) <= height;
+        var blockHeight = BlockHeight(showHint, showGrammar);
+
+        var at = ImGui.GetCursorScreenPos();
+        var top = at.Y + MathF.Max((height - blockHeight) * 0.5f, 0f);
+
+        ImGui.SetCursorScreenPos(new Vector2(at.X, top));
+        Gw.Heading(Loc.T(onWantedList ? "empty.wanted.title" : "empty.match.title"));
+
+        if (showHint)
+        {
+            Gw.TextWrapped(hint, TextRole.Footnote);
+        }
+
+        if (showGrammar)
         {
             Gw.TextWrapped(SearchHint, TextRole.Footnote, look.TertiaryLabel);
         }
 
         ImGui.Dummy(new Vector2(0f, look.SpaceMedium * scale));
 
-        if (Gw.Button(onWantedList ? Loc.T("empty.wanted.button") : Loc.T("empty.match.button"), ButtonStyle.Default, ButtonSize.Small))
+        if (Gw.Button(action, ButtonStyle.Default, ButtonSize.Small))
         {
             state.ClearFiltersRequested = true;
         }

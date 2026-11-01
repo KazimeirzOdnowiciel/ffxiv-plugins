@@ -28,13 +28,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 
 Mountbook is the one plugin kept in the full multi-project shape it was built in: `src/Mountbook`,
 `src/Mountbook.Tests`, `src/Mountbook.Previews` and `src/Mountbook.Tools` sit side by side, and its
-sixteen goldens live in `src/Mountbook.Previews/goldens`. Its gate (the last line is the only one that proves the layout: it
+twenty-one goldens live in `src/Mountbook.Previews/goldens`. Its gate (the last line is the only one that proves the layout: it
 exits 1 on any mismatch, and `--out` is **not** optional - without it the tool prints its help and exits
 0, which reads exactly like a pass):
 
 ```powershell
 dotnet build src/Mountbook/Mountbook.csproj -c Release
-dotnet run --project src/Mountbook.Tests/Mountbook.Tests.csproj -c Release   # 604 tests committed
+dotnet run --project src/Mountbook.Tests/Mountbook.Tests.csproj -c Release   # 631 tests committed
 dotnet build src/Mountbook.Previews/Mountbook.Previews.csproj -c Release
 ~/.dotnet/tools/glasswork-preview.exe --assembly src/Mountbook.Previews/bin/Release/Mountbook.Previews.dll --compare src/Mountbook.Previews/goldens --out artifacts/previews/Mountbook
 ```
@@ -44,6 +44,11 @@ the images you meant to move. A scene is any public parameterless `IPreviewScree
 `--scene <name>` renders one of them. Every scene renders at UI scale 1 - the interface has no scale
 member and `--scale` is refused with `--assembly` - so scale-dependent defects are caught by audit and by
 a fix's own reasoning, not by an image.
+
+The accessibility variants are scenes, not switches: `--light`, `--contrast` and `--reduce-motion` do not
+apply with `--assembly` ("a screen brings its own size, Look and script"), so `light` renders
+`Look.EorzeaLight()` and `contrast` renders the shipped Look with `IncreaseContrast` and `ReduceTransparency`
+on. Both draw the same state as `main` at the same size, so a diff against that golden can only be the Look.
 
 The suite and the golden compare run in CI too: `.github/workflows/ci.yml` has a **Tests** job
 (`dotnet run` on the xunit v3 project, nothing else - it compiles `Services/` by path and

@@ -291,6 +291,18 @@ public sealed partial class MountbookView
 
         ImGui.SetCursorScreenPos(new Vector2(at.X, at.Y + blockHeight + (look.SpaceSmall * scale)));
 
+        // First run: one line naming the two controls a new player cannot find on their own - the search
+        // box, which is the only way to narrow the whole book, and the Cards/Table switch, which changes how
+        // the list draws rather than what is in it. Fitted to one line instead of wrapped because the shelf's
+        // row budget is already spent above this point, and it is here for exactly one session.
+        if (state.FirstRunHint)
+        {
+            Gw.Text(
+                FitRole(Loc.T("firstrun.hint"), ImGui.GetContentRegionAvail().X, scale, TextRole.Footnote),
+                TextRole.Footnote,
+                look.TertiaryLabel);
+        }
+
         // When a filter or a search narrows the list, say how much of the collection is on screen:
         // "136 of 369 collected" alone gives no feedback that the filter is doing anything.
         // Only when there is something on screen to describe: "0 of 0 shown collected (0%)" above an empty
