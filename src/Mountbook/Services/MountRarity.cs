@@ -47,6 +47,46 @@ public static class MountRarity
         return Loc.F("rarity.owned", Format(rounded));
     }
 
+    /// <summary>
+    /// The share as the short reading the table's Owners column and the header's insight line print:
+    /// <c>3.4%</c>, <c>&lt;0.1%</c> for a rounded zero, <c>100%</c> at the top, or empty when the share is
+    /// unrecorded. One reading of a share, so no two places can round it differently.
+    /// </summary>
+    /// <param name="ownedPercent">The share of collectors who own the mount, or null when unrecorded.</param>
+    public static string ShareText(double? ownedPercent)
+    {
+        if (ownedPercent is not { } percent || double.IsNaN(percent))
+        {
+            return string.Empty;
+        }
+
+        var rounded = Math.Round(percent, 1, MidpointRounding.AwayFromZero);
+
+        return rounded <= 0d
+            ? Loc.F("table.rarity.fewer", Format(RoundingStep))
+            : Loc.F("table.rarity", Format(rounded));
+    }
+
+    /// <summary>
+    /// The share below which the table marks a mount as rare, in percent: the top of what a collector reads
+    /// as rare, and what the odd mount in the catalogue still falls under.
+    /// </summary>
+    public const double RarePercent = 1d;
+
+    /// <summary>
+    /// Whether the table should mark this mount as rare: the share rounds below <see cref="RarePercent"/>.
+    /// </summary>
+    /// <remarks>
+    /// Tested on the rounded value so the mark cannot disagree with the number printed beside it - a share
+    /// of 0.96 is drawn as <c>1%</c>, and a badge calling <c>1%</c> "rare" would be the badge's mistake.
+    /// An unrecorded share is not rare: the same rule the ordering applies to an unknown.
+    /// </remarks>
+    /// <param name="ownedPercent">The share of collectors who own the mount, or null when unrecorded.</param>
+    public static bool IsRare(double? ownedPercent) =>
+        ownedPercent is { } percent
+        && !double.IsNaN(percent)
+        && Math.Round(percent, 1, MidpointRounding.AwayFromZero) < RarePercent;
+
     /// <summary>The percentage the way the site writes it: one decimal at most, no trailing ".0".</summary>
     /// <param name="percent">The percentage to format.</param>
     public static string Format(double percent) =>

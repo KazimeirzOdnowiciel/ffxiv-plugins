@@ -147,6 +147,17 @@ public sealed class MountViewState
     public IReadOnlyList<ExpansionProgress> Expansions { get; set; } = [];
 
     /// <summary>
+    /// The rarest mount the player is missing, or null when every mount is owned (or none of the unowned
+    /// ones carries a recorded share): the header then draws no insight line at all.
+    /// </summary>
+    /// <remarks>
+    /// Set by the window from the whole catalogue, not from <see cref="Items"/> - it is a fact about the
+    /// collection, like <see cref="Owned"/>/<see cref="Total"/>, and a filter must not be able to make a
+    /// different mount the rarest one. Computed once per catalogue revision, never per frame.
+    /// </remarks>
+    public RarestMissing? RarestMissing { get; set; }
+
+    /// <summary>
     /// The player's hunting list, read-only from the view's side. The window owns the set and
     /// applies <see cref="ToggleWantedId"/> after the draw; the view only asks whether an id is in
     /// it and how many are on it.

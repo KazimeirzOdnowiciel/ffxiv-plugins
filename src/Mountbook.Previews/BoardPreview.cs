@@ -110,6 +110,7 @@ public sealed class GrindPreview : IPreviewScreen
         {
             Items = items,
             Expansions = MountBreakdown.ByExpansion(items),
+            RarestMissing = MountRarityInsight.Find(items),
             OwnershipCounts = new MountQuery(string.Empty, MountOwnership.All, MountExpansion.All, MountOrder.Name).OwnershipCounts(items, null),
             Owned = owned,
             Total = items.Count,

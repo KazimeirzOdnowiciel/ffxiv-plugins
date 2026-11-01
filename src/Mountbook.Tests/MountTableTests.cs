@@ -67,6 +67,7 @@ public sealed class MountTableTests
     [InlineData(MountTable.SeatsColumn, true, MountOrder.Seats)]
     [InlineData(MountTable.OwnedColumn, true, MountOrder.OwnedFirst)]
     [InlineData(MountTable.RarityColumn, true, MountOrder.RarestFirst)]
+    [InlineData(MountTable.RarityColumn, false, MountOrder.CommonestFirst)]
     public void HeaderClicksMapOntoTheOrdersTheListAlreadyHas(int column, bool ascending, MountOrder expected) =>
         Assert.Equal(expected, MountTable.OrderFor(column, ascending));
 
@@ -81,6 +82,7 @@ public sealed class MountTableTests
     [InlineData(MountOrder.Seats, MountTable.SeatsColumn)]
     [InlineData(MountOrder.OwnedFirst, MountTable.OwnedColumn)]
     [InlineData(MountOrder.RarestFirst, MountTable.RarityColumn)]
+    [InlineData(MountOrder.CommonestFirst, MountTable.RarityColumn)]
     public void EveryOrderHasAColumnToShowItIn(MountOrder order, int expected) =>
         Assert.Equal(expected, MountTable.ColumnFor(order));
 
@@ -92,12 +94,16 @@ public sealed class MountTableTests
         foreach (MountOrder order in new[]
         {
             MountOrder.Name, MountOrder.OldestFirst, MountOrder.NewestFirst, MountOrder.Seats,
-            MountOrder.OwnedFirst, MountOrder.RarestFirst, MountOrder.Cheapest,
+            MountOrder.OwnedFirst, MountOrder.RarestFirst, MountOrder.Cheapest, MountOrder.CommonestFirst,
         })
         {
             int column = MountTable.ColumnFor(order);
 
-            Assert.Equal(order, MountTable.OrderFor(column, order != MountOrder.NewestFirst));
+            // The two orders the caret reports as descending are the descending ones: "Newest first" and
+            // "Commonest first" are the second click on their column, so they round-trip at false.
+            bool descending = order is MountOrder.NewestFirst or MountOrder.CommonestFirst;
+
+            Assert.Equal(order, MountTable.OrderFor(column, !descending));
         }
     }
 

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Mountbook.Services;
 using Xunit;
 
@@ -152,6 +153,68 @@ public sealed class MountCommunityTests
             Item("Alpha", 5, 2));
 
         Assert.Equal(new[] { "Alpha", "Zebra" }, Names(rows));
+    }
+
+    [Fact]
+    public void CommonestFirstIsRarestFirstReversed()
+    {
+        // The descending direction is the ascending comparator read backwards, not a second rule: the
+        // acceptance for the Owners column's second click is that these two lists are mirrors.
+        MountShelfItem[] items =
+        [
+            Item("Beta", 12.5, 1),
+            Item("Alpha", 0.3, 2),
+            Item("Delta", 99.9, 3),
+            Item("Gamma", 48.7, 4),
+        ];
+
+        string[] rarest = Names(Apply(MountOrder.RarestFirst, items));
+        string[] commonest = Names(Apply(MountOrder.CommonestFirst, items));
+
+        Assert.Equal(rarest, commonest.Reverse().ToArray());
+        Assert.Equal(new[] { "Alpha", "Beta", "Gamma", "Delta" }, rarest);
+    }
+
+    [Fact]
+    public void CommonestFirstKeepsUnrecordedRarityAtTheEndToo()
+    {
+        // Negating the whole comparator would have put the unknowns on top of this order - the trap
+        // "Newest first" and "Rarest first" each fell into once. Unknown stays last in both directions.
+        var rows = Apply(
+            MountOrder.CommonestFirst,
+            Item("Unknown", null, 1),
+            Item("Known", 40, 2));
+
+        Assert.Equal(new[] { "Known", "Unknown" }, Names(rows));
+    }
+
+    [Fact]
+    public void CommonestFirstStillFallsBackToTheNameOnATie()
+    {
+        // A reversed tie would make two mounts at one share swap places depending on the arrow clicked.
+        var rows = Apply(
+            MountOrder.CommonestFirst,
+            Item("Zebra", 5, 1),
+            Item("Alpha", 5, 2));
+
+        Assert.Equal(new[] { "Alpha", "Zebra" }, Names(rows));
+    }
+
+    [Theory]
+    [InlineData(0.4, true)]
+    [InlineData(0.9, true)]
+    [InlineData(0.96, false)]
+    [InlineData(1, false)]
+    [InlineData(12.5, false)]
+    public void ARareMountIsOneUnderOnePercentAfterRounding(double percent, bool expected) =>
+        // Rounded first, so the badge can never call "1%" rare while the number beside it says 1%.
+        Assert.Equal(expected, MountRarity.IsRare(percent));
+
+    [Fact]
+    public void AnUnrecordedShareIsNotRare()
+    {
+        Assert.False(MountRarity.IsRare(null));
+        Assert.False(MountRarity.IsRare(double.NaN));
     }
 
     private static IReadOnlyList<MountShelfItem> Apply(MountOrder order, params MountShelfItem[] items) =>

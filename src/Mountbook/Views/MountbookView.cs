@@ -170,6 +170,7 @@ public sealed partial class MountbookView
         Loc.T("order.rarest"),
         Loc.T("order.cheapest"),
         Loc.T("order.surprise"),
+        Loc.T("order.commonest"),
     ];
 
     /// <summary>The Look generation the cached measurements were taken at.</summary>
@@ -193,6 +194,8 @@ public sealed partial class MountbookView
         countedTotal = -1;
         countedWanted = -1;
         countedWatching = -1;
+        countedRarest = null;
+        rarestMeasuredScale = -1f;
 
         filteredOwned = -1;
         filteredShown = -1;

@@ -160,4 +160,12 @@ public enum MountOrder
     /// keeps the list from reshuffling under the pointer every frame (and makes the order testable).
     /// </summary>
     Random,
+
+    /// <summary>
+    /// Largest share of collectors first: the mirror of <see cref="RarestFirst"/>, for a table header
+    /// clicked on the Owners column a second time. Appended after <see cref="Random"/> rather than placed
+    /// beside its sibling, because a saved config holds this enum as a number and inserting would turn
+    /// every stored "Surprise me" into this order.
+    /// </summary>
+    CommonestFirst,
 }

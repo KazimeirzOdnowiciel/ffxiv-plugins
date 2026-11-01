@@ -42,6 +42,7 @@ public sealed partial class MountbookView
             MountOrder.NewestFirst => "##mountsTable4"u8,
             MountOrder.RarestFirst => "##mountsTable5"u8,
             MountOrder.Cheapest => "##mountsTable6"u8,
+            MountOrder.CommonestFirst => "##mountsTable7"u8,
             _ => "##mountsTable0"u8,
         };
 
@@ -67,8 +68,12 @@ public sealed partial class MountbookView
         // a percentage nobody owned. The heading is what a fit-content column is sized by, so the dot's
         // column is as narrow as that five-letter word allows: 112 px of "Collected" was most of the
         // width the name and the source were short of.
+        //
+        // Owners is not a numeric column any more: a rare share is drawn as a capsule badge, and a badge
+        // cannot be right-aligned inside a numeric column without a width the facade does not report, so
+        // the header, the badges and the plain percentages all share the cell's left edge instead.
         Gw.TableColumn(Loc.T("table.owned"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.OwnedColumn, false);
-        Gw.TableColumn(Loc.T("table.owners"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.RarityColumn, true);
+        Gw.TableColumn(Loc.T("table.owners"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.RarityColumn, false);
         Gw.TableColumn(Loc.T("table.price"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.PriceColumn, false);
 
         Gw.TableHeaders();
@@ -115,7 +120,7 @@ public sealed partial class MountbookView
             DrawOwnedDot(item.Owned, accent);
 
             Gw.TableCell();
-            Gw.TableText(MountTable.RarityText(item), TextRole.Footnote);
+            DrawRarity(item, Frame.Look);
 
             // Empty until the prices are read: a column of dashes would read as "free", and the row
             // order already parks the unpriced mounts at the end when this is the sort column.
@@ -126,6 +131,32 @@ public sealed partial class MountbookView
         }
 
         Gw.EndTable();
+    }
+
+    /// <summary>
+    /// The Owners cell: the share of collectors who have this mount, drawn as a badge for the rarest ones
+    /// so that rarity reads as a mark and not only as a digit to be compared across rows.
+    /// </summary>
+    /// <remarks>
+    /// The badge carries the same percentage the plain cell would, so it cannot widen the column past the
+    /// "Owners" heading that already sizes it. The mark is the tier's, not the row's -
+    /// <see cref="MountRarity.IsRare"/> decides, on the rounded share, so the mark can never contradict the
+    /// number it sits on - and the tooltip repeats the share in words for a reader who wants the sentence.
+    /// </remarks>
+    /// <param name="item">The mount whose row is being drawn.</param>
+    /// <param name="look">The Look, for the one colour a badge may use.</param>
+    private static void DrawRarity(MountShelfItem item, Look look)
+    {
+        string text = MountTable.RarityText(item);
+
+        if (text.Length == 0 || !MountRarity.IsRare(item.Community?.OwnedPercent))
+        {
+            Gw.TableText(text, TextRole.Footnote);
+            return;
+        }
+
+        Gw.Badge(text, look.Warning);
+        Gw.TooltipFor(ImGui.IsItemHovered(), MountRarity.Describe(item.Community?.OwnedPercent));
     }
 
     /// <summary>
@@ -167,7 +198,6 @@ public sealed partial class MountbookView
 
     /// <summary>The width the dot's cell reserves, logical units: the dot plus the gutter beside it.</summary>
     private const float OwnedDotWidth = 12f;
-
     /// <summary>The dot's radius, logical units.</summary>
     private const float OwnedDotRadius = 4f;
 }

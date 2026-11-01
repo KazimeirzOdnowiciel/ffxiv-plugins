@@ -196,6 +196,7 @@ public sealed record MountQuery(string? Search, MountOwnership Ownership, MountE
             MountOrder.Seats => CompareSeats,
             MountOrder.OwnedFirst => CompareOwnedFirst,
             MountOrder.RarestFirst => CompareRarestFirst,
+            MountOrder.CommonestFirst => CompareCommonestFirst,
             _ => CompareByName,
         };
     }
@@ -271,6 +272,41 @@ public sealed record MountQuery(string? Search, MountOwnership Ownership, MountE
         if (leftOwned.HasValue)
         {
             int byOwned = leftOwned.Value.CompareTo(rightOwned!.Value);
+
+            if (byOwned != 0)
+            {
+                return byOwned;
+            }
+        }
+
+        return CompareByName(left, right);
+    }
+
+    /// <summary>
+    /// The mirror of <see cref="CompareRarestFirst"/>: the largest share of collectors first. Written as
+    /// that comparator with its value comparison reversed, not as a second rule, so the two directions
+    /// cannot drift apart.
+    /// </summary>
+    /// <remarks>
+    /// Only the value comparison is reversed. An unrecorded share is a fact about the data rather than a
+    /// direction, so it stays at the end here too - negating the whole comparator would have hoisted the
+    /// unknowns to the top of "Commonest first", the same trap "Newest first" and "Rarest first" each fell
+    /// into once. A tie stays alphabetical for the same reason it does there: a reversed tie would make
+    /// two mounts at one share swap places depending on which arrow the player clicked.
+    /// </remarks>
+    private static int CompareCommonestFirst(MountShelfItem left, MountShelfItem right)
+    {
+        double? leftOwned = left.Community?.OwnedPercent;
+        double? rightOwned = right.Community?.OwnedPercent;
+
+        if (leftOwned.HasValue != rightOwned.HasValue)
+        {
+            return leftOwned.HasValue ? -1 : 1;
+        }
+
+        if (leftOwned.HasValue)
+        {
+            int byOwned = rightOwned!.Value.CompareTo(leftOwned.Value);
 
             if (byOwned != 0)
             {

@@ -87,16 +87,7 @@ public static class MountTable
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        if (item.Community?.OwnedPercent is not { } percent || double.IsNaN(percent))
-        {
-            return string.Empty;
-        }
-
-        var rounded = Math.Round(percent, 1, MidpointRounding.AwayFromZero);
-
-        return rounded <= 0d
-            ? Loc.F("table.rarity.fewer", MountRarity.Format(MountRarity.RoundingStep))
-            : Loc.F("table.rarity", MountRarity.Format(rounded));
+        return MountRarity.ShareText(item.Community?.OwnedPercent);
     }
 
     /// <summary>
@@ -119,7 +110,7 @@ public static class MountTable
             MountOrder.OldestFirst or MountOrder.NewestFirst => PatchColumn,
             MountOrder.Seats => SeatsColumn,
             MountOrder.OwnedFirst => OwnedColumn,
-            MountOrder.RarestFirst => RarityColumn,
+            MountOrder.RarestFirst or MountOrder.CommonestFirst => RarityColumn,
             MountOrder.Cheapest => PriceColumn,
             _ => NameColumn,
         };
@@ -132,6 +123,11 @@ public static class MountTable
     /// This deliberately maps onto the existing <see cref="MountOrder"/> values instead of sorting the
     /// rows here: one ordering implementation is what keeps the table, the grid and the Order combo from
     /// disagreeing, which is the same reason the patch parser was unified.
+    /// <para>
+    /// The Owners column is the second one whose arrow means something: ascending is the rarest share
+    /// first, descending the largest share first, and until the descending order existed the caret could
+    /// show "descending" over rows sorted ascending.
+    /// </para>
     /// </remarks>
     /// <param name="column">The column index the table reports as sorted.</param>
     /// <param name="ascending">Whether the table reports it ascending.</param>
@@ -142,7 +138,7 @@ public static class MountTable
             PatchColumn => ascending ? MountOrder.OldestFirst : MountOrder.NewestFirst,
             SeatsColumn => MountOrder.Seats,
             OwnedColumn => MountOrder.OwnedFirst,
-            RarityColumn => MountOrder.RarestFirst,
+            RarityColumn => ascending ? MountOrder.RarestFirst : MountOrder.CommonestFirst,
             PriceColumn => MountOrder.Cheapest,
             _ => null,
         };

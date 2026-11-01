@@ -154,6 +154,24 @@ public sealed partial class MountbookView
         var countWidth = countWidthCache;
         var remainingWidth = remainingWidthCache;
 
+        // Where the second line of statistics can still reach: the header actions own the right edge of
+        // the first line, and a strip or a sentence that ran under them would be chrome over chrome.
+        var actionsClaim = ActionsWidth(look, scale);
+        var actionsLeft = contentRight - actionsClaim;
+        var lineRight = actionsLeft - (look.SpaceSmall * scale);
+        var stripLeft = textLeft + remainingWidth + (look.SpaceLarge * scale);
+        var stripWidth = StripWidth(state, look, scale);
+        var stripInline = stripWidth > 0f && stripLeft + stripWidth < lineRight;
+
+        // The rarest mount still missing sits beside the count it qualifies, on the counters' own line: the
+        // second line is already spoken for by "n still missing" and the expansion strip, and a third line
+        // would cost the shelf a row of cards for one sentence. It is drawn only when the words fit - at the
+        // narrow sizes they do not - and what does not fit is still said by the ring's tooltip, which is why
+        // the sentence is worked out before the ring is drawn.
+        var rarestLeft = textLeft + countWidth + (look.SpaceLarge * scale);
+        RefillRarest(state.RarestMissing);
+        var rarestLine = RarestLine(lineRight - rarestLeft);
+
         // The ring carries the percentage...
         ImGui.SetCursorScreenPos(at);
         Gw.ProgressRing(Fraction(state.Owned, state.Total), RingSize, RingStroke, look.Accent);
@@ -168,7 +186,9 @@ public sealed partial class MountbookView
 
         Gw.TooltipFor(
             ImGui.IsItemHovered(),
-            Loc.F("header.collected.tooltip", countText, percentText));
+            rarestLine.Length > 0 || rarestFull.Length == 0
+                ? Loc.F("header.collected.tooltip", countText, percentText)
+                : Loc.F("header.collected.rarest.tooltip", countText, percentText, rarestFull));
 
         // ...and the two statistics lines sit beside it.
         ImGui.SetCursorScreenPos(new Vector2(textLeft, at.Y));
@@ -180,15 +200,17 @@ public sealed partial class MountbookView
         // The per-expansion strip draws on that second line while it clears the actions, and on a line of
         // its own under the counters when it does not. Dropping it in that band made a shipped feature look
         // removed at both narrow window sizes - indistinguishable from having never had one.
-        var stripLeft = textLeft + remainingWidth + (look.SpaceLarge * scale);
-        var actionsClaim = ActionsWidth(look, scale);
-        var actionsLeft = contentRight - actionsClaim;
-        var stripWidth = StripWidth(state, look, scale);
-        var stripInline = stripWidth > 0f && stripLeft + stripWidth < actionsLeft - (look.SpaceSmall * scale);
-
         if (stripInline)
         {
             DrawExpansionStrip(state, stripLeft, at.Y + firstLine + stackGap);
+        }
+
+        if (rarestLine.Length > 0)
+        {
+            // Centred against the count's line rather than sat on its baseline: a footnote beside a
+            // subheadline that shared a baseline would read as a descender of it.
+            ImGui.SetCursorScreenPos(new Vector2(rarestLeft, at.Y + ((firstLine - secondLine) * 0.5f)));
+            Gw.Text(rarestLine, TextRole.Footnote);
         }
 
         var badgeText = RefreshWantedCount(state.WantedIds.Count);
@@ -465,6 +487,68 @@ public sealed partial class MountbookView
         countedWanted = wanted;
         wantedText = wanted <= 0 ? string.Empty : Loc.F("header.wanted", FormatInt(wanted));
         return wantedText;
+    }
+
+    /// <summary>The rarest outstanding mount as one sentence, or empty when there is nothing to name.</summary>
+    private string rarestFull = string.Empty;
+
+    /// <summary>The same sentence without its leading word, for a line with less room.</summary>
+    private string rarestCompact = string.Empty;
+
+    private float rarestFullWidth;
+
+    private float rarestCompactWidth;
+
+    private RarestMissing? countedRarest;
+
+    private float rarestMeasuredScale = -1f;
+
+    /// <summary>
+    /// Builds and measures the insight sentence for <paramref name="rarest"/>, once per mount and UI scale:
+    /// this runs inside the per-frame draw, and the sentence is two string formats plus two text measurements.
+    /// </summary>
+    /// <param name="rarest">The mount to name, or null.</param>
+    private void RefillRarest(RarestMissing? rarest)
+    {
+        var scale = Frame.Scale;
+
+        if (countedRarest == rarest && rarestMeasuredScale == scale)
+        {
+            return;
+        }
+
+        countedRarest = rarest;
+        rarestMeasuredScale = scale;
+
+        var look = Frame.Look;
+
+        rarestFull = MountRarityInsight.Line(rarest);
+        rarestCompact = MountRarityInsight.CompactLine(rarest);
+        rarestFullWidth = rarestFull.Length == 0
+            ? 0f
+            : TextPaint.Measure(rarestFull, TextRole.Footnote, in look, scale).X;
+        rarestCompactWidth = rarestCompact.Length == 0
+            ? 0f
+            : TextPaint.Measure(rarestCompact, TextRole.Footnote, in look, scale).X;
+    }
+
+    /// <summary>
+    /// The longest form of the sentence that fits <paramref name="room"/>, or empty when neither does.
+    /// </summary>
+    /// <remarks>
+    /// Two forms rather than an ellipsis: an ellipsised mount name is ambiguous, and the reader of a header
+    /// knows the word "rarest" from the line itself. The measure is the same one the draw uses, so "fits"
+    /// means what it says.
+    /// </remarks>
+    /// <param name="room">The width left on the counters' line, in pixels.</param>
+    private string RarestLine(float room)
+    {
+        if (rarestFullWidth > 0f && rarestFullWidth <= room)
+        {
+            return rarestFull;
+        }
+
+        return rarestCompactWidth > 0f && rarestCompactWidth <= room ? rarestCompact : string.Empty;
     }
 
     /// <summary>

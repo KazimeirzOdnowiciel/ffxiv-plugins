@@ -119,6 +119,14 @@ public sealed class MainWindow : GlassWindow, IDisposable
 
     private int expansionsRevision = int.MinValue;
 
+    /// <summary>
+    /// The rarest mount the player is missing, and the catalog revision it was found at: the header's one
+    /// insight line, cached because finding it walks every mount and the per-frame path is lookups only.
+    /// </summary>
+    private RarestMissing? rarestMissing;
+
+    private int rarestRevision = int.MinValue;
+
     /// <summary>Set by <see cref="OnOpen"/> so the first draw after opening re-reads the collection.</summary>
     private bool refreshOnOpen;
 
@@ -263,6 +271,16 @@ public sealed class MainWindow : GlassWindow, IDisposable
         }
 
         state.Expansions = expansions;
+
+        // The rarest mount still missing: same shape of cache, same reason. Null once everything is owned,
+        // which is what makes the header's insight line disappear rather than claim a mount that is not there.
+        if (rarestRevision != plugin.Catalog.Revision)
+        {
+            rarestMissing = MountRarityInsight.Find(plugin.Catalog.Items);
+            rarestRevision = plugin.Catalog.Revision;
+        }
+
+        state.RarestMissing = rarestMissing;
 
         // The view caches text measured with the Look's type face; a theme change invalidates all of it.
         state.MeasurementGeneration = plugin.LookRevision;

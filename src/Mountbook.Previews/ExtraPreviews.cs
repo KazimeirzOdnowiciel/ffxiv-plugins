@@ -46,6 +46,7 @@ public sealed class EmptyStatePreview : IPreviewScreen
         {
             Items = [],
             Expansions = MountBreakdown.ByExpansion(all),
+            RarestMissing = MountRarityInsight.Find(all),
             OwnershipCounts = new MountQuery(string.Empty, MountOwnership.All, MountExpansion.All, MountOrder.Name)
                 .OwnershipCounts(all, null),
             Owned = owned,
@@ -148,6 +149,7 @@ public sealed class WantedPreview : IPreviewScreen
             // is what the real window shows, and the earlier version's strip read "ARR 100% HW 100%".
             Items = wanted,
             Expansions = MountBreakdown.ByExpansion(all),
+            RarestMissing = MountRarityInsight.Find(all),
             OwnershipCounts = new MountQuery(string.Empty, MountOwnership.All, MountExpansion.All, MountOrder.Name).OwnershipCounts(all, ids),
             Owned = ownedAll,
             Total = all.Count,
@@ -205,6 +207,7 @@ public sealed class NarrowPreview : IPreviewScreen
         {
             Items = items,
             Expansions = MountBreakdown.ByExpansion(items),
+            RarestMissing = MountRarityInsight.Find(items),
             OwnershipCounts = new MountQuery(string.Empty, MountOwnership.All, MountExpansion.All, MountOrder.Name).OwnershipCounts(items, null),
             Owned = owned,
             Total = items.Count,
@@ -268,6 +271,7 @@ public sealed class PricePreview : IPreviewScreen
         {
             Items = items,
             Expansions = MountBreakdown.ByExpansion(items),
+            RarestMissing = MountRarityInsight.Find(items),
             OwnershipCounts = new MountQuery(string.Empty, MountOwnership.All, MountExpansion.All, MountOrder.Name).OwnershipCounts(items, null),
             Owned = owned,
             Total = items.Count,
@@ -338,6 +342,7 @@ public sealed class TablePreview : IPreviewScreen
         {
             Items = items,
             Expansions = MountBreakdown.ByExpansion(items),
+            RarestMissing = MountRarityInsight.Find(items),
             OwnershipCounts = new MountQuery(string.Empty, MountOwnership.All, MountExpansion.All, MountOrder.Name)
                 .OwnershipCounts(items, wanted),
             Owned = owned,
