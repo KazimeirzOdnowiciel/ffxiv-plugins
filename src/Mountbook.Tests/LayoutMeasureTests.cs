@@ -162,4 +162,30 @@ public sealed class LayoutMeasureTests
         // leave the columns 8 px too tall.
         Assert.Equal(24f, LayoutMeasure.CardInset(measuredPx: 0f, fallbackPx: 16f * 1.5f), 3);
     }
+
+    /// <summary>
+    /// The filter column's pairs, at the widths the goldens really draw: 328 is the narrow window (620x820,
+    /// where the combos stack), 438 the window's 820x520 minimum and 589 the default 1040x660 (both paired).
+    /// The three numbers are measured from the render, not derived - the column is 62% of the card's content
+    /// width less the gutter - so a change to that share has to say so here.
+    /// </summary>
+    /// <param name="columnWidth">The filter column's width, in logical units.</param>
+    /// <param name="paired">Whether two controls fit on one row at that width.</param>
+    [Theory]
+    [InlineData(328f, false)]
+    [InlineData(438f, true)]
+    [InlineData(589f, true)]
+    public void TheFilterPairsFollowTheColumnWidth(float columnWidth, bool paired) =>
+        Assert.Equal(paired, LayoutMeasure.FilterPairFits(columnWidth));
+
+    [Fact]
+    public void ThePairGateSitsBetweenTheNarrowAndTheMinimumColumn()
+    {
+        // Below it the narrow window stacks (a half-width field there holds the defaults but none of the
+        // values a player picks), above it the minimum window pairs - which is what puts a card row back in
+        // the 820x520 golden.
+        Assert.False(LayoutMeasure.FilterPairFits(LayoutMeasure.FilterPairMinWidth - 0.1f));
+        Assert.True(LayoutMeasure.FilterPairFits(LayoutMeasure.FilterPairMinWidth));
+        Assert.InRange(LayoutMeasure.FilterPairMinWidth, 328f, 438f);
+    }
 }

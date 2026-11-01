@@ -131,9 +131,17 @@ public sealed partial class MountbookView
 
 
     /// <summary>Labels for the expansion <c>Gw.ComboBox</c>, in <see cref="MountExpansion"/> order.</summary>
+    /// <remarks>
+    /// The combo carries no label of its own - a second control shares its row - so the entry for the unfiltered
+    /// state names the dimension instead: "All expansions". A picked expansion keeps its own name, because
+    /// "Heavensward" beside "Any source (12)" is a filter value, not a mystery, and a prefix on every value cost
+    /// ~50 px of a ~215 px field (measured: "Expansion: Shadowbringers" is 215.4 px against the 175 px a
+    /// half-width field has at the minimum window) for a word the default already taught. The order and grouping
+    /// combos do prefix every value: "Name" and "Patch" are ambiguous without their dimension, "Stormblood" is not.
+    /// </remarks>
     private static readonly string[] ExpansionLabels =
     [
-        Loc.T("ownership.all"),
+        Loc.T("filter.expansion.all"),
         Loc.T("expansion.arr"),
         Loc.T("expansion.hw"),
         Loc.T("expansion.sb"),
@@ -147,12 +155,13 @@ public sealed partial class MountbookView
     private static readonly string[] ViewLabels = [Loc.T("view.cards"), Loc.T("view.table")];
 
     /// <summary>Labels for the "Group by" <c>Gw.ComboBox</c>, in <see cref="MountGrouping"/> order.</summary>
+    /// <remarks>Label-free like the others: "No grouping" names the state, "Group: Expansion" names the dimension.</remarks>
     private static readonly string[] GroupLabels =
     [
         Loc.T("group.none"),
-        Loc.T("group.expansion"),
-        Loc.T("group.patch"),
-        Loc.T("group.source"),
+        Loc.F("filter.group.value", Loc.T("group.expansion")),
+        Loc.F("filter.group.value", Loc.T("group.patch")),
+        Loc.F("filter.group.value", Loc.T("group.source")),
     ];
 
     /// <summary>Labels for the order <c>Gw.ComboBox</c>, in <see cref="MountOrder"/> order.</summary>
@@ -162,15 +171,15 @@ public sealed partial class MountbookView
     /// </remarks>
     private static readonly string[] OrderLabels =
     [
-        Loc.T("order.name"),
-        Loc.T("order.oldest"),
-        Loc.T("order.seats"),
-        Loc.T("order.ownedFirst"),
-        Loc.T("order.newest"),
-        Loc.T("order.rarest"),
-        Loc.T("order.cheapest"),
-        Loc.T("order.surprise"),
-        Loc.T("order.commonest"),
+        Loc.F("filter.order.value", Loc.T("order.name")),
+        Loc.F("filter.order.value", Loc.T("order.oldest")),
+        Loc.F("filter.order.value", Loc.T("order.seats")),
+        Loc.F("filter.order.value", Loc.T("order.ownedFirst")),
+        Loc.F("filter.order.value", Loc.T("order.newest")),
+        Loc.F("filter.order.value", Loc.T("order.rarest")),
+        Loc.F("filter.order.value", Loc.T("order.cheapest")),
+        Loc.F("filter.order.value", Loc.T("order.surprise")),
+        Loc.F("filter.order.value", Loc.T("order.commonest")),
     ];
 
     /// <summary>The Look generation the cached measurements were taken at.</summary>

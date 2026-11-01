@@ -60,6 +60,27 @@ public static class LayoutMeasure
     public static bool WatchRowFits(float paneWidth) => paneWidth >= WatchRowMinWidth;
 
     /// <summary>
+    /// The narrowest filter column that draws two controls on one row, in logical units.
+    /// </summary>
+    /// <remarks>
+    /// The filter block used to be seven rows of one control each: 321 of the 505 px the list column has at
+    /// the default window size, and the whole column at the window's 820x520 minimum, where the grid then drew
+    /// no card at all. Pairing the combos halves it - but only once each field has room for a value that names
+    /// its own dimension ("All expansions", "Sort: Name"), which is what the labels used to consume. The
+    /// column measures 589 px at the default 1040x660 window, 438 px at the 820x520 minimum and 328 px at the
+    /// 620x820 narrow one, so at the narrow size a half of it (160 px) leaves the field 120 px of ink once the
+    /// control's padding and chevron come out: enough for the defaults, not for the values a player picks
+    /// ("Sort: Commonest first" is 180.9 px, "V&C Dungeon (2)" 198.2). Below this width the pairs stack back
+    /// into one column rather than truncate what was chosen; above it the dimension stays visible at the cost of
+    /// a clipped tail on the longest value.
+    /// </remarks>
+    public const float FilterPairMinWidth = 340f;
+
+    /// <summary>True when the filter column is wide enough to draw two controls on one row.</summary>
+    /// <param name="columnWidth">The filter column's width, in logical units.</param>
+    public static bool FilterPairFits(float columnWidth) => columnWidth >= FilterPairMinWidth;
+
+    /// <summary>
     /// The two-column detail header's measurements, in logical units.
     /// </summary>
     /// <param name="ArtWidth">The artwork box's width; the box is square, so this is also its height.</param>

@@ -96,9 +96,28 @@ public sealed partial class MountbookView
     }
 
     /// <summary>
-    /// The search box and the three filters. Every control writes straight back into the state; the
-    /// window re-queries from those fields on its next frame, so the list lags a keystroke by one frame.
+    /// The search box, the Cards/Table switch, the ownership chips and the four combos, on four rows.
+    /// Every control writes straight back into the state; the window re-queries from those fields on its next
+    /// frame, so the list lags a keystroke by one frame.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The block is folded into pairs because it was eating the list: seven rows of one control each took 321 of
+    /// the 505 px the list column has at the default window size, and at the window's 820x520 minimum the whole
+    /// column - the grid then drew no card at all, which the `minimum` golden showed as an empty pane. Two
+    /// controls share a row here: the search field and the Cards/Table switch, then the ownership chips, then
+    /// Expansion with Source, then Sort with Group by. That is 3 rows (~150 px) back to the viewport without
+    /// dropping a control.
+    /// </para>
+    /// <para>
+    /// A pair only fits label-free, so the combos name their own dimension in the field ("All expansions",
+    /// "Sort: Name") instead of carrying a label to their left: the label cost exactly the width the second
+    /// control needs, and the field's own text is where the player reads the current filter anyway. Below
+    /// <see cref="LayoutMeasure.FilterPairMinWidth"/> the pairs stack back into one column - at the narrow window
+    /// a half-width field would truncate both combos rather than fit them - so the block is 7 rows there and 4
+    /// everywhere else.
+    /// </para>
+    /// </remarks>
     private void DrawFilters(MountViewState state)
     {
         // The controls fill the column, and a hovered control grows past it (see PushControlRoom). The
@@ -109,6 +128,20 @@ public sealed partial class MountbookView
 
         try
         {
+            var scale = Frame.Scale;
+            var gap = Frame.Look.SpaceSmall * scale;
+            var width = MathF.Max(ImGui.GetContentRegionAvail().X, 1f);
+            var paired = LayoutMeasure.FilterPairFits(width / scale);
+            var half = MathF.Max((width - gap) * 0.5f, 1f);
+
+            // The switch keeps its natural width - two cells of its own widest label - so the search field gets
+            // the rest of the row. It never takes more than half the row, so a long translation cannot starve
+            // the field it shares the row with; on a column too narrow to pair it keeps the whole row instead,
+            // because a 92 px switch alone on a 328 px row reads as a stray label rather than as a control.
+            var switchWidth = paired ? MathF.Min(ViewSwitchWidth(scale), half) : width;
+
+            ImGui.SetNextItemWidth(paired ? MathF.Max(width - switchWidth - gap, 1f) : width);
+
             var search = state.Search;
             _ = Gw.TextField(ref search, hint: Loc.T("filter.search.hint"));
             state.Search = search;
@@ -117,61 +150,103 @@ public sealed partial class MountbookView
             // costs no layout in any of the goldens.
             Gw.TooltipFor(ImGui.IsItemHovered(), Loc.F("filter.search.tooltip", SearchHint));
 
+            // Cards or the dense table. It sits with the filters because it changes how the list is
+            // drawn, not what is in it, and because a fifth header button cost the per-expansion strip
+            // its room in a 1040 px window - the strip is a feature, the switch is a preference.
+            var view = (int)state.ViewMode;
+
+            if (paired)
+            {
+                ImGui.SameLine(0f, gap);
+            }
+
+            ImGui.SetNextItemWidth(switchWidth);
+
+            if (Gw.Segmented(ref view, ViewLabels))
+            {
+                state.ViewMode = (MountViewMode)view;
+            }
+
             var ownership = (int)state.Ownership;
 
             // Four chips do not fit the narrow window (the last label clipped to "Unown?"), so the control
             // changes shape rather than truncating: chips when there is room, a combo when not.
-            if (ImGui.GetContentRegionAvail().X >= (380f * Frame.Scale))
+            if (width >= (380f * scale))
             {
                 _ = Gw.Segmented(ref ownership, RefreshOwnershipLabels(state));
             }
             else
             {
-                ImGui.SetNextItemWidth(-1f);
+                ImGui.SetNextItemWidth(width);
                 _ = Gw.ComboBox(ref ownership, RefreshOwnershipLabels(state), label: Loc.T("filter.show"));
             }
 
             state.Ownership = (MountOwnership)ownership;
 
             var expansion = (int)state.Expansion;
-            _ = Gw.ComboBox(ref expansion, ExpansionLabels, label: Loc.T("filter.expansion"));
+            ImGui.SetNextItemWidth(paired ? half : width);
+            _ = Gw.ComboBox(ref expansion, ExpansionLabels);
             state.Expansion = (MountExpansion)expansion;
 
             // The obtain-type filter: "what do I still need from PvP" without a search that also matches lore.
             // Every entry carries the dataset's own count, so the combo answers "how much is left there" before
             // the player commits to a click.
             var source = SourceIndex(state);
-            _ = Gw.ComboBox(ref source, SourceLabelsFor(state), label: Loc.T("filter.source"));
+
+            if (paired)
+            {
+                ImGui.SameLine(0f, gap);
+            }
+
+            ImGui.SetNextItemWidth(paired ? half : width);
+            _ = Gw.ComboBox(ref source, SourceLabelsFor(state));
             state.SourceFilter = source >= 0 && source < state.SourceOptions.Count
                 ? state.SourceOptions[source].Kind
                 : MountSourceKinds.Any;
 
+            // Grouping is a card-grid feature: the table already has a column for every fact the headings
+            // would repeat, so the control only appears where it does something - and then it takes the
+            // second half of the sort's row. Without it the sort keeps the whole row rather than leaving a
+            // hole where a control the mode cannot use would sit.
+            var groupingShown = state.ViewMode == MountViewMode.Grid;
             var order = (int)state.Order;
-            _ = Gw.ComboBox(ref order, OrderLabels, label: Loc.T("filter.order"));
+            ImGui.SetNextItemWidth(paired && groupingShown ? half : width);
+            _ = Gw.ComboBox(ref order, OrderLabels);
             state.Order = (MountOrder)order;
 
-            // Grouping is a card-grid feature: the table already has a column for every fact the headings
-            // would repeat, so the control only appears where it does something.
-            if (state.ViewMode == MountViewMode.Grid)
+            if (groupingShown)
             {
-                var grouping = (int)state.GroupBy;
-                _ = Gw.ComboBox(ref grouping, GroupLabels, label: Loc.T("filter.groupBy"));
-                state.GroupBy = (MountGrouping)grouping;
-            }
+                if (paired)
+                {
+                    ImGui.SameLine(0f, gap);
+                }
 
-            // Cards or the dense table. It sits with the filters because it changes how the list is
-            // drawn, not what is in it, and because a fifth header button cost the per-expansion strip
-            // its room in a 1040 px window - the strip is a feature, the switch is a preference.
-            var view = (int)state.ViewMode;
-            if (Gw.Segmented(ref view, ViewLabels))
-            {
-                state.ViewMode = (MountViewMode)view;
+                var grouping = (int)state.GroupBy;
+                ImGui.SetNextItemWidth(paired ? half : width);
+                _ = Gw.ComboBox(ref grouping, GroupLabels);
+                state.GroupBy = (MountGrouping)grouping;
             }
         }
         finally
         {
             PopControlRoom();
         }
+    }
+
+    /// <summary>
+    /// The width the Cards/Table switch needs to draw both labels whole: two cells of the wider label, each
+    /// giving its ink the switch knob's inset on both sides, plus a small space of slack - the selected cell
+    /// draws semibold, which is a fraction wider than the measurement.
+    /// </summary>
+    /// <param name="scale">The UI scale the switch will be drawn at.</param>
+    private static float ViewSwitchWidth(float scale)
+    {
+        var inset = Frame.Look.SwitchKnobInset * scale;
+        var widest = MathF.Max(
+            TextWidth(Loc.T("view.cards"), TextRole.Subheadline, scale),
+            TextWidth(Loc.T("view.table"), TextRole.Subheadline, scale));
+
+        return MathF.Ceiling((2f * (widest + (inset * 2f))) + (Frame.Look.SpaceSmall * scale));
     }
 
     /// <summary>
@@ -227,9 +302,17 @@ public sealed partial class MountbookView
     /// label rather than in a column of its own because the combo is a single control - and it is the number
     /// that answers "what is left in Cosmic Exploration" without filtering to find out.
     /// </summary>
+    /// <remarks>
+    /// The combo has no label to its left (a second control shares its row), so the entry for the unfiltered
+    /// state names the dimension - "Any source (12)" - and a picked type keeps its name and count. A prefix on
+    /// every value would cost the field ~50 of the ~175 px it has at the minimum window of 820x520, and
+    /// "Cosmic Exploration (3)" already reads as a source: the count is the number worth keeping.
+    /// </remarks>
     /// <param name="option">The entry to label.</param>
     private static string FormatSourceLabel(MountSourceCount option) =>
-        Loc.F("filter.source.option", UiText.Source(option.Kind), option.Mounts);
+        option.Kind.IsAny
+            ? Loc.F("filter.source.any", option.Mounts)
+            : Loc.F("filter.source.option", UiText.Source(option.Kind), option.Mounts);
 
     /// <summary>
     /// The least height the empty state can take and still name its one action: the heading, a gap and the
