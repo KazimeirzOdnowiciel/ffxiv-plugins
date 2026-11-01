@@ -224,12 +224,33 @@ public sealed partial class MountbookView
                 ? state.SourceOptions[source].Kind
                 : MountSourceKinds.Any;
 
+            // The availability filter: the question this feature exists for ("what can I go and get") as one
+            // control, with the count each class would show. It sits under the obtain type because the two
+            // answer different halves of the same question - what kind of thing it is, and whether that route is
+            // open today. It pairs with the order when the grid's grouping combo is not drawn (the table), and
+            // takes its own row when it is, which is the row the grid already spends on grouping.
+            var groupingShown = state.ViewMode == MountViewMode.Grid;
+            var availabilityShown = state.AvailabilityOptions.Count > 0;
+
+            if (availabilityShown)
+            {
+                var availability = AvailabilityIndex(state);
+                ImGui.SetNextItemWidth(paired && !groupingShown ? half : width);
+                _ = Gw.ComboBox(ref availability, AvailabilityLabelsFor(state));
+                state.AvailabilityFilter = AvailabilityFilterAt(state, availability);
+            }
+
             // Grouping is a card-grid feature: the table already has a column for every fact the headings
             // would repeat, so the control only appears where it does something - and then it takes the
             // second half of the sort's row. Without it the sort keeps the whole row rather than leaving a
             // hole where a control the mode cannot use would sit.
-            var groupingShown = state.ViewMode == MountViewMode.Grid;
             var order = (int)state.Order;
+
+            if (availabilityShown && paired && !groupingShown)
+            {
+                ImGui.SameLine(0f, gap);
+            }
+
             ImGui.SetNextItemWidth(paired && groupingShown ? half : width);
             _ = Gw.ComboBox(ref order, OrderLabels);
             state.Order = (MountOrder)order;
@@ -333,6 +354,81 @@ public sealed partial class MountbookView
         option.Kind.IsAny
             ? Loc.F("filter.source.any", option.Mounts)
             : Loc.F("filter.source.option", UiText.Source(option.Kind), option.Mounts);
+
+    /// <summary>
+    /// The combo index of the active availability filter: 0 (the "any" entry) when nothing is filtered, or when
+    /// the class is one the shelf no longer carries - which happens when the dataset moves under a saved filter.
+    /// </summary>
+    /// <param name="state">The state whose availability options to search.</param>
+    private static int AvailabilityIndex(MountViewState state)
+    {
+        if (state.AvailabilityFilter is not { } current)
+        {
+            return 0;
+        }
+
+        IReadOnlyList<MountAvailabilityCount> options = state.AvailabilityOptions;
+
+        for (var index = 0; index < options.Count; index++)
+        {
+            if (options[index].Class == current)
+            {
+                return index + 1;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>The class a combo index stands for, or null for the "any" entry and for an index past the list.</summary>
+    /// <param name="state">The state whose options the index refers to.</param>
+    /// <param name="index">The combo's selected index.</param>
+    private static MountAvailability? AvailabilityFilterAt(MountViewState state, int index) =>
+        index >= 1 && index <= state.AvailabilityOptions.Count
+            ? state.AvailabilityOptions[index - 1].Class
+            : null;
+
+    /// <summary>The availability combo's labels, rebuilt only when the window built a new set of entries.</summary>
+    private string[] availabilityLabelText = [];
+
+    /// <summary>The options <see cref="availabilityLabelText"/> was built from, compared by reference.</summary>
+    private IReadOnlyList<MountAvailabilityCount>? availabilityLabelSource;
+
+    /// <summary>
+    /// The labels the availability combo draws: the "any" entry first, then one per class the shelf carries with
+    /// the count it would show - the same shape as the source combo, and for the same reason (the count answers
+    /// "how much is left there" before the player commits to a click).
+    /// </summary>
+    /// <param name="state">The state whose availability options to label.</param>
+    private string[] AvailabilityLabelsFor(MountViewState state)
+    {
+        IReadOnlyList<MountAvailabilityCount> options = state.AvailabilityOptions;
+
+        if (!ReferenceEquals(availabilityLabelSource, options))
+        {
+            availabilityLabelSource = options;
+            availabilityLabelText = new string[options.Count + 1];
+
+            var total = 0;
+
+            for (var index = 0; index < options.Count; index++)
+            {
+                total += options[index].Mounts;
+            }
+
+            availabilityLabelText[0] = Loc.F("filter.availability.any", total);
+
+            for (var index = 0; index < options.Count; index++)
+            {
+                availabilityLabelText[index + 1] = Loc.F(
+                    "filter.availability.option",
+                    UiText.Availability(options[index].Class),
+                    options[index].Mounts);
+            }
+        }
+
+        return availabilityLabelText;
+    }
 
     /// <summary>
     /// The least height the empty state can take and still name its one action: the heading, a gap and the

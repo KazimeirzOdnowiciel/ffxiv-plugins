@@ -47,6 +47,7 @@ public sealed class GroupedPreview : PreviewScene
             Order = MountOrder.Name,
             GroupBy = MountGrouping.Expansion,
             SourceOptions = MountbookPreview.SourceOptions(items),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(items),
         };
     }
 
@@ -110,6 +111,7 @@ public sealed class TaxonomyPreview : PreviewScene
             Order = MountOrder.Name,
             GroupBy = MountGrouping.Source,
             SourceOptions = MountbookPreview.SourceOptions(items),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(items),
         };
     }
 

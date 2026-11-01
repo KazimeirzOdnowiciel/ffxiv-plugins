@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Mountbook.Services;
 
@@ -29,6 +30,10 @@ namespace Mountbook.Services;
 /// The build-time comparison of the site's seats and movement against the game's <c>Mount</c> sheet, or
 /// null when the run could not make one (offline, or no sheet facts on that machine).
 /// </param>
+/// <param name="Availability">
+/// How many mounts the generator put in each availability class, in
+/// <see cref="MountAvailabilityRules.Classes"/> order. Empty when the file records none.
+/// </param>
 public sealed record MountShelfHeader(
     int SchemaVersion,
     string Generated,
@@ -36,7 +41,8 @@ public sealed record MountShelfHeader(
     string Enrichment,
     string Attribution,
     string AttributionUrl,
-    MountShelfCrossCheck? CrossCheck = null)
+    MountShelfCrossCheck? CrossCheck = null,
+    IReadOnlyList<MountAvailabilityCount>? Availability = null)
 {
     /// <summary>The enrichment word for a snapshot the site answered: every row may carry data.</summary>
     public const string FullEnrichment = "full";

@@ -60,6 +60,7 @@ public sealed class FilterValuesPreview : PreviewScene
             Total = items.Count,
             SelectedId = items[0].Id,
             SourceOptions = MountbookPreview.SourceOptions(items),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(items),
 
             // The one source type the sample carries two of, so the entry shows a name and a count together.
             SourceFilter = MountSourceKinds.Parse("V&C Dungeon"),
@@ -133,6 +134,7 @@ public sealed class SwitchPressPreview : PreviewScene
             Owned = owned,
             Total = items.Count,
             SourceOptions = MountbookPreview.SourceOptions(items),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(items),
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,

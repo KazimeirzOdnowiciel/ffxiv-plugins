@@ -18,6 +18,18 @@ public sealed record MountQuery(string? Search, MountOwnership Ownership, MountE
     public MountSourceKind Source { get; init; } = MountSourceKinds.Any;
 
     /// <summary>
+    /// The availability class to keep (<c>Available</c>, <c>Seasonal</c>, ...), or null for every mount.
+    /// </summary>
+    /// <remarks>
+    /// The counterpart of <see cref="Source"/>: the obtain type says what kind of thing a mount is earned by,
+    /// this says whether that route is open today. It filters on the class the snapshot states
+    /// (<see cref="MountShelfItem.Availability"/>) rather than re-reading the types, so the list, the badge and
+    /// the counts cannot disagree, and a mount with no obtain data is excluded by every class except
+    /// <see cref="MountAvailability.Unknown"/> - <c>nothing is known</c> is not <c>available</c>.
+    /// </remarks>
+    public MountAvailability? Availability { get; init; }
+
+    /// <summary>
     /// How many mounts each ownership filter would show, in <see cref="MountOwnership"/> order
     /// (<c>All</c>, <c>Owned</c>, <c>Unowned</c>, <c>Wanted</c>). Search and expansion are applied;
     /// ownership is what is being counted.
@@ -34,7 +46,8 @@ public sealed record MountQuery(string? Search, MountOwnership Ownership, MountE
 
         foreach (MountShelfItem item in items)
         {
-            if (!MatchesExpansion(item) || !search.Matches(item) || !MatchesSource(item))
+            if (!MatchesExpansion(item) || !search.Matches(item) || !MatchesSource(item)
+                || !MatchesAvailability(item))
             {
                 continue;
             }
@@ -96,7 +109,7 @@ public sealed record MountQuery(string? Search, MountOwnership Ownership, MountE
         foreach (MountShelfItem item in items)
         {
             if (MatchesOwnership(item, wanted) && MatchesExpansion(item) && search.Matches(item)
-                && MatchesSource(item))
+                && MatchesSource(item) && MatchesAvailability(item))
             {
                 result.Add(item);
             }
@@ -161,6 +174,16 @@ public sealed record MountQuery(string? Search, MountOwnership Ownership, MountE
 
         return false;
     }
+
+    /// <summary>
+    /// Keeps the mounts whose class the snapshot states matches the selected one. The comparison is a plain
+    /// equality on the field, with no fallback to the obtain types: a snapshot that predates the field reads
+    /// as <see cref="MountAvailability.Unknown"/> on every row, and widening a class filter to "everything
+    /// with a source" would answer a question the data was never asked.
+    /// </summary>
+    /// <param name="item">The mount to test.</param>
+    private bool MatchesAvailability(MountShelfItem item) =>
+        Availability is not { } availability || item.Availability == availability;
 
     private static Comparison<MountShelfItem> ComparisonFor(MountOrder order)
     {

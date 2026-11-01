@@ -64,7 +64,9 @@ public sealed class ConfigPreview : PreviewScene
         ProgressText = "136 of 369 mounts collected.",
         ProgressFraction = 136f / 369f,
         CatalogText = "369 mounts, 356 with obtain data",
-        DatasetText = "ffxivcollect.com, 2026-11-01, schema v3",
+        // The shipped snapshot's own line, version included: a fixture that lies about the schema stops the golden
+        // from showing the row a reader uses to tell a stale file from a fresh one.
+        DatasetText = "ffxivcollect.com, 2026-11-01, schema v4",
         DatasetSource = "ffxivcollect.com",
         VersionText = "v0.1.0.0",
         ThemeLabels = ["Eorzea", "Graphite", "Parchment"],

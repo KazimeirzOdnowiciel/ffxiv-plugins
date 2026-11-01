@@ -282,7 +282,53 @@ something a regeneration does on its own. A mount whose obtain lines carry no ty
 `source-type-missing`, also an error: it would be invisible to the filter and to the counts while the detail
 pane still drew the text.
 
-## 10. What this document does not settle
+## 10. Availability: what can be obtained today (measured 2026-11-01)
+
+The question collectors actually ask is not "what exists" but "what can I go and get". Each row of the
+snapshot therefore carries one class, and the class is **data**: the generator writes it, the detail pane
+draws a badge for it, the filter selects on it, and the shipped "Farmable now" view is the query
+`avail:available` over the mounts a player does not own.
+
+| Class | Mounts | What it means |
+| --- | --- | --- |
+| `available` | 261 | obtainable now by playing: trial, raid, quest, dungeon, currency, FATE, tribal, ... |
+| `premium` | 67 | real money: the online store, a collector's edition, a paid promotion |
+| `ranked` | 17 | a PvP season or series reward, and the window it was handed out in has closed |
+| `seasonal` | 9 | an event reward, out of season; it comes back when the event does |
+| `legacy` | 2 | retired: the source never came back (the two 1.x rewards) |
+| `unknown` | 0 | nothing is known - a mount with no obtain data at all |
+
+**Where the class comes from.** `src/Mountbook/Services/MountAvailability.cs` holds the rules: a table over
+the obtain taxonomy (the four types that are not "go and play" are named, and everything else in §9 is
+available), one text rule (a `PvP` line naming **Wolf Marks** or **Trophy Crystals** is a route that is open
+now, so those mounts are `available` rather than `ranked`), and a curated list of ids whose type cannot see
+the truth. Curation is two entries, both `Other` in the taxonomy and both 1.x: the Wandering Minstrel reward
+and the Legacy Campaign.
+
+The precedence answers the player's question first: a mount with any open route is `available` even if another
+of its lines is closed, a former event mount the store sells is `premium`, and only when nothing is open does
+the reason it is not decide the class. A type this build has never classified, or a row filed as `Other` with
+no curated entry, is left `unknown` **on purpose** and the validator refuses it (`availability-missing`): an
+unclassified row is a rule nobody has taught, not a fact about the mount.
+
+**The generator does not implement the rules.** It writes the snapshot once without the field, asks
+`mountbook-tools classify --sources <file> --map` (which calls `MountAvailabilityRules`), and writes the file
+again with the answer plus a header block counting each class. The validator re-derives the class for every
+row from the same rules and reports `availability-drift` when the file disagrees, so a hand edit or a
+regeneration with a stale classifier cannot ship. The tool project is rebuilt by the generator before it is
+asked, because a stale assembly would classify yesterday's data with yesterday's rules.
+
+**What it cost, and what paid for it.** The field is ~35 bytes per row. To stay inside the §4 budget the
+generator stopped writing `relatedType`/`relatedId` on a source line that has neither - 283 of the 423 lines -
+which the reader already reads as empty and zero. Measured: 111,104 B before, 113,012 B after (110.4 KiB
+against the 120 KiB budget), so the new field cost 1.9 KB net rather than 12.5 KB gross.
+
+**The one interaction to know about.** The class has two homes: the filter combo and the `avail:` term. A
+saved view states it in its query, so applying one clears the combo when the query names a class - otherwise
+the two answers would be ANDed and the shipped "Farmable now" chip would come up empty for a player whose last
+class filter was Premium. That was found in the client, not in a test.
+
+## 11. What this document does not settle
 
 - It is an honest reading of a published paragraph, **not legal advice**.
 - The terms are a paragraph on a documentation page, not a versioned licence: the site can change them,

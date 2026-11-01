@@ -75,7 +75,7 @@ spent an evening on.
 
 ## 4. The ladder
 
-`Configuration.CurrentVersion` is **5**. `Migrate()` runs the always-on guards, then walks the ladder one step
+`Configuration.CurrentVersion` is **6**. `Migrate()` runs the always-on guards, then walks the ladder one step
 per version the file is behind, then asks its Dalamud half to save once (a partial method, so the migration
 itself is Dalamud-free and the tests compile it - T1).
 
@@ -86,6 +86,7 @@ itself is Dalamud-free and the tests compile it - T1).
 | 3 | the price watch: `Watches`, a map of mount id → `MountWatchRecord` | sweeps the map: drops a record whose threshold is not positive (`MountWatch.IsWatching` - the pane never persists one, so it came from a hand edit), clamps negative timestamps |
 | 4 | the obtain-type taxonomy: `SavedSource` is one type's own spelling | rewrites the saved filter as the taxonomy spells it (`pvp` → `PvP`), clears a value that names no type |
 | 5 | the saved views: `SavedViews`, a list of `SavedView` (a name and the filter block's five axes) | sweeps the list: drops a null entry, a blank name and a name an earlier entry already has, clamps an unknown `Ownership`/`Expansion`/`Order`/`GroupBy` to its default, folds a null `Query` to empty, keeps the order and stops at `SavedViewRules.MaxViews` |
+| 6 | the availability filter: `SavedAvailability` is one class's own key, and the shipped "Farmable now" view | rewrites the saved filter as the class's key (`PREMIUM` → `premium`), clears a value that names no class, and adds `SavedViewRules.FarmableView()` - the query `avail:available` over the unowned list - unless a view of that name is already there |
 
 Two rules that decide whether a step is allowed to do this:
 
@@ -124,6 +125,13 @@ the current shape, not one that still has to be upgraded), and **clears the coll
 window may still hold the set it copied this frame, and replacing the instance would leave it drawing the list
 the player just cleared. The saved views are one of those collections, and the main window's filter block draws
 the very list instance the config holds, so a replaced list would leave the row standing after a reset.
+
+The shipped view is seeded by the ladder and **not** by a property initialiser, and that is load-bearing: a
+missing `SavedViews` member keeps the initialiser, so a seed there would come back on every load of every file
+that had never stored the list - the row would return after a player deleted it. Step 6 runs once, so a file at
+`Version: 6` holding `SavedViews: []` is a player who deleted the view and is left alone (pinned by a test).
+A reset clears the list and keeps `Version` current, so a reset also leaves the row empty: the player asked for
+defaults, not for the chip they removed.
 
 `Services/ConfigReset.NeedsConfirmation(ConfigResetImpact)` is the rule, and it is a test rather than a read
 of `ConfigWindow`: a reset that would discard a wanted mount, a grind record, a price watch or a saved view

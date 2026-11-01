@@ -24,11 +24,12 @@ public sealed partial class Configuration
     /// <remarks>
     /// The ladder is one numbered step per persisted shape, in the order the shapes shipped: 1 the first
     /// file (browse state, the wanted list, the owned baseline), 2 the grind tracker, 3 the price watch,
-    /// 4 the obtain-type taxonomy, 5 the saved views. A file written before the ladder existed says <c>1</c>
-    /// whatever it carried, so every step has to be safe to run on a file that already has its shape - which
-    /// is why a step sweeps a collection instead of assuming it is absent.
+    /// 4 the obtain-type taxonomy, 5 the saved views, 6 the availability filter and the "Farmable now" view
+    /// the feature ships with. A file written before the ladder existed says <c>1</c> whatever it carried, so
+    /// every step has to be safe to run on a file that already has its shape - which is why a step sweeps a
+    /// collection instead of assuming it is absent.
     /// </remarks>
-    public const int CurrentVersion = 5;
+    public const int CurrentVersion = 6;
 
     /// <summary>The shape version this file was written with, from <see cref="CurrentVersion"/>'s ladder.</summary>
     public int Version { get; set; }
@@ -81,6 +82,16 @@ public sealed partial class Configuration
     /// as "any" instead of emptying the shelf.
     /// </summary>
     public string SavedSource { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The saved availability filter as the class's own key ("available", "premium", ...), or empty for any.
+    /// </summary>
+    /// <remarks>
+    /// Stored as the key rather than as the badge's label, for the same reason <see cref="SavedSource"/> stores
+    /// the type's spelling: the string a translation produces must never decide what a filter selects. A value
+    /// naming no class is cleared on load, which reads as "any" rather than emptying the shelf.
+    /// </remarks>
+    public string SavedAvailability { get; set; } = string.Empty;
 
     /// <summary>
     /// The player's named filter presets, in the order they want them: each one is a name and the five axes of
@@ -181,6 +192,7 @@ public sealed partial class Configuration
         // KnownOwnedIds is deliberately not defaulted: null means "no baseline yet" (see its own
         // remarks), and only the first successful reconcile turns it into a set.
         SavedSource ??= string.Empty;
+        SavedAvailability ??= string.Empty;
         RecentCollected ??= new Dictionary<uint, long>();
         Grinds ??= new Dictionary<uint, MountGrindRecord>();
         Watches ??= new Dictionary<uint, MountWatchRecord>();
@@ -276,6 +288,7 @@ public sealed partial class Configuration
         Watches.Clear();
         SavedViews.Clear();
         SavedSource = fresh.SavedSource;
+        SavedAvailability = fresh.SavedAvailability;
     }
 
     /// <summary>
@@ -326,6 +339,16 @@ public sealed partial class Configuration
                 // chip with no text is not a control), a repeated one (two chips reading the same) and anything
                 // past SavedViewRules.MaxViews.
                 SavedViewRules.Normalise(SavedViews);
+                break;
+
+            case 6:
+                // The availability filter is persisted, and the "Farmable now" view ships with it. The seed is a
+                // step rather than a property initialiser on purpose: a file at Version 6 that holds an empty
+                // list is a player who deleted the view, and re-seeding it on every load would put the chip back
+                // in front of them forever. Canonicalising the filter follows the same rule as SavedSource - a
+                // word this build does not know is cleared to "any" instead of emptying the shelf.
+                CanonicaliseSavedAvailability();
+                SeedFarmableView();
                 break;
 
             default:
@@ -401,5 +424,54 @@ public sealed partial class Configuration
         MountSourceKind kind = MountSourceKinds.Parse(SavedSource);
 
         SavedSource = kind.IsKnown ? kind.Name : string.Empty;
+    }
+
+    /// <summary>Rewrites the saved availability filter as the class's key, or clears a value naming no class.</summary>
+    private void CanonicaliseSavedAvailability()
+    {
+        SavedAvailability = MountAvailabilityRules.TryParseKey(SavedAvailability, out MountAvailability availability)
+            ? MountAvailabilityRules.Key(availability)
+            : string.Empty;
+    }
+
+    /// <summary>
+    /// Adds the "Farmable now" view the feature ships with, once per file: the shelf's own answer to the question
+    /// collectors ask, as one click instead of a typed query.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The preset's content lives in <see cref="Services.SavedViewRules.FarmableView"/> - the query
+    /// <c>avail:available</c> over the mounts the player does not own - because the rules about presets are there
+    /// (see <see cref="SavedView"/> for why a preset carries a query and not the filter combo).
+    /// </para>
+    /// <para>
+    /// Never overwrites: a player who already has a view under that name keeps theirs. Running only as a ladder
+    /// step is what makes a file at <see cref="CurrentVersion"/> holding an empty list a player who deleted the
+    /// view, rather than a list the plugin keeps refilling.
+    /// </para>
+    /// </remarks>
+    private void SeedFarmableView()
+    {
+        if (SavedViews.Count >= SavedViewRules.MaxViews)
+        {
+            return;
+        }
+
+        SavedView seeded = SavedViewRules.FarmableView();
+
+        if (seeded.Name.Length == 0)
+        {
+            return;
+        }
+
+        foreach (SavedView view in SavedViews)
+        {
+            if (view is not null && string.Equals(SavedViewRules.Clean(view.Name), seeded.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        SavedViews.Add(seeded);
     }
 }

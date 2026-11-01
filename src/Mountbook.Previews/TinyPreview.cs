@@ -43,6 +43,7 @@ public sealed class MinimumPreview : PreviewScene
             Total = items.Count,
             SelectedId = items[0].Id,
             SourceOptions = MountbookPreview.SourceOptions(items),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(items),
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,

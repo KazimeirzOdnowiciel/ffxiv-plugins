@@ -285,4 +285,21 @@ public sealed class SavedViewsTests
 
         Assert.Empty(empty);
     }
+    [Fact]
+    public void TheShippedViewIsTheFarmableQueryOverTheUnownedList()
+    {
+        SavedView view = SavedViewRules.FarmableView();
+
+        Assert.Equal("Farmable now", view.Name);
+        Assert.Equal("avail:available", view.Query);
+        Assert.Equal(MountOwnership.Unowned, view.Ownership);
+        Assert.Equal(MountExpansion.All, view.Expansion);
+        Assert.Equal(MountOrder.Name, view.Order);
+        Assert.Equal(MountGrouping.None, view.GroupBy);
+
+        // The name is folded like a typed one, so a player who saves over it finds the same chip rather than a
+        // second one differing by whitespace.
+        Assert.Equal(view.Name, SavedViewRules.Clean(view.Name));
+    }
+
 }

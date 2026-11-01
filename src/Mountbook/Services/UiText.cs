@@ -146,4 +146,23 @@ public static class UiText
     /// <param name="category">The dataset's category.</param>
     /// <returns>The key suffix, without the <c>source.</c> prefix.</returns>
     public static string SourceKey(string category) => MountSourceKinds.Key(category);
+
+    /// <summary>
+    /// The label for one availability class: "Available", "Seasonal", "Ranked", "Premium", "Legacy", and
+    /// "No data" for <see cref="MountAvailability.Unknown"/>.
+    /// </summary>
+    /// <remarks>
+    /// Looked up by the class's own <see cref="MountAvailabilityRules.Key"/>, so the badge, the filter's
+    /// entries and the saved view's name all read the same table entry and a translation cannot rename a
+    /// class the file stores by key. A class the table has no label for reads as its key, which is right for
+    /// a value added later.
+    /// </remarks>
+    /// <param name="availability">The class.</param>
+    /// <returns>The localised label, or the class's key when the table has no label for it.</returns>
+    public static string Availability(MountAvailability availability)
+    {
+        string key = MountAvailabilityRules.Key(availability);
+
+        return Loc.TOr("availability." + key, key);
+    }
 }

@@ -265,6 +265,21 @@ public sealed class MountViewState
         [new MountSourceCount(MountSourceKinds.Any, 0)];
 
     /// <summary>
+    /// The availability class the shelf keeps ("Available", "Premium", ...), or null for every mount. A stored
+    /// class rather than the label the combo draws, so a translated interface cannot change what it selects.
+    /// </summary>
+    public MountAvailability? AvailabilityFilter { get; set; }
+
+    /// <summary>
+    /// The availability combo's entries: one per class the shelf actually carries, with how many mounts it
+    /// would show, in <see cref="MountAvailabilityRules.Classes"/> order. Built from the catalogue and not from
+    /// <see cref="Items"/>, for the same reason as <see cref="SourceOptions"/>: a count that moved with the
+    /// filter would be counting itself. The "any" entry is not in the list - the combo prepends it - because
+    /// "any" is the absence of a class rather than one more class to count.
+    /// </summary>
+    public IReadOnlyList<MountAvailabilityCount> AvailabilityOptions { get; set; } = [];
+
+    /// <summary>
     /// The site the shipped snapshot credits ("ffxivcollect.com"), or empty when the file does not say.
     /// The view draws this under the obtain list rather than naming the site itself: the data is a
     /// volunteer project's work, and the credit belongs to whatever the file says it came from.

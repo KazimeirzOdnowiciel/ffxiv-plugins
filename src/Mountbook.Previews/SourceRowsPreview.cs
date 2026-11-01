@@ -69,6 +69,7 @@ public sealed class SourceRowsPreview : PreviewScene
             // proves the pane still fits with one more footnote in it).
             DatasetSource = "ffxivcollect.com",
             SourceOptions = MountbookPreview.SourceOptions(items),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(items),
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,

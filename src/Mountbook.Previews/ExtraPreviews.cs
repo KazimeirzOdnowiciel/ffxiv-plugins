@@ -52,6 +52,7 @@ public sealed class EmptyStatePreview : PreviewScene
             Owned = owned,
             Total = all.Count,
             SourceOptions = MountbookPreview.SourceOptions(all),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(all),
             Ownership = ownership,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,
@@ -221,6 +222,7 @@ public sealed class WantedPreview : PreviewScene
             Owned = ownedAll,
             Total = all.Count,
             SourceOptions = MountbookPreview.SourceOptions(all),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(all),
             // The recent mount is the selected one, so the golden covers the New badge as well as the
             // New square on its card.
             SelectedId = wanted[1].Id,
@@ -288,6 +290,7 @@ public sealed class NarrowPreview : PreviewScene
             MarketPriceText = "2,999,999 gil | 12 listings | Shiva (Light)",
             ItemName = null,
             SourceOptions = MountbookPreview.SourceOptions(items),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(items),
             RideDisabledReason = "Not collected.",
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
@@ -362,6 +365,7 @@ public sealed class PricePreview : PreviewScene
                 1_000_720),
             WatchingCount = 1,
             SourceOptions = MountbookPreview.SourceOptions(items),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(items),
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,
@@ -423,6 +427,7 @@ public sealed class TablePreview : PreviewScene
             SelectedId = items[1].Id,
             ViewMode = MountViewMode.Table,
             SourceOptions = MountbookPreview.SourceOptions(items),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(items),
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,
@@ -440,6 +445,67 @@ public sealed class TablePreview : PreviewScene
 
     /// <summary>Also the golden's file name: <c>goldens/table.png</c>.</summary>
     public override string Name => "table";
+
+    public override Vector2 WindowSize => new(1040f, 660f);
+
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
+
+    public override ReadOnlySpan<PreviewInput> Script => [];
+
+    protected override void DrawScene() => view.Draw(state);
+}
+
+/// <summary>
+/// The availability badge on a mount that is not farmable: the sample's one Premium mount selected, so the badge
+/// is drawn in the brand tint beside the plain ones and the filter's entries show the class counts.
+/// </summary>
+/// <remarks>
+/// No sample mount is anything but Available or Premium, so this scene is the whole visual coverage for "the four
+/// unobtainable classes are visibly distinct": Available is on <c>main.png</c> in the positive tint and Premium
+/// here in the brand one, while the rank of every class is pinned by the tone test in
+/// <see cref="MountAvailabilityTests"/>. The window is the sample's own twelve mounts, unchanged, so the golden
+/// also shows that the new filter row did not cost the list its viewport at this size.
+/// </remarks>
+public sealed class AvailabilityPreview : PreviewScene
+{
+    private readonly MountbookView view = new();
+
+    private readonly MountViewState state;
+
+    public AvailabilityPreview()
+    {
+        IReadOnlyList<MountShelfItem> items = MountbookPreview.SampleMounts();
+        var owned = 0;
+
+        foreach (MountShelfItem item in items)
+        {
+            if (item.Owned)
+            {
+                owned++;
+            }
+        }
+
+        state = new MountViewState
+        {
+            Items = items,
+            Expansions = MountBreakdown.ByExpansion(items),
+            RarestMissing = MountRarityInsight.Find(items),
+            OwnershipCounts = new MountQuery(string.Empty, MountOwnership.All, MountExpansion.All, MountOrder.Name)
+                .OwnershipCounts(items, null),
+            Owned = owned,
+            Total = items.Count,
+            // Garlond GL-IS: the one sample mount whose only source is the online store.
+            SelectedId = 470u,
+            SourceOptions = MountbookPreview.SourceOptions(items),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(items),
+            Ownership = MountOwnership.All,
+            Expansion = MountExpansion.All,
+            Order = MountOrder.Name,
+        };
+    }
+
+    /// <summary>Also the golden's file name: <c>goldens/availability.png</c>.</summary>
+    public override string Name => "availability";
 
     public override Vector2 WindowSize => new(1040f, 660f);
 

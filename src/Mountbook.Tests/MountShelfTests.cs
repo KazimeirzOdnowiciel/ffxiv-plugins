@@ -235,11 +235,66 @@ public sealed class MountShelfTests
     }
 
     [Fact]
+    public void ReadsTheAvailabilityClassAndTheBlocksCounts()
+    {
+        const string json = """
+            {
+              "schemaVersion": 4,
+              "availability": { "available": 1, "premium": 1 },
+              "mounts": [
+                { "id": 1, "availability": "available", "sources": [ { "type": "Trial", "text": "a trial" } ] },
+                { "id": 2, "availability": "premium", "sources": [ { "type": "Premium", "text": "Online Store" } ] },
+                { "id": 3, "sources": [ { "type": "Trial", "text": "a trial" } ] }
+              ]
+            }
+            """;
+
+        MountShelf shelf = MountShelf.Parse(json);
+
+        Assert.True(shelf.TryGet(1, out MountSources trial));
+        Assert.Equal(MountAvailability.Available, trial.Availability);
+
+        Assert.True(shelf.TryGet(2, out MountSources premium));
+        Assert.Equal(MountAvailability.Premium, premium.Availability);
+
+        // A row that states nothing is Unknown, which is what an older snapshot's every row reads as: the reader
+        // may never invent a class, because the class is data and guessing it here would hide a stale file.
+        Assert.True(shelf.TryGet(3, out MountSources silent));
+        Assert.Equal(MountAvailability.Unknown, silent.Availability);
+
+        Assert.True(shelf.HasAvailabilityCounts);
+        Assert.Equal(2, shelf.AvailabilityCounts.Count);
+        Assert.Equal(MountAvailability.Available, shelf.AvailabilityCounts[0].Class);
+        Assert.Equal(1, shelf.AvailabilityCounts[1].Mounts);
+    }
+
+    [Fact]
+    public void ASnapshotWithNoAvailabilityBlockReadsAsNoCountsRatherThanZeros()
+    {
+        // The settings window and the validator both tell "no counts recorded" apart from "every class is empty",
+        // so an absent block must not arrive as a list of zeros.
+        MountShelf shelf = MountShelf.Parse("""{ "schemaVersion": 4, "mounts": [ { "id": 1 } ] }""");
+
+        Assert.False(shelf.HasAvailabilityCounts);
+        Assert.Empty(shelf.AvailabilityCounts);
+    }
+
+    [Fact]
+    public void AnAvailabilityValueThisBuildDoesNotKnowReadsAsUnknown()
+    {
+        MountShelf shelf = MountShelf.Parse(
+            """{ "schemaVersion": 4, "mounts": [ { "id": 1, "availability": "someday" } ] }""");
+
+        Assert.True(shelf.TryGet(1, out MountSources row));
+        Assert.Equal(MountAvailability.Unknown, row.Availability);
+    }
+
+    [Fact]
     public void ReadsTheHeaderThisBuildUnderstands()
     {
         const string json = """
             {
-              "schemaVersion": 3,
+              "schemaVersion": 4,
               "generated": "2026-11-01",
               "source": "ffxivcollect.com",
               "enrichment": "full",
@@ -290,7 +345,7 @@ public sealed class MountShelfTests
     {
         // The two mismatches are different facts: an older file is missing fields, a newer one has
         // fields this build ignores. Reporting either as the other hides which side to fix.
-        MountShelf shelf = MountShelf.Parse("""{ "schemaVersion": 4, "mounts": [ { "id": 1, "patch": "2.0" } ] }""");
+        MountShelf shelf = MountShelf.Parse("""{ "schemaVersion": 5, "mounts": [ { "id": 1, "patch": "2.0" } ] }""");
 
         Assert.True(shelf.IsNewer);
         Assert.False(shelf.IsStale);
@@ -300,7 +355,7 @@ public sealed class MountShelfTests
     public void ASheetOnlySnapshotSaysSo()
     {
         MountShelf shelf = MountShelf.Parse("""
-            { "schemaVersion": 3, "enrichment": "sheet-only", "mounts": [ { "id": 1, "patch": "" } ] }
+            { "schemaVersion": 4, "enrichment": "sheet-only", "mounts": [ { "id": 1, "patch": "" } ] }
             """);
 
         Assert.True(shelf.IsSheetOnly);
@@ -310,27 +365,27 @@ public sealed class MountShelfTests
     public void DescribeNamesTheSourceTheDateAndTheVersion()
     {
         MountShelf shelf = MountShelf.Parse("""
-            { "schemaVersion": 3, "generated": "2026-11-01", "source": "ffxivcollect.com", "enrichment": "full", "mounts": [] }
+            { "schemaVersion": 4, "generated": "2026-11-01", "source": "ffxivcollect.com", "enrichment": "full", "mounts": [] }
             """);
 
-        Assert.Equal("ffxivcollect.com, 2026-11-01, schema v3", shelf.Describe());
+        Assert.Equal("ffxivcollect.com, 2026-11-01, schema v4", shelf.Describe());
     }
 
     [Fact]
     public void DescribeCallsOutAnOfflineBuildAndAnOldSnapshot()
     {
         MountShelf sheetOnly = MountShelf.Parse("""
-            { "schemaVersion": 3, "generated": "2026-11-01", "source": "ffxivcollect.com", "enrichment": "sheet-only", "mounts": [] }
+            { "schemaVersion": 4, "generated": "2026-11-01", "source": "ffxivcollect.com", "enrichment": "sheet-only", "mounts": [] }
             """);
         MountShelf stale = MountShelf.Parse("""
             { "generated": "2026-01-01", "source": "ffxivcollect.com", "mounts": [] }
             """);
 
         Assert.Equal(
-            "ffxivcollect.com, 2026-11-01, schema v3 (built offline: no obtain data refreshed)",
+            "ffxivcollect.com, 2026-11-01, schema v4 (built offline: no obtain data refreshed)",
             sheetOnly.Describe());
         Assert.Equal(
-            "ffxivcollect.com, 2026-01-01, schema v0 (older than this build reads: v3)",
+            "ffxivcollect.com, 2026-01-01, schema v0 (older than this build reads: v4)",
             stale.Describe());
     }
 
@@ -339,7 +394,7 @@ public sealed class MountShelfTests
     {
         string text = MountShelf.Parse("""{ "mounts": [] }""").Describe();
 
-        Assert.Equal("unknown source, schema v0 (older than this build reads: v3)", text);
+        Assert.Equal("unknown source, schema v0 (older than this build reads: v4)", text);
     }
 
     [Fact]
@@ -361,7 +416,7 @@ public sealed class MountShelfTests
         // the only evidence the site's copies were compared against the game at build time.
         MountShelf shelf = MountShelf.Parse("""
             {
-              "schemaVersion": 3,
+              "schemaVersion": 4,
               "enrichment": "full",
               "sheetCrossCheck": {
                 "sheet": "Mount",
@@ -391,7 +446,7 @@ public sealed class MountShelfTests
     {
         // Null is "no check ran", and the diagnostics line has to say that rather than imply a pass.
         MountShelf shelf = MountShelf.Parse("""
-            { "schemaVersion": 3, "enrichment": "full", "sheetCrossCheck": null, "mounts": [ { "id": 1 } ] }
+            { "schemaVersion": 4, "enrichment": "full", "sheetCrossCheck": null, "mounts": [ { "id": 1 } ] }
             """);
 
         Assert.False(shelf.HasCrossCheck);
@@ -405,7 +460,7 @@ public sealed class MountShelfTests
         // A block that names the fields but claims nothing covers no row: reading it as a pass would be
         // exactly the kind of half-understood shape N4 forbids.
         MountShelf shelf = MountShelf.Parse("""
-            { "schemaVersion": 3, "sheetCrossCheck": { "fields": ["ExtraSeats", "IsAirborne"] }, "mounts": [] }
+            { "schemaVersion": 4, "sheetCrossCheck": { "fields": ["ExtraSeats", "IsAirborne"] }, "mounts": [] }
             """);
 
         Assert.False(shelf.HasCrossCheck);
@@ -416,7 +471,7 @@ public sealed class MountShelfTests
     {
         MountShelf shelf = MountShelf.Parse("""
             {
-              "schemaVersion": 3,
+              "schemaVersion": 4,
               "sheetCrossCheck": { "sheet": "Mount", "fields": ["ExtraSeats", "IsAirborne"], "mounts": 356, "seats": 355, "movement": 356 },
               "mounts": []
             }
@@ -432,7 +487,7 @@ public sealed class MountShelfTests
     {
         MountShelf shelf = MountShelf.Parse("""
             {
-              "schemaVersion": 3,
+              "schemaVersion": 4,
               "sheetCrossCheck": { "sheet": "Mount", "fields": ["Order"], "mounts": 10, "seats": 10, "movement": 10 },
               "mounts": []
             }

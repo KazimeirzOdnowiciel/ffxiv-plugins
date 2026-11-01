@@ -29,9 +29,16 @@
 # The snapshot carries `schemaVersion` (the shape this generator writes and MountShelf's reader
 # understands), `attribution` + `attributionUrl` (the credit line the plugin shows and the
 # notices repeat), `enrichment` (`full` when the site answered, `sheet-only` when this run was
-# offline) and `sheetCrossCheck` (how many site rows were compared against the Mount sheet's
-# seats/movement, and how many agreed; null when no sheet facts were supplied), so a stale or
-# unenriched file can be told apart from a fresh one without guessing.
+# offline), `sheetCrossCheck` (how many site rows were compared against the Mount sheet's
+# seats/movement, and how many agreed; null when no sheet facts were supplied) and `availability`
+# (how many mounts fall in each class: available, seasonal, ranked, premium, legacy, unknown), so a
+# stale or unenriched file can be told apart from a fresh one without guessing.
+#
+# Every row also carries its own `availability` class. It is not derived here: `mountbook-tools
+# classify` answers from MountAvailabilityRules, which is the C# implementation the plugin's
+# validator re-derives from the shipped file - the generator asks, it never re-implements. A row
+# whose obtain lines the rules cannot place stops the run with nothing written, because an
+# unclassified mount would be drawn as "No data" forever.
 #
 # Two ways to run it:
 #
@@ -81,11 +88,25 @@ $ErrorActionPreference = 'Stop'
 
 # The shape this generator writes. MountShelf.CurrentSchemaVersion must match it and the validator
 # fails the snapshot when it does not, so a plugin build and a snapshot can never drift apart
-# silently. v3 added `sheetCrossCheck` to the header.
-$schemaVersion = 3
+# silently. v3 added `sheetCrossCheck` to the header; v4 added the per-row `availability` class and
+# the header block that counts it, and stopped writing relatedType/relatedId on a source line that
+# has neither (which is what paid for the new field inside the size budget).
+$schemaVersion = 4
 $apiUrl = 'https://ffxivcollect.com/api/mounts'
 $attribution = 'Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.'
 $attributionUrl = 'https://ffxivcollect.com'
+
+# The classifier: the C# rules in src/Mountbook/Services/MountAvailability.cs, invoked rather than copied.
+# `mountbook-tools classify` is the other half of the reason the field is data - the validator re-derives
+# the same answer from the shipped file, so a rule can only change in one place.
+$toolProject = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Mountbook.Tools\Mountbook.Tools.csproj'
+$toolDll = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Mountbook.Tools\bin\Release\net10.0\Mountbook.Tools.dll'
+
+# The header block's order: the one you can act on first, then the four reasons you cannot, then the rows
+# nothing is known about. MountAvailabilityRules.Classes is the same list on the reading side.
+$availabilityClassOrder = @('available', 'seasonal', 'ranked', 'premium', 'legacy', 'unknown')
+
+$utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
 
 $scriptRoot = Split-Path -Parent $PSScriptRoot
 $resolvedOutput = if ([System.IO.Path]::IsPathRooted($OutputPath)) {
@@ -468,6 +489,165 @@ function Read-SheetFacts {
     return $facts
 }
 
+# The whole snapshot as the text that gets written: header, rows, sources. Called twice - once without the
+# availability field to hand the classifier its input, then again with it - so there is one writer and the file
+# can never carry a field its own header disagrees with.
+function New-SnapshotText {
+    param(
+        [object[]] $Mounts,
+        [hashtable] $Availability = @{},
+        [hashtable] $AvailabilityCounts = @{}
+    )
+
+    $lines = New-Object System.Collections.Generic.List[string]
+    $lines.Add('{')
+    $lines.Add(('  "schemaVersion": {0},' -f $schemaVersion))
+    $lines.Add(('  "generated": {0},' -f (ConvertTo-JsonText $generated)))
+    $lines.Add(('  "source": {0},' -f (ConvertTo-JsonText 'ffxivcollect.com')))
+    $lines.Add(('  "enrichment": {0},' -f (ConvertTo-JsonText $enrichment)))
+
+    if ($null -eq $crossCheck) {
+        # Offline, or a run without the sheet facts: say so rather than leaving the reader to assume a
+        # check happened. The validator warns about this shape (crosscheck-missing).
+        $lines.Add('  "sheetCrossCheck": null,')
+    }
+    else {
+        $lines.Add('  "sheetCrossCheck": {')
+        $lines.Add('    "sheet": "Mount",')
+        $lines.Add('    "fields": ["ExtraSeats", "IsAirborne"],')
+        $lines.Add(('    "mounts": {0},' -f $crossCheck.Mounts))
+        $lines.Add(('    "seats": {0},' -f $crossCheck.Seats))
+        $lines.Add(('    "movement": {0}' -f $crossCheck.Movement))
+        $lines.Add('  },')
+    }
+
+    $lines.Add(('  "attribution": {0},' -f (ConvertTo-JsonText $attribution)))
+    $lines.Add(('  "attributionUrl": {0},' -f (ConvertTo-JsonText $attributionUrl)))
+
+    if ($AvailabilityCounts.Count -eq 0) {
+        # Only the probe write looks like this: the classifier has not run yet, so the file states no counts
+        # rather than zeros it would have to take back.
+        $lines.Add('  "availability": null,')
+    }
+    else {
+        $entries = New-Object System.Collections.Generic.List[string]
+        foreach ($class in $availabilityClassOrder) {
+            if ($AvailabilityCounts.ContainsKey($class)) {
+                $entries.Add(('    "{0}": {1}' -f $class, $AvailabilityCounts[$class]))
+            }
+        }
+
+        $lines.Add('  "availability": {')
+        for ($i = 0; $i -lt $entries.Count; $i++) {
+            $separator = ''
+            if ($i -lt $entries.Count - 1) {
+                $separator = ','
+            }
+
+            $lines.Add($entries[$i] + $separator)
+        }
+        $lines.Add('  },')
+    }
+
+    $lines.Add('  "mounts": [')
+
+    $mountIndex = 0
+    $sourceCount = 0
+    foreach ($mount in $Mounts) {
+        $mountIndex++
+        $mountLast = $mountIndex -eq $Mounts.Count
+
+        $lines.Add('    {')
+        $lines.Add(('      "id": {0},' -f $mount.Id))
+        $lines.Add(('      "patch": {0},' -f (ConvertTo-JsonText $mount.Patch)))
+        $lines.Add(('      "itemId": {0},' -f $mount.ItemId))
+        $lines.Add(('      "owned": {0},' -f $mount.OwnedJson))
+        $lines.Add(('      "tradeable": {0},' -f $mount.TradeableJson))
+        $lines.Add(('      "customMusic": {0},' -f $mount.CustomMusicJson))
+
+        if ($Availability.ContainsKey($mount.Id)) {
+            $lines.Add(('      "availability": {0},' -f (ConvertTo-JsonText $Availability[$mount.Id])))
+        }
+
+        if ($mount.Sources.Count -eq 0) {
+            $lines.Add('      "sources": []')
+        }
+        else {
+            $lines.Add('      "sources": [')
+            for ($i = 0; $i -lt $mount.Sources.Count; $i++) {
+                $source = $mount.Sources[$i]
+                $separator = ''
+                if ($i -lt $mount.Sources.Count - 1) {
+                    $separator = ','
+                }
+
+                # relatedType/relatedId are written only when the line actually points at a record: 283 of the
+                # 423 lines have neither, the reader already reads an absent one as empty and zero, and those
+                # 283 omissions are what paid for the availability field inside the size budget.
+                $related = ''
+                if ($source.RelatedType.Length -gt 0) {
+                    $related = (', "relatedType": {0}, "relatedId": {1}' -f (ConvertTo-JsonText $source.RelatedType), $source.RelatedId)
+                }
+
+                $lines.Add(
+                    ('        {{ "type": {0}, "text": {1}{2} }}' -f `
+                            (ConvertTo-JsonText $source.Type),
+                        (ConvertTo-JsonText $source.Text),
+                        $related) + $separator)
+                $sourceCount++
+            }
+            $lines.Add('      ]')
+        }
+
+        $lines.Add($(if ($mountLast) { '    }' } else { '    },' }))
+    }
+
+    $lines.Add('  ]')
+    $lines.Add('}')
+    return ($lines -join "`n") + "`n"
+}
+
+# Asks the C# rules - the one implementation, also what the validator re-derives - what class each row of the
+# snapshot is in, and returns id -> class. The tool project is rebuilt first: a stale assembly would classify
+# yesterday's file with yesterday's rules and write a snapshot that disagrees with the validator.
+function Get-AvailabilityMap {
+    param([string] $SnapshotPath)
+
+    & dotnet build $toolProject -c Release -v q | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "the classifier project ($toolProject) did not build, so no availability class could be derived."
+    }
+
+    if (-not (Test-Path -LiteralPath $toolDll)) {
+        throw "the classifier is not where this tree expects it ($toolDll). Build src/Mountbook.Tools first."
+    }
+
+    $mapLines = & dotnet $toolDll classify --sources $SnapshotPath --map
+    if ($LASTEXITCODE -ne 0) {
+        throw 'the availability classifier refused this snapshot (see its message above), so nothing was written.'
+    }
+
+    $map = @{}
+    foreach ($line in @($mapLines)) {
+        if ([string]::IsNullOrWhiteSpace($line)) {
+            continue
+        }
+
+        $parts = $line.Split(',')
+        if ($parts.Length -ne 2) {
+            throw "the classifier printed a line this script cannot read: `"$line`"."
+        }
+
+        $map[[uint32] $parts[0]] = $parts[1].Trim()
+    }
+
+    if ($map.Count -eq 0) {
+        throw 'the classifier classified no row at all, so nothing was written.'
+    }
+
+    return $map
+}
+
 $rowsById = @{}
 $enrichment = 'full'
 $crossCheck = $null
@@ -685,87 +865,44 @@ if ($rowsById.Count -lt $Minimum) {
 
 $mounts = @($rowsById.Values | Sort-Object -Property Id)
 $generated = (Get-Date).ToString('yyyy-MM-dd', [System.Globalization.CultureInfo]::InvariantCulture)
-$lines = New-Object System.Collections.Generic.List[string]
-$lines.Add('{')
-$lines.Add(('  "schemaVersion": {0},' -f $schemaVersion))
-$lines.Add(('  "generated": {0},' -f (ConvertTo-JsonText $generated)))
-$lines.Add(('  "source": {0},' -f (ConvertTo-JsonText 'ffxivcollect.com')))
-$lines.Add(('  "enrichment": {0},' -f (ConvertTo-JsonText $enrichment)))
-
-if ($null -eq $crossCheck) {
-    # Offline, or a run without the sheet facts: say so rather than leaving the reader to assume a
-    # check happened. The validator warns about this shape (crosscheck-missing).
-    $lines.Add('  "sheetCrossCheck": null,')
-}
-else {
-    $lines.Add('  "sheetCrossCheck": {')
-    $lines.Add('    "sheet": "Mount",')
-    $lines.Add('    "fields": ["ExtraSeats", "IsAirborne"],')
-    $lines.Add(('    "mounts": {0},' -f $crossCheck.Mounts))
-    $lines.Add(('    "seats": {0},' -f $crossCheck.Seats))
-    $lines.Add(('    "movement": {0}' -f $crossCheck.Movement))
-    $lines.Add('  },')
-}
-
-$lines.Add(('  "attribution": {0},' -f (ConvertTo-JsonText $attribution)))
-$lines.Add(('  "attributionUrl": {0},' -f (ConvertTo-JsonText $attributionUrl)))
-$lines.Add('  "mounts": [')
-
-$mountIndex = 0
 $sourceCount = 0
 foreach ($mount in $mounts) {
-    $mountIndex++
-    $mountLast = $mountIndex -eq $mounts.Count
-
-    $lines.Add('    {')
-    $lines.Add(('      "id": {0},' -f $mount.Id))
-    $lines.Add(('      "patch": {0},' -f (ConvertTo-JsonText $mount.Patch)))
-    $lines.Add(('      "itemId": {0},' -f $mount.ItemId))
-    $lines.Add(('      "owned": {0},' -f $mount.OwnedJson))
-    $lines.Add(('      "tradeable": {0},' -f $mount.TradeableJson))
-    $lines.Add(('      "customMusic": {0},' -f $mount.CustomMusicJson))
-
-    if ($mount.Sources.Count -eq 0) {
-        $lines.Add('      "sources": []')
-    }
-    else {
-        $lines.Add('      "sources": [')
-        for ($i = 0; $i -lt $mount.Sources.Count; $i++) {
-            $source = $mount.Sources[$i]
-            $separator = ''
-            if ($i -lt $mount.Sources.Count - 1) {
-                $separator = ','
-            }
-
-            $relatedTypeJson = 'null'
-            if ($source.RelatedType.Length -gt 0) {
-                $relatedTypeJson = ConvertTo-JsonText $source.RelatedType
-            }
-
-            $lines.Add(
-                ('        {{ "type": {0}, "text": {1}, "relatedType": {2}, "relatedId": {3} }}' -f `
-                        (ConvertTo-JsonText $source.Type),
-                    (ConvertTo-JsonText $source.Text),
-                    $relatedTypeJson,
-                    $source.RelatedId) + $separator)
-            $sourceCount++
-        }
-        $lines.Add('      ]')
-    }
-
-    $lines.Add($(if ($mountLast) { '    }' } else { '    },' }))
+    $sourceCount += $mount.Sources.Count
 }
 
-$lines.Add('  ]')
-$lines.Add('}')
-$json = ($lines -join "`n") + "`n"
+# Two passes: the classifier needs the rows, and the rows need the classifier. The probe write is the same
+# writer with no availability in it, so the file the classifier reads is byte-for-byte the file that would ship
+# without the field - there is no second shape to keep in step.
+$probe = New-SnapshotText -Mounts $mounts
+$probePath = Join-Path ([System.IO.Path]::GetTempPath()) ('mountbook-classify-{0}.json' -f [guid]::NewGuid().ToString('N'))
+
+try {
+    [System.IO.File]::WriteAllText($probePath, $probe, $utf8WithoutBom)
+    $availability = Get-AvailabilityMap -SnapshotPath $probePath
+}
+finally {
+    if (Test-Path -LiteralPath $probePath) {
+        Remove-Item -LiteralPath $probePath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+$availabilityCounts = @{}
+foreach ($class in $availability.Values) {
+    if ($availabilityCounts.ContainsKey($class)) {
+        $availabilityCounts[$class] = $availabilityCounts[$class] + 1
+    }
+    else {
+        $availabilityCounts[$class] = 1
+    }
+}
+
+$json = New-SnapshotText -Mounts $mounts -Availability $availability -AvailabilityCounts $availabilityCounts
 
 $directory = Split-Path -Parent $resolvedOutput
 if (-not (Test-Path -LiteralPath $directory)) {
     New-Item -ItemType Directory -Path $directory -Force | Out-Null
 }
 
-$utf8WithoutBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText($resolvedOutput, $json, $utf8WithoutBom)
 
 $byteLength = (Get-Item -LiteralPath $resolvedOutput).Length
@@ -773,6 +910,7 @@ $sizeKb = [math]::Round($byteLength / 1KB, 1)
 Write-Host (("Wrote {0} mounts ({1} source lines) to {2} ({3} KB, schema v{4}, enrichment {5}, sheet cross-check {6})" -f `
         $mounts.Count, $sourceCount, $resolvedOutput, $sizeKb, $schemaVersion, $enrichment,
         $(if ($null -eq $crossCheck) { 'not run' } else { '{0}/{0} seats, {1}/{0} movement' -f $crossCheck.Mounts, $crossCheck.Movement })))
+Write-Host ("  availability: {0}" -f (($availabilityClassOrder | Where-Object { $availabilityCounts.ContainsKey($_) } | ForEach-Object { '{0} {1}' -f $availabilityCounts[$_], $_ }) -join ', '))
 
 if ($byteLength -gt $MaxBytes) {
     throw ('the snapshot is {0} bytes, over the {1}-byte budget. Drop a field rather than raising the budget: the plugin embeds this file and ships it to every player.' -f $byteLength, $MaxBytes)

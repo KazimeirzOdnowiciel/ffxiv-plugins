@@ -110,7 +110,9 @@ public sealed record MountSourcesValidationReport(
         foreach (MountSourcesIssue issue in Issues)
         {
             text.Append("  ").Append(issue.Severity.ToString().ToUpperInvariant().PadRight(8));
-            text.Append(issue.Code.PadRight(20)).Append(issue.Message).Append(Environment.NewLine);
+            // The widest code is availability-counts-missing (28): the column is padded to 30 so a long code
+            // never runs into its own message, which used to read "…counts-missingThe snapshot records no…".
+            text.Append(issue.Code.PadRight(30)).Append(issue.Message).Append(Environment.NewLine);
         }
 
         return text.ToString();
@@ -268,6 +270,22 @@ public static class MountSourcesValidator
     public const string SheetSkippedCode = "sheet-skipped";
 
     /// <summary>
+    /// A row the rules could have classified states no class: the field is absent, or names none. Separate from
+    /// <see cref="AvailabilityDriftCode"/> because the fix is different - a missing field means the generator did
+    /// not run the classifier, a drift means the file was edited or written by a build with other rules.
+    /// </summary>
+    public const string AvailabilityMissingCode = "availability-missing";
+
+    /// <summary>A row states a class the rules do not derive from its own obtain lines.</summary>
+    public const string AvailabilityDriftCode = "availability-drift";
+
+    /// <summary>The header's per-class counts disagree with the rows.</summary>
+    public const string AvailabilityCountsCode = "availability-counts";
+
+    /// <summary>The snapshot records no per-class counts at all.</summary>
+    public const string AvailabilityCountsMissingCode = "availability-counts-missing";
+
+    /// <summary>
     /// Validates <paramref name="candidateJson" /> against the committed snapshot and, when given, the
     /// sheet ids.
     /// </summary>
@@ -303,6 +321,7 @@ public static class MountSourcesValidator
         CheckDisappeared(candidate, baseline, issues, options);
         CheckSources(candidate, baseline, issues, options);
         CheckSourceTypes(candidate, issues, options);
+        CheckAvailability(candidate, issues, options);
         CheckPatches(candidate, baseline, issues, options);
         CheckCommunity(candidate, baseline, issues);
 
@@ -784,6 +803,120 @@ public static class MountSourcesValidator
                 $"{unknown.Count} obtain type(s) are not in the taxonomy this build knows: {ListText(unknown, options)}. "
                 + "Add each one to MountSourceKinds.Names (its rank decides where it sorts) and its label to the strings "
                 + "table, deliberately - until then those mounts would land in an unlabelled section."));
+        }
+    }
+
+    /// <summary>
+    /// Checks the classification the snapshot states on every row: that a row with obtain lines carries a class,
+    /// that the class is the one the rules derive from those lines, and that the header's counts are the
+    /// generator's own rather than a number somebody typed.
+    /// </summary>
+    /// <remarks>
+    /// This is what makes "the classification is data" checkable. The field is written by
+    /// <c>mountbook-tools classify</c> through <see cref="MountAvailabilityRules"/>, so a row that disagrees with
+    /// the rules is a hand edit or a build whose rules moved - either way the file must not ship, because the
+    /// badge, the filter and the saved view would then be describing different data. A row with no obtain lines
+    /// (a mount the site has never listed) may be <see cref="MountAvailability.Unknown"/>: that is a fact about
+    /// the dataset, not a failure, and the badge says "No data" rather than guessing.
+    /// </remarks>
+    private static void CheckAvailability(
+        MountShelf candidate,
+        List<MountSourcesIssue> issues,
+        MountSourcesValidationOptions options)
+    {
+        var unclassified = new List<uint>();
+        var drifted = new List<string>();
+        var counted = new Dictionary<MountAvailability, int>();
+
+        foreach (MountAvailability availability in MountAvailabilityRules.Classes)
+        {
+            counted[availability] = 0;
+        }
+
+        foreach (uint id in SortedIds(candidate))
+        {
+            candidate.TryGet(id, out MountSources sources);
+            counted[sources.Availability] = counted.GetValueOrDefault(sources.Availability) + 1;
+
+            MountAvailability derived = MountAvailabilityRules.Classify(id, sources.Lines);
+
+            if (derived == MountAvailability.Unknown && sources.Lines.Count > 0)
+            {
+                // A row the rules cannot place: a new obtain type, or one filed as Other. Somebody has to decide
+                // what it is (a curated id, a type rule, a PvP currency), which is exactly why this is an error.
+                unclassified.Add(id);
+                continue;
+            }
+
+            if (sources.Availability != derived)
+            {
+                drifted.Add(
+                    $"{id}: file {MountAvailabilityRules.Key(sources.Availability)}, rules {MountAvailabilityRules.Key(derived)}");
+            }
+        }
+
+        if (unclassified.Count > 0)
+        {
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Error,
+                AvailabilityMissingCode,
+                $"{unclassified.Count} mount(s) carry obtain lines that the availability rules cannot place, so their row "
+                + $"states no usable class: {ListIds(unclassified, options)}. Teach the rules what those lines are - a type "
+                + "rule in MountAvailabilityRules.PlayableTypes, a PvP currency, or a curated id with its reason - and regenerate: "
+                + "an unclassified mount cannot be filtered for and would be drawn as \"No data\" forever."));
+        }
+
+        if (drifted.Count > 0)
+        {
+            drifted.Sort(StringComparer.Ordinal);
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Error,
+                AvailabilityDriftCode,
+                $"{drifted.Count} mount(s) state an availability class the rules do not derive from their own obtain lines: "
+                + $"{ListText(drifted, options)}. The field is written by mountbook-tools classify, so a disagreement means the "
+                + "file was edited by hand or by a build whose rules have moved. Regenerate it."));
+        }
+
+        if (candidate.AvailabilityCounts.Count == 0)
+        {
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Warning,
+                AvailabilityCountsMissingCode,
+                $"The snapshot records no per-class availability counts for its {candidate.Count} row(s). The block is the "
+                + "generator's own evidence of what it classified, and the validator compares it against the rows; regenerate "
+                + "with tools/generate-mount-sources.ps1 so the file says what it did."));
+            return;
+        }
+
+        var mismatched = new List<string>();
+
+        foreach (MountAvailability availability in MountAvailabilityRules.Classes)
+        {
+            int stated = 0;
+
+            foreach (MountAvailabilityCount entry in candidate.AvailabilityCounts)
+            {
+                if (entry.Class == availability)
+                {
+                    stated = entry.Mounts;
+                }
+            }
+
+            int actual = counted.GetValueOrDefault(availability);
+
+            if (stated != actual)
+            {
+                mismatched.Add($"{MountAvailabilityRules.Key(availability)} (block {stated}, rows {actual})");
+            }
+        }
+
+        if (mismatched.Count > 0)
+        {
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Error,
+                AvailabilityCountsCode,
+                $"The header's availability counts disagree with the rows for {mismatched.Count} class(es) ({string.Join(", ", mismatched)}). "
+                + "The block is generator output - a hand-edited number would put a count in the filter that no list can match."));
         }
     }
 

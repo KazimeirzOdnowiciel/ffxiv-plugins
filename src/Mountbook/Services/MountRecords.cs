@@ -49,11 +49,18 @@ public sealed record MountCommunity(double? OwnedPercent = null, bool? Tradeable
 /// The obtain data for one mount id: the patch it arrived in, the item that grants it (zero when
 /// it is not an item), every source line the dataset carries, and the community facts beside them.
 /// </summary>
+/// <param name="Availability">
+/// Whether this mount can be obtained today, as the snapshot states it. It is read from the file rather than
+/// derived here: the classification is data the generator wrote and the validator re-derives, so the badge,
+/// the filter and the counts all read one field (see <see cref="MountAvailabilityRules"/>). Defaults to
+/// <see cref="MountAvailability.Unknown"/>, which is also what a snapshot written by an older generator says.
+/// </param>
 public sealed record MountSources(
     string Patch,
     uint ItemId,
     IReadOnlyList<MountSourceLine> Lines,
-    MountCommunity? Community = null);
+    MountCommunity? Community = null,
+    MountAvailability Availability = MountAvailability.Unknown);
 
 /// <summary>
 /// Everything the window needs to draw one mount row. Built by the wiring layer from Lumina and
@@ -73,4 +80,5 @@ public sealed record MountShelfItem(
     IReadOnlyList<MountSourceLine> Sources,
     MountCommunity? Community = null,
     bool Barding = false,
-    bool Flies = false);
+    bool Flies = false,
+    MountAvailability Availability = MountAvailability.Unknown);

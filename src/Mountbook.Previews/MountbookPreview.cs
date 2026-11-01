@@ -64,6 +64,7 @@ public sealed class MountbookPreview : PreviewScene
             SelectedId = SelectedMountId,
             ItemName = "Aithon Whistle",
             SourceOptions = SourceOptions(items),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(items),
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,
@@ -78,6 +79,14 @@ public sealed class MountbookPreview : PreviewScene
     /// <param name="items">The whole sample, not a filtered subset.</param>
     internal static IReadOnlyList<MountSourceCount> SourceOptions(IReadOnlyList<MountShelfItem> items) =>
         [new MountSourceCount(MountSourceKinds.Any, items.Count), .. MountSourceKinds.Tally(items)];
+
+    /// <summary>
+    /// The availability combo's entries for a scene's sample, in class order - the same shape the window builds
+    /// from the catalogue, so a golden shows the real labels rather than a hand-written pair.
+    /// </summary>
+    /// <param name="items">The whole sample, not a filtered subset.</param>
+    internal static IReadOnlyList<MountAvailabilityCount> AvailabilityOptions(IReadOnlyList<MountShelfItem> items) =>
+        MountAvailabilityRules.Tally(items);
 
     /// <summary>Also the golden's file name: <c>goldens/main.png</c>.</summary>
     public override string Name => "main";
@@ -217,7 +226,10 @@ public sealed class MountbookPreview : PreviewScene
             sources,
             community,
             Barding(name),
-            Flies(name));
+            Flies(name),
+            // The class is the rules' answer for the sample's own lines, exactly what the generator asks for, so a
+            // golden's badge cannot claim a class the dataset would not have given that mount.
+            MountAvailabilityRules.Classify(id, sources));
 
     /// <summary>
     /// Barding is chocobo-only in the game, so the sample marks exactly one mount that could wear it

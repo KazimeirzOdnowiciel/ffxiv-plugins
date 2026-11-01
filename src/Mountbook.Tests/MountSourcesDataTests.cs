@@ -57,6 +57,78 @@ public sealed class MountSourcesDataTests
     }
 
     [Fact]
+    public void EveryShippedRowStatesTheClassTheRulesDerive()
+    {
+        // The field is data the generator wrote, so the pin is that the data and the rules agree for all 356 rows:
+        // a hand edit, a stale generator, or a rule that moved without a regeneration fails here rather than
+        // shipping a badge that argues with its own filter.
+        MountShelf shelf = MountShelf.Parse(ReadDataset());
+        var drifted = new List<string>();
+
+        foreach (uint id in shelf.Ids)
+        {
+            shelf.TryGet(id, out MountSources sources);
+            MountAvailability derived = MountAvailabilityRules.Classify(id, sources.Lines);
+
+            if (sources.Availability != derived)
+            {
+                drifted.Add($"{id}: file {MountAvailabilityRules.Key(sources.Availability)}, rules {MountAvailabilityRules.Key(derived)}");
+            }
+        }
+
+        Assert.True(drifted.Count == 0, "rows whose class disagrees with the rules:\n  " + string.Join("\n  ", drifted));
+    }
+
+    [Fact]
+    public void TheShippedCountsAreTheRowsAndTheHeaderAgrees()
+    {
+        // 261 farmable, 9 out of season, 17 ranked, 67 for money, 2 retired, and nothing unclassified: the numbers
+        // in the settings window, the filter and the header block are all this one distribution.
+        MountShelf shelf = MountShelf.Parse(ReadDataset());
+        var counted = new Dictionary<MountAvailability, int>();
+
+        foreach (uint id in shelf.Ids)
+        {
+            shelf.TryGet(id, out MountSources sources);
+            counted[sources.Availability] = counted.GetValueOrDefault(sources.Availability) + 1;
+        }
+
+        Assert.Equal(356, shelf.Count);
+        Assert.Equal(261, counted.GetValueOrDefault(MountAvailability.Available));
+        Assert.Equal(9, counted.GetValueOrDefault(MountAvailability.Seasonal));
+        Assert.Equal(17, counted.GetValueOrDefault(MountAvailability.Ranked));
+        Assert.Equal(67, counted.GetValueOrDefault(MountAvailability.Premium));
+        Assert.Equal(2, counted.GetValueOrDefault(MountAvailability.Legacy));
+
+        // Nothing in the shipped file is unclassified: the four `Other` rows ... are two, both curated. An Unknown
+        // row with obtain lines is a rule nobody taught, and the validator refuses it.
+        Assert.Equal(0, counted.GetValueOrDefault(MountAvailability.Unknown));
+
+        Assert.Equal(MountAvailabilityRules.Classes.Count, shelf.AvailabilityCounts.Count + 1);
+        Assert.Equal(5, shelf.AvailabilityCounts.Count);
+
+        foreach (MountAvailabilityCount entry in shelf.AvailabilityCounts)
+        {
+            Assert.Equal(
+                counted.GetValueOrDefault(entry.Class),
+                entry.Mounts);
+        }
+    }
+
+    [Fact]
+    public void EveryCuratedIdIsARowInTheShippedSnapshot()
+    {
+        // Curation is by id, so an id that leaves the dataset turns into a comment nobody can check.
+        MountShelf shelf = MountShelf.Parse(ReadDataset());
+
+        foreach (uint id in MountAvailabilityRules.CuratedIds)
+        {
+            Assert.True(shelf.TryGet(id, out MountSources sources), $"Curated mount {id} is not in the snapshot.");
+            Assert.Equal(MountAvailability.Legacy, sources.Availability);
+        }
+    }
+
+    [Fact]
     public void ShippedDatasetNamesItsSourceAndGenerationDate()
     {
         using JsonDocument document = JsonDocument.Parse(ReadDataset());

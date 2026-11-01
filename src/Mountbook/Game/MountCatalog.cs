@@ -288,12 +288,14 @@ internal sealed class MountCatalog
                 var patch = string.Empty;
                 IReadOnlyList<MountSourceLine> sources = Array.Empty<MountSourceLine>();
                 MountCommunity? community = null;
+                var availability = MountAvailability.Unknown;
 
                 if (source.TryGet(mountId, out MountSources mountSources))
                 {
                     patch = mountSources.Patch;
                     sources = mountSources.Lines;
                     community = mountSources.Community;
+                    availability = mountSources.Availability;
                 }
 
                 // 64000 + the small icon id is the large artwork the Mount Guide shows.
@@ -317,7 +319,8 @@ internal sealed class MountCatalog
                     MountBarding.Supports((uint)row.EquipHead, (uint)row.EquipBody, (uint)row.EquipLeg, (uint)row.EquipFoot),
                     // The sheet always answers this one (a flag, not a nullable), which is why the search
                     // operator needs no "unrecorded" case the way tradeable: does.
-                    row.IsFlying != 0));
+                    row.IsFlying != 0,
+                    availability));
             }
 
             items.Clear();

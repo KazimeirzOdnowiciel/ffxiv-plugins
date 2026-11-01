@@ -24,7 +24,9 @@ namespace Mountbook.Services;
 /// </remarks>
 public sealed class SavedView
 {
-    /// <summary>The name the player gave it. Never blank in a file this build wrote; a blank one is dropped.</summary>
+    /// <summary>
+    /// The name the player gave it. Never blank in a file this build wrote; a blank one is dropped.
+    /// </summary>
     public string Name { get; set; } = string.Empty;
 
     /// <summary>The search text, grammar included, exactly as the field held it.</summary>
@@ -62,6 +64,48 @@ public static class SavedViewRules
     /// shortcuts, and the feature stops being faster than typing the query.
     /// </summary>
     public const int MaxViews = 8;
+
+    /// <summary>
+    /// The English name the shipped "Farmable now" view carries, and the fallback for every language: a preset's
+    /// name is the player's own data, so a missing translation must not leave the seeded chip blank.
+    /// </summary>
+    public const string FarmableViewName = "Farmable now";
+
+    /// <summary>
+    /// The preset the availability feature ships with: the shelf's own answer to the question collectors ask
+    /// ("what can I go and farm right now"), as one click instead of a typed query.
+    /// </summary>
+    /// <remarks>
+    /// The definition is the query <see cref="MountAvailabilityRules.SearchTerm"/> over the mounts the player
+    /// does not own - a preset stores a query rather than the filter combo (see <see cref="SavedView"/>), so the
+    /// term is the whole thing and renaming the chip cannot break it. It lives here rather than in the config's
+    /// ladder because the rules about presets (the name folding, the cap, "the same name") are here, and a seed
+    /// built anywhere else would be a second opinion about them.
+    /// </remarks>
+    public static SavedView FarmableView() =>
+        new()
+        {
+            Name = FarmableName,
+            Query = MountAvailabilityRules.SearchTerm(MountAvailability.Available),
+            Ownership = MountOwnership.Unowned,
+            Expansion = MountExpansion.All,
+            Order = MountOrder.Name,
+            GroupBy = MountGrouping.None,
+        };
+
+    /// <summary>
+    /// The name the shipped view carries in the player's own language, folded by <see cref="Clean"/> - the same
+    /// folding a typed name gets, so the seeded entry compares equal to one the player typed by hand.
+    /// </summary>
+    public static string FarmableName
+    {
+        get
+        {
+            string name = Clean(Loc.TOr("views.farmable", FarmableViewName));
+            return name.Length == 0 ? FarmableViewName : name;
+        }
+    }
+
 
     /// <summary>
     /// The longest name kept, in characters. A chip is drawn with the name in it, so a sentence-length name

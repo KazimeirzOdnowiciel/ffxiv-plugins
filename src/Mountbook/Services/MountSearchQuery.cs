@@ -8,7 +8,7 @@ namespace Mountbook.Services;
 /// The search box's grammar. Plain words still match name, lore, tooltip, patch, expansion and source,
 /// and a term written <c>key:value</c> narrows the list by a fact instead: <c>tradeable:y</c>,
 /// <c>music:n</c>, <c>barding:y</c>, <c>flying:y</c>, <c>seats:&gt;=2</c>, <c>patch:&gt;=6.1</c>,
-/// <c>owned:&lt;1</c>, <c>source:trial</c>.
+/// <c>owned:&lt;1</c>, <c>source:trial</c>, <c>avail:available</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -56,7 +56,33 @@ public sealed class MountSearchQuery
         return text.Length == 0 || MatchesText(item, text);
     }
 
-    /// <summary>Parses a search string; an empty or whitespace-only one matches everything.</summary>
+    /// <summary>
+    /// The availability class a search states, or null when it names none.
+    /// </summary>
+    /// <remarks>
+    /// The class axis has two homes - the filter combo and the <c>avail:</c> term - and a saved view states it in its
+    /// query. Applying such a preset has to know which class the query already names, or the combo's own value would
+    /// be ANDed onto it: the seeded "Farmable now" view (<c>avail:available</c>) showed nothing at all to a player
+    /// whose last class filter was Premium. Reading the term back is what lets the preset be the authority on the
+    /// axis it speaks about, without the window re-implementing the grammar.
+    /// </remarks>
+    /// <param name="search">The query, as typed.</param>
+    public static MountAvailability? AvailabilityOf(string? search)
+    {
+        foreach (Constraint constraint in Parse(search).constraints)
+        {
+            if (constraint.Availability is { } availability)
+            {
+                return availability;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Parses a search string; an empty or whitespace-only one matches everything.
+    /// </summary>
     /// <param name="search">What the player typed.</param>
     public static MountSearchQuery Parse(string? search)
     {
@@ -135,6 +161,14 @@ public sealed class MountSearchQuery
                 return MountSourceKinds.TryParseOperator(value, out MountSourceKind source)
                     && Set(out constraint, Fact.Source, source);
 
+            case "avail":
+            case "availability":
+                // "what can I farm today" as a term: avail:a / avail:seasonal / avail:prem. This is what the
+                // saved "Farmable now" view stores, because a preset is a query and the filter combo is not a
+                // member of one - the same reason source: exists beside the type combo.
+                return MountAvailabilityRules.TryParseOperator(value, out MountAvailability availability)
+                    && Set(out constraint, Fact.Availability, availability);
+
             default:
                 // An unknown key is free text: "Trial: Byakko" must keep working as a source search.
                 return false;
@@ -150,6 +184,12 @@ public sealed class MountSearchQuery
     private static bool Set(out Constraint constraint, Fact fact, MountSourceKind source)
     {
         constraint = new Constraint(fact, Comparison.Equal, 0d, source);
+        return true;
+    }
+
+    private static bool Set(out Constraint constraint, Fact fact, MountAvailability availability)
+    {
+        constraint = new Constraint(fact, Comparison.Equal, 0d, Availability: availability);
         return true;
     }
 
@@ -269,6 +309,14 @@ public sealed class MountSearchQuery
         /// arm for it on purpose - a type is not "unrecorded", a mount either carries it or does not.
         /// </summary>
         Source,
+
+        /// <summary>
+        /// The availability class. Like <see cref="Source"/> it is matched before <see cref="Constraint.FactOf"/>:
+        /// the class is one value per mount, so the comparison is an equality on it and never a number. A mount
+        /// whose class is <see cref="MountAvailability.Unknown"/> therefore matches <c>avail:unknown</c> and
+        /// nothing else.
+        /// </summary>
+        Availability,
     }
 
     private enum Comparison
@@ -285,13 +333,19 @@ public sealed class MountSearchQuery
         Fact Fact,
         Comparison Comparison,
         double Value,
-        MountSourceKind? Source = null)
+        MountSourceKind? Source = null,
+        MountAvailability? Availability = null)
     {
         /// <summary>False when the mount does not carry the fact at all, whatever the comparison.</summary>
         public bool Matches(MountShelfItem item)
         {
-            return Source is { } kind
-                ? MatchesSource(item, kind)
+            if (Source is { } kind)
+            {
+                return MatchesSource(item, kind);
+            }
+
+            return Availability is { } availability
+                ? item.Availability == availability
                 : FactOf(item, Fact) is { } actual && Holds(actual);
         }
 

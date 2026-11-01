@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -22,6 +23,16 @@ internal static class Program
                                    [--report <file.md>]
                                    [--allowed-shrink <n>] [--allowed-growth <n>] [--minimum <n>]
                                    [--max-bytes <n>]
+
+          mountbook-tools classify --sources <mount-sources.json>
+                                   [--map] [--counts]
+
+        --map         print one "id,class" line per row, in ascending id: what the generator writes into
+                      each row's "availability" field.
+        --counts      print one "class,count" line per class that has rows: what the generator writes into
+                      the header's "availability" block.
+        Exit codes: 0 the rows were classified, 1 a row carries obtain lines the rules cannot place (nothing
+        is printed), 2 bad usage or an unreadable file.
 
         --candidate   the freshly generated snapshot; the only required input.
         --baseline    the snapshot as committed before this run. Without it the row band has no
@@ -54,12 +65,174 @@ internal static class Program
 
         if (!string.Equals(args[0], "validate", StringComparison.Ordinal))
         {
+            if (string.Equals(args[0], "classify", StringComparison.Ordinal))
+            {
+                return Classify(args);
+            }
+
             Console.Error.WriteLine($"Unknown verb \"{args[0]}\".");
             Console.Error.WriteLine(Usage);
             return 2;
         }
 
         return Validate(args);
+    }
+
+    /// <summary>
+    /// Writes the availability classification for a snapshot's rows, so the generator never has to re-implement
+    /// the rules in PowerShell: it asks for the map and writes it into the file (<see cref="MountAvailabilityRules"/>
+    /// is the one implementation, and the validator re-derives the same answer from the shipped file).
+    /// </summary>
+    /// <remarks>
+    /// Output is CSV on stdout, nothing on stderr unless something is wrong: <c>--map</c> gives
+    /// <c>id,class</c> per row in ascending id, <c>--counts</c> gives <c>class,count</c> per class that has rows.
+    /// Exit 1 when a row carries obtain lines the rules cannot place - the generator then writes nothing, because
+    /// a snapshot with an unclassified mount would draw "No data" on a mount somebody could have classified.
+    /// </remarks>
+    private static int Classify(string[] args)
+    {
+        string? sources = null;
+        var wantMap = false;
+        var wantCounts = false;
+
+        for (var index = 1; index < args.Length; index++)
+        {
+            switch (args[index])
+            {
+                case "--sources":
+                    if (index + 1 >= args.Length)
+                    {
+                        return Fail("--sources needs a path.");
+                    }
+
+                    sources = args[++index];
+                    break;
+
+                case "--map":
+                    wantMap = true;
+                    break;
+
+                case "--counts":
+                    wantCounts = true;
+                    break;
+
+                default:
+                    return Fail($"Unknown option \"{args[index]}\".");
+            }
+        }
+
+        if (sources is null)
+        {
+            return Fail("classify needs --sources <mount-sources.json>.");
+        }
+
+        if (!wantMap && !wantCounts)
+        {
+            return Fail("classify needs at least one of --map or --counts.");
+        }
+
+        string json;
+        try
+        {
+            json = File.ReadAllText(sources);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return Fail($"Could not read the snapshot: {exception.Message}");
+        }
+
+        MountShelf shelf;
+        try
+        {
+            shelf = MountShelf.Parse(json);
+        }
+        catch (FormatException exception)
+        {
+            return Fail($"The snapshot is not readable as Mountbook data: {exception.Message}");
+        }
+
+        var ids = new List<uint>(shelf.Count);
+
+        foreach (uint id in shelf.Ids)
+        {
+            ids.Add(id);
+        }
+
+        ids.Sort();
+
+        var unclassified = new List<uint>();
+        var counts = new Dictionary<MountAvailability, int>();
+
+        foreach (MountAvailability availability in MountAvailabilityRules.Classes)
+        {
+            counts[availability] = 0;
+        }
+
+        var builder = new StringBuilder();
+
+        foreach (uint id in ids)
+        {
+            shelf.TryGet(id, out MountSources row);
+            MountAvailability availability = MountAvailabilityRules.Classify(id, row.Lines);
+
+            if (availability == MountAvailability.Unknown && row.Lines.Count > 0)
+            {
+                unclassified.Add(id);
+            }
+
+            counts[availability] = counts.GetValueOrDefault(availability) + 1;
+
+            if (wantMap)
+            {
+                builder.Append(id.ToString(CultureInfo.InvariantCulture))
+                    .Append(',')
+                    .Append(MountAvailabilityRules.Key(availability))
+                    .Append('\n');
+            }
+        }
+
+        if (unclassified.Count > 0)
+        {
+            // Nothing on stdout: a generator that wrote a partial map would produce a file that half-ships.
+            var listed = new StringBuilder();
+
+            for (var index = 0; index < unclassified.Count && index < 10; index++)
+            {
+                if (index > 0)
+                {
+                    listed.Append(", ");
+                }
+
+                listed.Append(unclassified[index].ToString(CultureInfo.InvariantCulture));
+            }
+
+            Console.Error.WriteLine(
+                $"{unclassified.Count} mount(s) carry obtain lines the availability rules cannot place, so nothing was classified: "
+                + $"{listed}{(unclassified.Count > 10 ? ", ..." : string.Empty)}. "
+                + "Teach MountAvailabilityRules what those lines are (a playable type, a PvP currency, or a curated id with its reason).");
+            return 1;
+        }
+
+        if (wantMap)
+        {
+            Console.Write(builder.ToString());
+        }
+
+        if (wantCounts)
+        {
+            foreach (MountAvailability availability in MountAvailabilityRules.Classes)
+            {
+                int mounts = counts.GetValueOrDefault(availability);
+
+                if (mounts > 0)
+                {
+                    Console.Write(
+                        $"{MountAvailabilityRules.Key(availability)},{mounts.ToString(CultureInfo.InvariantCulture)}\n");
+                }
+            }
+        }
+
+        return 0;
     }
 
     private static int Validate(string[] args)

@@ -84,6 +84,11 @@ The script warns when the model map **predates the snapshot's `generated` date**
 file's timestamp - git checks every file out "now", so a fresh clone would call a fresh map stale): an
 old map cannot know the patch's new mounts, and would pass a mount the game has not published.
 
+The generator classifies every row before it writes the file: it asks `mountbook-tools classify`, which is the
+same `MountAvailabilityRules` the plugin and the validator read, so the class in the row, the count in the
+header and the badge on screen cannot come from two implementations. The tool is rebuilt first, and a row the
+rules cannot place stops the run with nothing written (`availability-missing` in step 3).
+
 ## 3. Read the report
 
 Errors block; warnings are changes a human has to read and accept; notes are context. Every finding
@@ -109,6 +114,10 @@ carries a code, and the code is what the table below is for.
 | `description-copy` | error | rows carry the API's own `description`/`enhancedDescription`/`tooltip` | the game's `MountTransient` sheet already has that text, and the copy triples the file. Take metadata only |
 | `source-type-missing` | error | a mount has obtain lines but no type on any of them | the source filter, its counts and the source grouping are keyed by the type, so the mount would be invisible to all three while its pane still drew the text. A partial fetch, not a patch: rerun |
 | `source-type-unknown` | error | an obtain line carries a type the plugin does not know | a new type is a decision, not a regeneration: add it to `MountSourceKinds.Names` (its index is its rank, and the rank decides where the combo and the grid's source headings draw it), add a `source.<key>` label to the strings table, and pin the count in `MountSourcesDataTests`. See `docs/data-provenance.md` §9 |
+| `availability-missing` | error | a row carries obtain lines the availability rules cannot place, so its `availability` class is missing or unusable | a new obtain type, or a row filed as `Other` with no curated entry. Decide what it is - a playable type in `MountAvailabilityRules.PlayableTypes`, a PvP currency, or a curated id with its reason - then regenerate. See `docs/data-provenance.md` §10 |
+| `availability-drift` | error | a row states a class the rules do not derive from its own lines | the file was hand-edited, or written by a build whose rules have moved. The generator writes the field through `mountbook-tools classify`, so a disagreement is never a regeneration |
+| `availability-counts` | error | the header's per-class counts disagree with the rows | the block is generator output; a hand-edited number would put a count in the filter that no list can match |
+| `availability-counts-missing` | warning | the snapshot records no per-class counts at all | regenerate: the block is how the file says what it classified |
 | `crosscheck-missing` | warning | the snapshot records no comparison of the site's seats/movement against the `Mount` sheet (`sheetCrossCheck` is null) | run `mdlrip --facts` (step 1) and regenerate. The data is still usable; the recorded check is what proves the site has not drifted from the game |
 | `crosscheck-drift` | error | the recorded comparison covered fewer rows than the file carries, or some rows disagreed | the file was hand-edited, or built against another game build. Regenerate the facts and the candidate together |
 | `crosscheck-fields` | error | the recorded comparison names sheet columns other than `Mount.ExtraSeats`/`Mount.IsAirborne` | fix the generator: comparing other columns says nothing about seats or movement |

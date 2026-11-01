@@ -40,6 +40,9 @@ told about.
 
 - Obtain methods are a named taxonomy: 28 types, each with its count in the filter ("Trial (44)"), a group-by-source list, and a source: search term that matches those same names.
 - Saved views: name a set of filters and it comes back as one row of chips; save, rename and delete live behind Manage, or behind a right-click on the filter block before the first preset exists.
+- A mount now says whether you can get it today - Available, Seasonal, Ranked, Premium or Legacy - with one badge in its pane.
+- The filter lists each availability class with how many mounts it holds, and "Farmable now" ships as a saved view.
+
 - The header answers the collector's question - "Rarest missing: Dreadnaught (0.1%)" - with rarity sortable in both directions and a share under 1% drawn as a badge.
 - The obtain data is rebuilt from FFXIV Collect when a patch lands, and every mount's seats and movement are checked against the game's own sheet: the file refuses to ship if any of 356 disagree.
 - The shipped file states its own schema, source and licence, the settings window shows the schema it read, and the detail pane credits the source.

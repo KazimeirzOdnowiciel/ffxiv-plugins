@@ -32,7 +32,13 @@ public sealed class MountShelf
     /// The shape this reader understands; the generator writes the same number. Kept in the reader
     /// rather than derived from the file so a snapshot cannot declare its own compatibility.
     /// </summary>
-    public const int CurrentSchemaVersion = 3;
+    /// <remarks>
+    /// v2 added the header (provenance, attribution, size budget), v3 the sheet cross-check, v4 the per-row
+    /// <c>availability</c> class and the header block that counts it - and stopped writing
+    /// <c>relatedType</c>/<c>relatedId</c> on a source line that has neither, which the reader already reads as
+    /// empty and zero, and which is what kept the field inside the size budget.
+    /// </remarks>
+    public const int CurrentSchemaVersion = 4;
 
     /// <summary>The snapshot that ships without a header, i.e. before <see cref="CurrentSchemaVersion"/>.</summary>
     public const int LegacySchemaVersion = 0;
@@ -78,6 +84,17 @@ public sealed class MountShelf
 
     /// <summary>True when the snapshot records a sheet cross-check that actually ran.</summary>
     public bool HasCrossCheck => Header.HasCrossCheck;
+
+    /// <summary>
+    /// The generator's own count per availability class, from the header, in
+    /// <see cref="MountAvailabilityRules.Classes"/> order. Empty when the file records none, which the
+    /// validator reports: the counts are the evidence the classification ran, and this reader never derives
+    /// them, because a count worked out here would agree with the rows by construction.
+    /// </summary>
+    public IReadOnlyList<MountAvailabilityCount> AvailabilityCounts => Header.Availability ?? [];
+
+    /// <summary>True when the snapshot says how many mounts it put in each class.</summary>
+    public bool HasAvailabilityCounts => Header.Availability is { Count: > 0 };
 
     /// <summary>True when every mount in this snapshot came from the game sheets, not the site.</summary>
     public bool IsSheetOnly => string.Equals(Enrichment, MountShelfHeader.SheetOnlyEnrichment, StringComparison.OrdinalIgnoreCase);
@@ -205,7 +222,10 @@ public sealed class MountShelf
                 ReadString(mount, "patch"),
                 ReadUInt32(mount, "itemId"),
                 ReadSources(mount),
-                ReadCommunity(mount));
+                ReadCommunity(mount),
+                // Folded here, once per row: the field is the class the generator wrote, and a word this build
+                // does not know reads as Unknown rather than being guessed at (the validator is what refuses it).
+                MountAvailabilityRules.Parse(ReadString(mount, "availability")));
         }
 
         return new MountShelf(entries, header);
@@ -232,7 +252,41 @@ public sealed class MountShelf
             ReadString(root, "enrichment"),
             ReadString(root, "attribution"),
             ReadString(root, "attributionUrl"),
-            ReadCrossCheck(root));
+            ReadCrossCheck(root),
+            ReadAvailabilityBlock(root));
+    }
+
+    /// <summary>
+    /// Reads the <c>availability</c> block: how many mounts the generator put in each class. A member naming
+    /// no class is skipped rather than turned into <see cref="MountAvailability.Unknown"/>, because the block
+    /// is a count of classified rows and an unknown key is evidence of a generator this build does not know,
+    /// which the validator then reports as a count mismatch instead of silently agreeing.
+    /// </summary>
+    private static IReadOnlyList<MountAvailabilityCount> ReadAvailabilityBlock(JsonElement root)
+    {
+        if (!TryGetProperty(root, "availability", out JsonElement block) || block.ValueKind != JsonValueKind.Object)
+        {
+            return [];
+        }
+
+        var counts = new List<MountAvailabilityCount>();
+
+        foreach (MountAvailability availability in MountAvailabilityRules.Classes)
+        {
+            string key = MountAvailabilityRules.Key(availability);
+
+            if (!TryGetProperty(block, key, out JsonElement value)
+                || value.ValueKind != JsonValueKind.Number
+                || !value.TryGetInt32(out int mounts)
+                || mounts < 0)
+            {
+                continue;
+            }
+
+            counts.Add(new MountAvailabilityCount(availability, mounts));
+        }
+
+        return counts;
     }
 
     /// <summary>

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "generated": "2026-11-01",
   "source": "ffxivcollect.com",
   "enrichment": "full",
@@ -12,6 +12,13 @@
   },
   "attribution": "Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.",
   "attributionUrl": "https://ffxivcollect.com",
+  "availability": {
+    "available": 261,
+    "seasonal": 9,
+    "ranked": 17,
+    "premium": 67,
+    "legacy": 2
+  },
   "mounts": [
     {
       "id": 1,
@@ -20,6 +27,7 @@
       "owned": 96.4,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "My Little Chocobo (Immortal Flames)", "relatedType": "Quest", "relatedId": 66238 },
         { "type": "Quest", "text": "My Little Chocobo (Maelstrom)", "relatedType": "Quest", "relatedId": 66237 },
@@ -33,8 +41,9 @@
       "owned": 0.7,
       "tradeable": false,
       "customMusic": false,
+      "availability": "legacy",
       "sources": [
-        { "type": "Other", "text": "At level 30 or above, speak with the Wandering Minstrel in Eastern La Noscea (Final Fantasy XIV 1.0)", "relatedType": null, "relatedId": 0 }
+        { "type": "Other", "text": "At level 30 or above, speak with the Wandering Minstrel in Eastern La Noscea (Final Fantasy XIV 1.0)" }
       ]
     },
     {
@@ -44,8 +53,9 @@
       "owned": 1.4,
       "tradeable": false,
       "customMusic": false,
+      "availability": "legacy",
       "sources": [
-        { "type": "Other", "text": "Legacy Campaign", "relatedType": null, "relatedId": 0 }
+        { "type": "Other", "text": "Legacy Campaign" }
       ]
     },
     {
@@ -55,6 +65,7 @@
       "owned": 87.8,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "The Ultimate Weapon", "relatedType": "Quest", "relatedId": 66060 }
       ]
@@ -66,8 +77,9 @@
       "owned": 32.6,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "A Realm Reborn Collector's Edition", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "A Realm Reborn Collector's Edition" }
       ]
     },
     {
@@ -77,8 +89,9 @@
       "owned": 55.2,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Achievement", "text": "Jonathas - Old Gridania - 6 Achievement Certificates", "relatedType": null, "relatedId": 0 }
+        { "type": "Achievement", "text": "Jonathas - Old Gridania - 6 Achievement Certificates" }
       ]
     },
     {
@@ -88,6 +101,7 @@
       "owned": 41.9,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "Unicorn Power", "relatedType": "Quest", "relatedId": 65730 }
       ]
@@ -99,8 +113,9 @@
       "owned": 63.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Achievement", "text": "Jonathas - Old Gridania - 6 Achievement Certificates", "relatedType": null, "relatedId": 0 }
+        { "type": "Achievement", "text": "Jonathas - Old Gridania - 6 Achievement Certificates" }
       ]
     },
     {
@@ -110,8 +125,9 @@
       "owned": 25,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Amalj'aa Vendor - Ring of Ash (Southern Thanalan) - 120,000 Gil (Rank 4)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Amalj'aa Vendor - Ring of Ash (Southern Thanalan) - 120,000 Gil (Rank 4)" }
       ]
     },
     {
@@ -121,8 +137,9 @@
       "owned": 27.4,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Sylphic Vendor - Little Solace (East Shroud) - 120,000 Gil (Rank 4)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Sylphic Vendor - Little Solace (East Shroud) - 120,000 Gil (Rank 4)" }
       ]
     },
     {
@@ -132,6 +149,7 @@
       "owned": 34,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Everybody's Darling", "relatedType": "Achievement", "relatedId": 862 }
       ]
@@ -143,6 +161,7 @@
       "owned": 38.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Bowl of Embers (Extreme)", "relatedType": "Instance", "relatedId": 63 },
         { "type": "Trial", "text": "The Howling Eye (Extreme)", "relatedType": "Instance", "relatedId": 65 },
@@ -156,8 +175,9 @@
       "owned": 32.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "A Realm Reborn Collector's Edition", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "A Realm Reborn Collector's Edition" }
       ]
     },
     {
@@ -167,8 +187,9 @@
       "owned": 22,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Sahagin Vendor - Novv's Nursery (Western La Noscea) - 120,000 Gil (Rank 4)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Sahagin Vendor - Novv's Nursery (Western La Noscea) - 120,000 Gil (Rank 4)" }
       ]
     },
     {
@@ -178,8 +199,9 @@
       "owned": 29.7,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Kobold Vendor - 789th Order Dig (Outer La Noscea) - 120,000 Gil (Rank 4)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Kobold Vendor - 789th Order Dig (Outer La Noscea) - 120,000 Gil (Rank 4)" }
       ]
     },
     {
@@ -189,6 +211,7 @@
       "owned": 48.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Bowl of Embers (Extreme)", "relatedType": "Instance", "relatedId": 63 }
       ]
@@ -200,6 +223,7 @@
       "owned": 51.3,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Howling Eye (Extreme)", "relatedType": "Instance", "relatedId": 65 }
       ]
@@ -211,6 +235,7 @@
       "owned": 49.3,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Navel (Extreme)", "relatedType": "Instance", "relatedId": 64 }
       ]
@@ -222,6 +247,7 @@
       "owned": 46.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The *Whorleater* (Extreme)", "relatedType": "Instance", "relatedId": 73 }
       ]
@@ -233,6 +259,7 @@
       "owned": 7.5,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "But Somebody's Gotta Do It (Paladin)", "relatedType": "Achievement", "relatedId": 921 }
       ]
@@ -244,6 +271,7 @@
       "owned": 7.5,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "But Somebody's Gotta Do It (Warrior)", "relatedType": "Achievement", "relatedId": 924 }
       ]
@@ -255,8 +283,9 @@
       "owned": 23.9,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Recruit a Friend Campaign reward", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Recruit a Friend Campaign reward" }
       ]
     },
     {
@@ -266,8 +295,9 @@
       "owned": 25,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Ixali Vendor - Ehcatl (North Shroud) - 120,000 Gil (Rank 7)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Ixali Vendor - Ehcatl (North Shroud) - 120,000 Gil (Rank 7)" }
       ]
     },
     {
@@ -277,6 +307,7 @@
       "owned": 2.7,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "A Line in the Storm IV", "relatedType": "Achievement", "relatedId": 939 }
       ]
@@ -288,6 +319,7 @@
       "owned": 2.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "A Line in the Glade IV", "relatedType": "Achievement", "relatedId": 945 }
       ]
@@ -299,6 +331,7 @@
       "owned": 2,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "A Line in the Sand IV", "relatedType": "Achievement", "relatedId": 951 }
       ]
@@ -310,6 +343,7 @@
       "owned": 47.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Striking Tree (Extreme)", "relatedType": "Instance", "relatedId": 78 }
       ]
@@ -321,8 +355,9 @@
       "owned": 16.4,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Ceremony of Eternal Bonding (Gold/Platinum)", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Ceremony of Eternal Bonding (Gold/Platinum)" }
       ]
     },
     {
@@ -332,8 +367,9 @@
       "owned": 9.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -343,6 +379,7 @@
       "owned": 50.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Akh Afah Amphitheatre (Extreme)", "relatedType": "Instance", "relatedId": 80 }
       ]
@@ -354,6 +391,7 @@
       "owned": 5.8,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Leaving a Better Impression II", "relatedType": "Achievement", "relatedId": 1036 }
       ]
@@ -365,6 +403,7 @@
       "owned": 81.7,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "Divine Intervention", "relatedType": "Quest", "relatedId": 67133 }
       ]
@@ -376,8 +415,9 @@
       "owned": 16,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Gold Saucer", "text": "200,000 MGP", "relatedType": null, "relatedId": 0 }
+        { "type": "Gold Saucer", "text": "200,000 MGP" }
       ]
     },
     {
@@ -387,6 +427,7 @@
       "owned": 40.5,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "A Legend for a Legend", "relatedType": "Quest", "relatedId": 65968 }
       ]
@@ -398,6 +439,7 @@
       "owned": 2.3,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Behind Enemy Lines I", "relatedType": "Achievement", "relatedId": 1132 }
       ]
@@ -409,8 +451,9 @@
       "owned": 13.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Gold Saucer", "text": "1,000,000 MGP", "relatedType": null, "relatedId": 0 }
+        { "type": "Gold Saucer", "text": "1,000,000 MGP" }
       ]
     },
     {
@@ -420,6 +463,7 @@
       "owned": 78.7,
       "tradeable": null,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "Fetters of Lament", "relatedType": "Quest", "relatedId": 67204 }
       ]
@@ -431,8 +475,9 @@
       "owned": 7.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Calamity Salvager - 8 Gold Chocobo Feathers (Recruit a Friend Campaign)", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Calamity Salvager - 8 Gold Chocobo Feathers (Recruit a Friend Campaign)" }
       ]
     },
     {
@@ -442,8 +487,9 @@
       "owned": 15.2,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Luna Vanu - Ok' Gundu Nakki (The Sea of Clouds) - 200,000 Gil (Rank 7)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Luna Vanu - Ok' Gundu Nakki (The Sea of Clouds) - 200,000 Gil (Rank 7)" }
       ]
     },
     {
@@ -453,8 +499,9 @@
       "owned": 29.2,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Heavensward Collector's Edition", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Heavensward Collector's Edition" }
       ]
     },
     {
@@ -464,6 +511,7 @@
       "owned": 78.9,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "Into the Aery", "relatedType": "Quest", "relatedId": 67170 }
       ]
@@ -475,6 +523,7 @@
       "owned": 7.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "But Somebody's Gotta Do It (Dark Knight)", "relatedType": "Achievement", "relatedId": 1195 }
       ]
@@ -486,6 +535,7 @@
       "owned": 22.3,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "Alexander - The Burden of the Father (Savage)", "relatedType": "Instance", "relatedId": 119 }
       ]
@@ -497,8 +547,9 @@
       "owned": 12.6,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Calamity Salvager - 15 Gold Chocobo Feathers (Recruit a Friend Campaign)", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Calamity Salvager - 15 Gold Chocobo Feathers (Recruit a Friend Campaign)" }
       ]
     },
     {
@@ -508,9 +559,10 @@
       "owned": 11.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Event", "text": "All Saints' Wake (2015)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "All Saints' Wake (2015)" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -520,8 +572,9 @@
       "owned": 12.5,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Skybuilders", "text": "Enie - The Firmament - 4,200 Skybuilders' Scrips", "relatedType": null, "relatedId": 0 }
+        { "type": "Skybuilders", "text": "Enie - The Firmament - 4,200 Skybuilders' Scrips" }
       ]
     },
     {
@@ -531,8 +584,9 @@
       "owned": 1.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -542,8 +596,9 @@
       "owned": 1.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -553,8 +608,9 @@
       "owned": 7.3,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Hunts", "text": "Bertana - Idyllshire - 6 Clan Mark Logs", "relatedType": null, "relatedId": 0 }
+        { "type": "Hunts", "text": "Bertana - Idyllshire - 6 Clan Mark Logs" }
       ]
     },
     {
@@ -564,9 +620,10 @@
       "owned": 25,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Fan Festival 2018-19", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Fan Festival 2018-19" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -576,8 +633,9 @@
       "owned": 16.3,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Vath Stickpeddler - Loth ast Vath (The Dravanian Forelands) - 200,000 Gil (Rank 7)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Vath Stickpeddler - Loth ast Vath (The Dravanian Forelands) - 200,000 Gil (Rank 7)" }
       ]
     },
     {
@@ -587,8 +645,9 @@
       "owned": 22.1,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Voyages", "text": "Spoils Collector - 1 Iron Voyage Spoil (Sea of Clouds Sector 24)", "relatedType": null, "relatedId": 0 }
+        { "type": "Voyages", "text": "Spoils Collector - 1 Iron Voyage Spoil (Sea of Clouds Sector 24)" }
       ]
     },
     {
@@ -598,8 +657,9 @@
       "owned": 5.3,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -609,6 +669,7 @@
       "owned": 37.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Limitless Blue (Extreme)", "relatedType": "Instance", "relatedId": 89 }
       ]
@@ -620,6 +681,7 @@
       "owned": 41.8,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Thok ast Thok (Extreme)", "relatedType": "Instance", "relatedId": 87 }
       ]
@@ -631,6 +693,7 @@
       "owned": 35.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Minstrel's Ballad: Thordan's Reign", "relatedType": "Instance", "relatedId": 91 }
       ]
@@ -642,6 +705,7 @@
       "owned": 33.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Containment Bay S1T7 (Extreme)", "relatedType": "Instance", "relatedId": 135 }
       ]
@@ -653,6 +717,7 @@
       "owned": 3.5,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Blood Born IV", "relatedType": "Achievement", "relatedId": 1444 }
       ]
@@ -664,8 +729,9 @@
       "owned": 6.6,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "In-Game Item Campaign", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "In-Game Item Campaign" }
       ]
     },
     {
@@ -675,8 +741,9 @@
       "owned": 5.5,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "In-Game Item Campaign", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "In-Game Item Campaign" }
       ]
     },
     {
@@ -686,6 +753,7 @@
       "owned": 0.5,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "I Hope Mentor Will Notice Me VI", "relatedType": "Achievement", "relatedId": 1604 }
       ]
@@ -697,8 +765,9 @@
       "owned": 10.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -708,8 +777,9 @@
       "owned": 17.8,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Mogmul Mogbelly - Bahrr Lehs (The Churning Mists) - 200,000 Gil (Rank 7)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Mogmul Mogbelly - Bahrr Lehs (The Churning Mists) - 200,000 Gil (Rank 7)" }
       ]
     },
     {
@@ -719,8 +789,9 @@
       "owned": 22.2,
       "tradeable": false,
       "customMusic": false,
+      "availability": "seasonal",
       "sources": [
-        { "type": "Event", "text": "Yo-kai Watch Collaboration - Obtain 13 Yo-kai Minions", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "Yo-kai Watch Collaboration - Obtain 13 Yo-kai Minions" }
       ]
     },
     {
@@ -730,6 +801,7 @@
       "owned": 37,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Minstrel's Ballad: Nidhogg's Rage", "relatedType": "Instance", "relatedId": 170 }
       ]
@@ -741,6 +813,7 @@
       "owned": 1.5,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "In a Blaze of Glory V", "relatedType": "Achievement", "relatedId": 1563 }
       ]
@@ -752,8 +825,9 @@
       "owned": 17.9,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Deep Dungeon", "text": "E-Una-Kotor - Quarrymill (South Shroud) - 10 Gelmorran Potsherds", "relatedType": null, "relatedId": 0 }
+        { "type": "Deep Dungeon", "text": "E-Una-Kotor - Quarrymill (South Shroud) - 10 Gelmorran Potsherds" }
       ]
     },
     {
@@ -763,8 +837,9 @@
       "owned": 6.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Calamity Salvager - 8 Gold Chocobo Feathers (Recruit a Friend Campaign)", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Calamity Salvager - 8 Gold Chocobo Feathers (Recruit a Friend Campaign)" }
       ]
     },
     {
@@ -774,8 +849,9 @@
       "owned": 14,
       "tradeable": false,
       "customMusic": false,
+      "availability": "seasonal",
       "sources": [
-        { "type": "Event", "text": "Yo-kai Watch Collaboration - Obtain 13 Yo-kai Weapons", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "Yo-kai Watch Collaboration - Obtain 13 Yo-kai Weapons" }
       ]
     },
     {
@@ -785,6 +861,7 @@
       "owned": 11.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Fame Fatale", "relatedType": "Achievement", "relatedId": 1771 }
       ]
@@ -796,6 +873,7 @@
       "owned": 12.8,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Frontline Fury", "relatedType": "Achievement", "relatedId": 1772 }
       ]
@@ -807,8 +885,9 @@
       "owned": 3.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -818,6 +897,7 @@
       "owned": 32.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Containment Bay P1T6 (Extreme)", "relatedType": "Instance", "relatedId": 184 }
       ]
@@ -829,9 +909,10 @@
       "owned": 10.4,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Event", "text": "The Starlight Celebration (2017)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "The Starlight Celebration (2017)" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -841,8 +922,9 @@
       "owned": 6.3,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Deep Dungeon", "text": "The Palace of the Dead - Gold Sack", "relatedType": null, "relatedId": 0 }
+        { "type": "Deep Dungeon", "text": "The Palace of the Dead - Gold Sack" }
       ]
     },
     {
@@ -852,6 +934,7 @@
       "owned": 25.1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "Alexander - The Soul of the Creator (Savage)", "relatedType": "Instance", "relatedId": 193 }
       ]
@@ -863,6 +946,7 @@
       "owned": 10.8,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Furious Fatalities", "relatedType": "Achievement", "relatedId": 1773 }
       ]
@@ -874,6 +958,7 @@
       "owned": 34.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Containment Bay Z1T9 (Extreme)", "relatedType": "Instance", "relatedId": 224 }
       ]
@@ -885,6 +970,7 @@
       "owned": 27.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "Fiery Wings, Fiery Hearts", "relatedType": "Quest", "relatedId": 67086 }
       ]
@@ -896,9 +982,10 @@
       "owned": 8.9,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Event", "text": "Hatching-tide (2017)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "Hatching-tide (2017)" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -908,8 +995,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "The Feast: Season 3", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "The Feast: Season 3" }
       ]
     },
     {
@@ -919,8 +1007,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "The Feast: Season 3", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "The Feast: Season 3" }
       ]
     },
     {
@@ -930,8 +1019,9 @@
       "owned": 8.2,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Gold Saucer", "text": "750,000 MGP", "relatedType": null, "relatedId": 0 }
+        { "type": "Gold Saucer", "text": "750,000 MGP" }
       ]
     },
     {
@@ -941,8 +1031,9 @@
       "owned": 24.6,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Stormblood Collector's Edition", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Stormblood Collector's Edition" }
       ]
     },
     {
@@ -952,9 +1043,10 @@
       "owned": 30.6,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Fly the Falcon Mount Campaign", "relatedType": null, "relatedId": 0 },
-        { "type": "Event", "text": "Moogle Treasure Trove Event", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Fly the Falcon Mount Campaign" },
+        { "type": "Event", "text": "Moogle Treasure Trove Event" }
       ]
     },
     {
@@ -964,8 +1056,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "The Feast: Season 4", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "The Feast: Season 4" }
       ]
     },
     {
@@ -975,8 +1068,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "The Feast: Season 4", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "The Feast: Season 4" }
       ]
     },
     {
@@ -986,6 +1080,7 @@
       "owned": 34.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Emanation (Extreme)", "relatedType": "Instance", "relatedId": 264 }
       ]
@@ -997,6 +1092,7 @@
       "owned": 35.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Pool of Tribute (Extreme)", "relatedType": "Instance", "relatedId": 244 }
       ]
@@ -1008,6 +1104,7 @@
       "owned": 21.8,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Dungeon", "text": "Ala Mhigo", "relatedType": "Instance", "relatedId": 247 }
       ]
@@ -1019,6 +1116,7 @@
       "owned": 5,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Tank You, Paladin III", "relatedType": "Achievement", "relatedId": 1955 }
       ]
@@ -1030,6 +1128,7 @@
       "owned": 5.3,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Tank You, Warrior III", "relatedType": "Achievement", "relatedId": 1958 }
       ]
@@ -1041,6 +1140,7 @@
       "owned": 4.8,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Tank You, Dark Knight III", "relatedType": "Achievement", "relatedId": 1961 }
       ]
@@ -1052,6 +1152,7 @@
       "owned": 72.2,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "In the Footsteps of Bardam the Brave", "relatedType": "Quest", "relatedId": 68043 }
       ]
@@ -1063,6 +1164,7 @@
       "owned": 23.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "Deltascape V4.0 (Savage)", "relatedType": "Instance", "relatedId": 259 }
       ]
@@ -1074,6 +1176,7 @@
       "owned": 0.7,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "You Got Game", "relatedType": "Achievement", "relatedId": 1922 }
       ]
@@ -1085,10 +1188,11 @@
       "owned": 28.2,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "FATE", "text": "Eschina - Rhalgr's Reach - 12 Ixion Horns (FATE \"A Horse Outside\" - The Lochs)", "relatedType": null, "relatedId": 0 },
-        { "type": "Wondrous Tails", "text": "300 Faux Leaves", "relatedType": null, "relatedId": 0 },
-        { "type": "Wondrous Tails", "text": "1 Khloe's Silver Certificate of Commendation", "relatedType": null, "relatedId": 0 }
+        { "type": "FATE", "text": "Eschina - Rhalgr's Reach - 12 Ixion Horns (FATE \"A Horse Outside\" - The Lochs)" },
+        { "type": "Wondrous Tails", "text": "300 Faux Leaves" },
+        { "type": "Wondrous Tails", "text": "1 Khloe's Silver Certificate of Commendation" }
       ]
     },
     {
@@ -1098,6 +1202,7 @@
       "owned": 32.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Minstrel's Ballad: Shinryu's Domain", "relatedType": "Instance", "relatedId": 278 }
       ]
@@ -1109,8 +1214,9 @@
       "owned": 5.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1120,8 +1226,9 @@
       "owned": 18.9,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Shikitahe - Tamamizu (The Ruby Sea) - 12 Kojin Sango (Rank 8)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Shikitahe - Tamamizu (The Ruby Sea) - 12 Kojin Sango (Rank 8)" }
       ]
     },
     {
@@ -1131,8 +1238,9 @@
       "owned": 8.3,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1142,8 +1250,9 @@
       "owned": 3.8,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1153,8 +1262,9 @@
       "owned": 33.4,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Crafting", "text": "Crafted by Alchemist", "relatedType": null, "relatedId": 0 }
+        { "type": "Crafting", "text": "Crafted by Alchemist" }
       ]
     },
     {
@@ -1164,6 +1274,7 @@
       "owned": 1.4,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Die Another Day III", "relatedType": "Achievement", "relatedId": 1939 }
       ]
@@ -1175,8 +1286,9 @@
       "owned": 9.9,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Gold Saucer", "text": "750,000 MGP", "relatedType": null, "relatedId": 0 }
+        { "type": "Gold Saucer", "text": "750,000 MGP" }
       ]
     },
     {
@@ -1186,8 +1298,9 @@
       "owned": 4.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1197,6 +1310,7 @@
       "owned": 32.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Jade Stoa (Extreme)", "relatedType": "Instance", "relatedId": 291 }
       ]
@@ -1208,8 +1322,9 @@
       "owned": 53.5,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Achievement", "text": "Jonathas - Old Gridania - 6 Achievement Certificates", "relatedType": null, "relatedId": 0 }
+        { "type": "Achievement", "text": "Jonathas - Old Gridania - 6 Achievement Certificates" }
       ]
     },
     {
@@ -1219,8 +1334,9 @@
       "owned": 22,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Madhura - Castellum Velodyna (The Fringes) - 18 Ananta Dreamstaves (Rank 7)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Madhura - Castellum Velodyna (The Fringes) - 18 Ananta Dreamstaves (Rank 7)" }
       ]
     },
     {
@@ -1230,8 +1346,9 @@
       "owned": 19.3,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Madhura - Castellum Velodyna (The Fringes) - 18 Ananta Dreamstaves (Rank 8)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Madhura - Castellum Velodyna (The Fringes) - 18 Ananta Dreamstaves (Rank 8)" }
       ]
     },
     {
@@ -1241,8 +1358,9 @@
       "owned": 26,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Eureka", "text": "Anemos Lockbox", "relatedType": null, "relatedId": 0 }
+        { "type": "Eureka", "text": "Anemos Lockbox" }
       ]
     },
     {
@@ -1252,8 +1370,9 @@
       "owned": 39.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "seasonal",
       "sources": [
-        { "type": "Event", "text": "Final Fantasy XV Collaboration", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "Final Fantasy XV Collaboration" }
       ]
     },
     {
@@ -1263,9 +1382,10 @@
       "owned": 6.7,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Event", "text": "Valentione's Day (2018)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "Valentione's Day (2018)" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1275,9 +1395,10 @@
       "owned": 6.6,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Event", "text": "Valentione's Day (2018)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "Valentione's Day (2018)" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1287,8 +1408,9 @@
       "owned": 6.6,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Gold Saucer", "text": "750,000 MGP", "relatedType": null, "relatedId": 0 }
+        { "type": "Gold Saucer", "text": "750,000 MGP" }
       ]
     },
     {
@@ -1298,6 +1420,7 @@
       "owned": 20,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "Sigmascape V4.0 (Savage)", "relatedType": "Instance", "relatedId": 295 }
       ]
@@ -1309,6 +1432,7 @@
       "owned": 30.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Minstrel's Ballad: Tsukuyomi's Pain", "relatedType": "Instance", "relatedId": 538 }
       ]
@@ -1320,8 +1444,9 @@
       "owned": 6.1,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Deep Dungeon", "text": "Heaven-on-High - Platinum Sack", "relatedType": null, "relatedId": 0 }
+        { "type": "Deep Dungeon", "text": "Heaven-on-High - Platinum Sack" }
       ]
     },
     {
@@ -1331,8 +1456,9 @@
       "owned": 9.8,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1342,6 +1468,7 @@
       "owned": 14.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Great Hunt (Extreme)", "relatedType": "Instance", "relatedId": 475 }
       ]
@@ -1353,8 +1480,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "The Feast: Season 7", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "The Feast: Season 7" }
       ]
     },
     {
@@ -1364,8 +1492,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "The Feast: Season 8", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "The Feast: Season 8" }
       ]
     },
     {
@@ -1375,8 +1504,9 @@
       "owned": 19.8,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Gyosho - Dhoro Iloh (The Azim Steppe) - 20 Namazu Koban (Rank 8)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Gyosho - Dhoro Iloh (The Azim Steppe) - 20 Namazu Koban (Rank 8)" }
       ]
     },
     {
@@ -1386,6 +1516,7 @@
       "owned": 2.3,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Dressed for Heaven", "relatedType": "Achievement", "relatedId": 2053 }
       ]
@@ -1397,9 +1528,10 @@
       "owned": 12,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "PvP", "text": "PvP Series 3 - Level 15", "relatedType": null, "relatedId": 0 },
-        { "type": "PvP", "text": "5,000 Trophy Crystals", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "PvP Series 3 - Level 15" },
+        { "type": "PvP", "text": "5,000 Trophy Crystals" }
       ]
     },
     {
@@ -1409,6 +1541,7 @@
       "owned": 5.4,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Front and Center V", "relatedType": "Achievement", "relatedId": 2065 }
       ]
@@ -1420,8 +1553,9 @@
       "owned": 29.8,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Shadowbringers Collector's Edition", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Shadowbringers Collector's Edition" }
       ]
     },
     {
@@ -1431,8 +1565,9 @@
       "owned": 16.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1442,6 +1577,7 @@
       "owned": 28.3,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Hells' Kier (Extreme)", "relatedType": "Instance", "relatedId": 597 }
       ]
@@ -1453,6 +1589,7 @@
       "owned": 16.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "Alphascape V4.0 (Savage)", "relatedType": "Instance", "relatedId": 594 }
       ]
@@ -1464,8 +1601,9 @@
       "owned": 23.7,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "PvP", "text": "20,000 Wolf Marks", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "20,000 Wolf Marks" }
       ]
     },
     {
@@ -1475,8 +1613,9 @@
       "owned": 4.3,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1486,8 +1625,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "The Feast: Season 11", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "The Feast: Season 11" }
       ]
     },
     {
@@ -1497,9 +1637,10 @@
       "owned": 7.5,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "In-Game Item Campaign", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Twitch Campaign (2021)", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "In-Game Item Campaign" },
+        { "type": "Premium", "text": "Twitch Campaign (2021)" }
       ]
     },
     {
@@ -1509,9 +1650,10 @@
       "owned": 10.4,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Eureka", "text": "Happy Bunny Lockbox - Eureka Pyros", "relatedType": null, "relatedId": 0 },
-        { "type": "Occult Crescent", "text": "South Horn - Silver Coffer", "relatedType": null, "relatedId": 0 }
+        { "type": "Eureka", "text": "Happy Bunny Lockbox - Eureka Pyros" },
+        { "type": "Occult Crescent", "text": "South Horn - Silver Coffer" }
       ]
     },
     {
@@ -1521,8 +1663,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "The Feast: Season 12", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "The Feast: Season 12" }
       ]
     },
     {
@@ -1532,8 +1675,9 @@
       "owned": 9.1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Gold Saucer", "text": "2,000,000 MGP", "relatedType": null, "relatedId": 0 }
+        { "type": "Gold Saucer", "text": "2,000,000 MGP" }
       ]
     },
     {
@@ -1543,6 +1687,7 @@
       "owned": 21.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "A Lone Wolf No More", "relatedType": "Quest", "relatedId": 68736 }
       ]
@@ -1554,6 +1699,7 @@
       "owned": 27,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Wreath of Snakes (Extreme)", "relatedType": "Instance", "relatedId": 638 }
       ]
@@ -1565,6 +1711,7 @@
       "owned": 5.8,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Tank You, Gunbreaker II", "relatedType": "Achievement", "relatedId": 2391 }
       ]
@@ -1576,9 +1723,10 @@
       "owned": 9.8,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Eureka", "text": "Happy Bunny Lockbox - Eureka Hydatos", "relatedType": null, "relatedId": 0 },
-        { "type": "Occult Crescent", "text": "South Horn - Bronze/Silver Coffer", "relatedType": null, "relatedId": 0 }
+        { "type": "Eureka", "text": "Happy Bunny Lockbox - Eureka Hydatos" },
+        { "type": "Occult Crescent", "text": "South Horn - Bronze/Silver Coffer" }
       ]
     },
     {
@@ -1588,6 +1736,7 @@
       "owned": 1.3,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Out of Hiding", "relatedType": "Achievement", "relatedId": 2232 }
       ]
@@ -1599,6 +1748,7 @@
       "owned": 6.5,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "We're on Your Side I", "relatedType": "Achievement", "relatedId": 2227 }
       ]
@@ -1610,6 +1760,7 @@
       "owned": 15.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "A Life of Adventure IV", "relatedType": "Achievement", "relatedId": 2277 }
       ]
@@ -1621,6 +1772,7 @@
       "owned": 16.5,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "Eden's Gate: Sepulture (Savage)", "relatedType": "Instance", "relatedId": 690 }
       ]
@@ -1632,6 +1784,7 @@
       "owned": 23.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Dancing Plague (Extreme)", "relatedType": "Instance", "relatedId": 658 }
       ]
@@ -1643,6 +1796,7 @@
       "owned": 0.4,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Nuts for Nutsy", "relatedType": "Achievement", "relatedId": 2356 }
       ]
@@ -1654,8 +1808,9 @@
       "owned": 19.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "FATE", "text": "Fathard - Eulmore - 12 Formidable Cog (FATE \"A Finale Most Formidable\" - Kholusia)", "relatedType": null, "relatedId": 0 }
+        { "type": "FATE", "text": "Fathard - Eulmore - 12 Formidable Cog (FATE \"A Finale Most Formidable\" - Kholusia)" }
       ]
     },
     {
@@ -1665,6 +1820,7 @@
       "owned": 19.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Crown of the Immaculate (Extreme)", "relatedType": "Instance", "relatedId": 667 }
       ]
@@ -1676,8 +1832,9 @@
       "owned": 15.6,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Crafting", "text": "Crafted by Carpenter - The Dungeons of Lyhe Ghiah", "relatedType": null, "relatedId": 0 }
+        { "type": "Crafting", "text": "Crafted by Carpenter - The Dungeons of Lyhe Ghiah" }
       ]
     },
     {
@@ -1687,9 +1844,10 @@
       "owned": 12.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Event", "text": "All Saints' Wake (2019)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "All Saints' Wake (2019)" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1699,8 +1857,9 @@
       "owned": 8.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1710,6 +1869,7 @@
       "owned": 4.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Tank You, Gunbreaker III", "relatedType": "Achievement", "relatedId": 2392 }
       ]
@@ -1721,6 +1881,7 @@
       "owned": 1.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "True Blue", "relatedType": "Achievement", "relatedId": 2476 }
       ]
@@ -1732,8 +1893,9 @@
       "owned": 28,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Jul Oul - Lydha Lran (Il Mheg) - 18 Fae Fancies (Rank 7)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Jul Oul - Lydha Lran (Il Mheg) - 18 Fae Fancies (Rank 7)" }
       ]
     },
     {
@@ -1743,8 +1905,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": true,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "The Feast: Season 14", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "The Feast: Season 14" }
       ]
     },
     {
@@ -1754,8 +1917,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": true,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "The Feast: Season 15", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "The Feast: Season 15" }
       ]
     },
     {
@@ -1765,6 +1929,7 @@
       "owned": 1.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "One Steppe at a Time V", "relatedType": "Achievement", "relatedId": 2481 }
       ]
@@ -1776,6 +1941,7 @@
       "owned": 16.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Minstrel's Ballad: Hades's Elegy", "relatedType": "Instance", "relatedId": 693 }
       ]
@@ -1787,8 +1953,9 @@
       "owned": 5.5,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1798,8 +1965,9 @@
       "owned": 15.7,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Hunts", "text": "Xylle (The Crystarium) / Ilfroy (Eulmore) - 3,200 Sacks of Nuts", "relatedType": null, "relatedId": 0 }
+        { "type": "Hunts", "text": "Xylle (The Crystarium) / Ilfroy (Eulmore) - 3,200 Sacks of Nuts" }
       ]
     },
     {
@@ -1809,8 +1977,9 @@
       "owned": 24.3,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Skybuilders", "text": "Kupo of Fortune", "relatedType": null, "relatedId": 0 }
+        { "type": "Skybuilders", "text": "Kupo of Fortune" }
       ]
     },
     {
@@ -1820,9 +1989,10 @@
       "owned": 18.1,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Skybuilders", "text": "Enie - The Firmament - 8,400 Skybuilders' Scrips", "relatedType": null, "relatedId": 0 },
-        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Auxesia", "relatedType": null, "relatedId": 0 }
+        { "type": "Skybuilders", "text": "Enie - The Firmament - 8,400 Skybuilders' Scrips" },
+        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Auxesia" }
       ]
     },
     {
@@ -1832,9 +2002,10 @@
       "owned": 23.6,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Skybuilders", "text": "Enie - The Firmament - 8,400 Skybuilders' Scrips", "relatedType": null, "relatedId": 0 },
-        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Oizys", "relatedType": null, "relatedId": 0 }
+        { "type": "Skybuilders", "text": "Enie - The Firmament - 8,400 Skybuilders' Scrips" },
+        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Oizys" }
       ]
     },
     {
@@ -1844,9 +2015,10 @@
       "owned": 5.1,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Bozja", "text": "Dalriada - Final Boss Chest", "relatedType": null, "relatedId": 0 },
-        { "type": "Occult Crescent", "text": "South Horn - Bronze/Silver Coffer", "relatedType": null, "relatedId": 0 }
+        { "type": "Bozja", "text": "Dalriada - Final Boss Chest" },
+        { "type": "Occult Crescent", "text": "South Horn - Bronze/Silver Coffer" }
       ]
     },
     {
@@ -1856,9 +2028,10 @@
       "owned": 15,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Bozja", "text": "180 Bozjan Clusters", "relatedType": null, "relatedId": 0 },
-        { "type": "Occult Crescent", "text": "South Horn - Bronze Coffer", "relatedType": null, "relatedId": 0 }
+        { "type": "Bozja", "text": "180 Bozjan Clusters" },
+        { "type": "Occult Crescent", "text": "South Horn - Bronze Coffer" }
       ]
     },
     {
@@ -1868,8 +2041,9 @@
       "owned": 6.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1879,8 +2053,9 @@
       "owned": 16.8,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Yuqurl Manl - Hopl's Stopple (The Rak'tika Greatwood) - 18 Qitari Compliments (Rank 7)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Yuqurl Manl - Hopl's Stopple (The Rak'tika Greatwood) - 18 Qitari Compliments (Rank 7)" }
       ]
     },
     {
@@ -1890,6 +2065,7 @@
       "owned": 0.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Castle in the Sky", "relatedType": "Achievement", "relatedId": 2526 }
       ]
@@ -1901,6 +2077,7 @@
       "owned": 16,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Cinder Drift (Extreme)", "relatedType": "Instance", "relatedId": 718 }
       ]
@@ -1912,6 +2089,7 @@
       "owned": 16.4,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "No More Fish in the Sea II", "relatedType": "Achievement", "relatedId": 2561 }
       ]
@@ -1923,6 +2101,7 @@
       "owned": 12.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "Eden's Verse: Refulgence (Savage)", "relatedType": "Instance", "relatedId": 729 }
       ]
@@ -1934,8 +2113,9 @@
       "owned": 3.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1945,8 +2125,9 @@
       "owned": 9.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -1956,8 +2137,9 @@
       "owned": 20.7,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Mizutt - Watts's Anvil (Lakeland) - 18 Hammered Frogments (Rank 7)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Mizutt - Watts's Anvil (Lakeland) - 18 Hammered Frogments (Rank 7)" }
       ]
     },
     {
@@ -1967,8 +2149,9 @@
       "owned": 31.5,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Bozja", "text": "Southern Front Lockbox", "relatedType": null, "relatedId": 0 }
+        { "type": "Bozja", "text": "Southern Front Lockbox" }
       ]
     },
     {
@@ -1978,9 +2161,10 @@
       "owned": 14.9,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Skybuilders", "text": "Enie - The Firmament - 8,400 Skybuilders' Scrips", "relatedType": null, "relatedId": 0 },
-        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Oizys", "relatedType": null, "relatedId": 0 }
+        { "type": "Skybuilders", "text": "Enie - The Firmament - 8,400 Skybuilders' Scrips" },
+        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Oizys" }
       ]
     },
     {
@@ -1990,6 +2174,7 @@
       "owned": 14,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Seat of Sacrifice (Extreme)", "relatedType": "Instance", "relatedId": 739 }
       ]
@@ -2001,8 +2186,9 @@
       "owned": 13.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "seasonal",
       "sources": [
-        { "type": "Event", "text": "Yo-kai Watch Collaboration - Obtain 17 Yo-kai Weapons", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "Yo-kai Watch Collaboration - Obtain 17 Yo-kai Weapons" }
       ]
     },
     {
@@ -2012,8 +2198,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "The Feast: Season 16", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "The Feast: Season 16" }
       ]
     },
     {
@@ -2023,6 +2210,7 @@
       "owned": 20.2,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "On Ehll Tou's Wings", "relatedType": "Quest", "relatedId": 69427 }
       ]
@@ -2034,9 +2222,10 @@
       "owned": 3.6,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Wondrous Tails", "text": "2 Khloe's Silver Certificate of Commendation", "relatedType": null, "relatedId": 0 },
-        { "type": "Wondrous Tails", "text": "250 Faux Leaves", "relatedType": null, "relatedId": 0 }
+        { "type": "Wondrous Tails", "text": "2 Khloe's Silver Certificate of Commendation" },
+        { "type": "Wondrous Tails", "text": "250 Faux Leaves" }
       ]
     },
     {
@@ -2046,9 +2235,10 @@
       "owned": 18.6,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Event", "text": "The Starlight Celebration (2020)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "The Starlight Celebration (2020)" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2058,9 +2248,10 @@
       "owned": 12.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Digital Fan Festival (2021)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Digital Fan Festival (2021)" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2070,6 +2261,7 @@
       "owned": 12.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "Eden's Promise: Eternity (Savage)", "relatedType": "Instance", "relatedId": 759 }
       ]
@@ -2081,6 +2273,7 @@
       "owned": 3.1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Savage Queen of Swords I", "relatedType": "Achievement", "relatedId": 2765 }
       ]
@@ -2092,9 +2285,10 @@
       "owned": 16.6,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Skybuilders", "text": "Enie - The Firmament - 8,400 Skybuilders' Scrips", "relatedType": null, "relatedId": 0 },
-        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Auxesia", "relatedType": null, "relatedId": 0 }
+        { "type": "Skybuilders", "text": "Enie - The Firmament - 8,400 Skybuilders' Scrips" },
+        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Auxesia" }
       ]
     },
     {
@@ -2104,8 +2298,9 @@
       "owned": 33.4,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Endwalker Collector's Edition", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Endwalker Collector's Edition" }
       ]
     },
     {
@@ -2115,6 +2310,7 @@
       "owned": 13.5,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Castrum Marinum (Extreme)", "relatedType": "Instance", "relatedId": 763 }
       ]
@@ -2126,8 +2322,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "The Feast: Season 17", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "The Feast: Season 17" }
       ]
     },
     {
@@ -2137,10 +2334,11 @@
       "owned": 17.6,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Butterfinger Promotion (NA Only)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Lawson Promotion (Japan Only)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Twitch Campaign (July 2024)", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Butterfinger Promotion (NA Only)" },
+        { "type": "Premium", "text": "Lawson Promotion (Japan Only)" },
+        { "type": "Premium", "text": "Twitch Campaign (July 2024)" }
       ]
     },
     {
@@ -2150,9 +2348,10 @@
       "owned": 8.6,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Bozja", "text": "Delubrum Reginae - Final Boss Chests", "relatedType": null, "relatedId": 0 },
-        { "type": "Occult Crescent", "text": "South Horn - Silver Coffer", "relatedType": null, "relatedId": 0 }
+        { "type": "Bozja", "text": "Delubrum Reginae - Final Boss Chests" },
+        { "type": "Occult Crescent", "text": "South Horn - Silver Coffer" }
       ]
     },
     {
@@ -2162,9 +2361,10 @@
       "owned": 11.8,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Skybuilders", "text": "Enie - The Firmament - 8,400 Skybuilders' Scrips", "relatedType": null, "relatedId": 0 },
-        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Auxesia", "relatedType": null, "relatedId": 0 }
+        { "type": "Skybuilders", "text": "Enie - The Firmament - 8,400 Skybuilders' Scrips" },
+        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Auxesia" }
       ]
     },
     {
@@ -2174,9 +2374,10 @@
       "owned": 37.1,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Skybuilders", "text": "Fête Present", "relatedType": null, "relatedId": 0 },
-        { "type": "Skybuilders", "text": "Enie - The Firmament - 30 Fête Tokens", "relatedType": null, "relatedId": 0 }
+        { "type": "Skybuilders", "text": "Fête Present" },
+        { "type": "Skybuilders", "text": "Enie - The Firmament - 30 Fête Tokens" }
       ]
     },
     {
@@ -2186,6 +2387,7 @@
       "owned": 9.3,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "The Dragon Made", "relatedType": "Quest", "relatedId": 69593 }
       ]
@@ -2197,6 +2399,7 @@
       "owned": 2.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "A Complete History", "relatedType": "Achievement", "relatedId": 2886 }
       ]
@@ -2208,8 +2411,9 @@
       "owned": 14,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2219,9 +2423,10 @@
       "owned": 5.3,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Wondrous Tails", "text": "2 Khloe's Silver Certificate of Commendation", "relatedType": null, "relatedId": 0 },
-        { "type": "Wondrous Tails", "text": "250 Faux Leaves", "relatedType": null, "relatedId": 0 }
+        { "type": "Wondrous Tails", "text": "2 Khloe's Silver Certificate of Commendation" },
+        { "type": "Wondrous Tails", "text": "250 Faux Leaves" }
       ]
     },
     {
@@ -2231,6 +2436,7 @@
       "owned": 12.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Cloud Deck (Extreme)", "relatedType": "Instance", "relatedId": 782 }
       ]
@@ -2242,9 +2448,10 @@
       "owned": 27.7,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Event", "text": "Moonfire Faire (2021)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "Moonfire Faire (2021)" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2254,8 +2461,9 @@
       "owned": 1.6,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Purchase", "text": "Edelina - Mor Dhona - 50,000,000 Gil", "relatedType": null, "relatedId": 0 }
+        { "type": "Purchase", "text": "Edelina - Mor Dhona - 50,000,000 Gil" }
       ]
     },
     {
@@ -2265,8 +2473,9 @@
       "owned": 1.7,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Purchase", "text": "Tabeth - Eulmore - 25,000,000 Gil", "relatedType": null, "relatedId": 0 }
+        { "type": "Purchase", "text": "Tabeth - Eulmore - 25,000,000 Gil" }
       ]
     },
     {
@@ -2276,6 +2485,7 @@
       "owned": 3,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "The Adventurer with All the Cards", "relatedType": "Quest", "relatedId": 69617 }
       ]
@@ -2287,8 +2497,9 @@
       "owned": 10.8,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Island Sanctuary", "text": "12,000 Seafarer's Cowries", "relatedType": null, "relatedId": 0 }
+        { "type": "Island Sanctuary", "text": "12,000 Seafarer's Cowries" }
       ]
     },
     {
@@ -2298,8 +2509,9 @@
       "owned": 10.3,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Island Sanctuary", "text": "12,000 Seafarer's Cowries", "relatedType": null, "relatedId": 0 }
+        { "type": "Island Sanctuary", "text": "12,000 Seafarer's Cowries" }
       ]
     },
     {
@@ -2309,8 +2521,9 @@
       "owned": 10.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Island Sanctuary", "text": "12,000 Seafarer's Cowries", "relatedType": null, "relatedId": 0 }
+        { "type": "Island Sanctuary", "text": "12,000 Seafarer's Cowries" }
       ]
     },
     {
@@ -2320,8 +2533,9 @@
       "owned": 8.5,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Island Sanctuary", "text": "18,000 Seafarer's Cowries", "relatedType": null, "relatedId": 0 }
+        { "type": "Island Sanctuary", "text": "18,000 Seafarer's Cowries" }
       ]
     },
     {
@@ -2331,8 +2545,9 @@
       "owned": 8.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Island Sanctuary", "text": "18,000 Seafarer's Cowries", "relatedType": null, "relatedId": 0 }
+        { "type": "Island Sanctuary", "text": "18,000 Seafarer's Cowries" }
       ]
     },
     {
@@ -2342,8 +2557,9 @@
       "owned": 9.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Island Sanctuary", "text": "18,000 Seafarer's Cowries", "relatedType": null, "relatedId": 0 }
+        { "type": "Island Sanctuary", "text": "18,000 Seafarer's Cowries" }
       ]
     },
     {
@@ -2353,6 +2569,7 @@
       "owned": 8.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Minstrel's Ballad: Zodiark's Fall", "relatedType": "Instance", "relatedId": 803 }
       ]
@@ -2364,6 +2581,7 @@
       "owned": 8.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Minstrel's Ballad: Hydaelyn's Call", "relatedType": "Instance", "relatedId": 791 }
       ]
@@ -2375,6 +2593,7 @@
       "owned": 50.7,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "Endwalker", "relatedType": "Quest", "relatedId": 70000 }
       ]
@@ -2386,8 +2605,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "The Feast: Season 20", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "The Feast: Season 20" }
       ]
     },
     {
@@ -2397,6 +2617,7 @@
       "owned": 10.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "Asphodelos: The Fourth Circle (Savage)", "relatedType": "Instance", "relatedId": 801 }
       ]
@@ -2408,9 +2629,10 @@
       "owned": 2.3,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Wondrous Tails", "text": "1 Khloe's Gold Certificate of Commendation", "relatedType": null, "relatedId": 0 },
-        { "type": "Wondrous Tails", "text": "600 Faux Leaves", "relatedType": null, "relatedId": 0 }
+        { "type": "Wondrous Tails", "text": "1 Khloe's Gold Certificate of Commendation" },
+        { "type": "Wondrous Tails", "text": "600 Faux Leaves" }
       ]
     },
     {
@@ -2420,6 +2642,7 @@
       "owned": 0.4,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Endgame Hunter", "relatedType": "Achievement", "relatedId": 3000 }
       ]
@@ -2431,8 +2654,9 @@
       "owned": 17.8,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "FATE", "text": "Nesvaaz - Radz-at-Han - 12 Chi Bolts (FATE \"Omicron Recall: Killing Order\" - Ultima Thule)", "relatedType": null, "relatedId": 0 }
+        { "type": "FATE", "text": "Nesvaaz - Radz-at-Han - 12 Chi Bolts (FATE \"Omicron Recall: Killing Order\" - Ultima Thule)" }
       ]
     },
     {
@@ -2442,8 +2666,9 @@
       "owned": 3.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2453,8 +2678,9 @@
       "owned": 0.7,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "FATE", "text": "Edelina - Mor Dhona - 500 Bicolor Gemstone Vouchers", "relatedType": null, "relatedId": 0 }
+        { "type": "FATE", "text": "Edelina - Mor Dhona - 500 Bicolor Gemstone Vouchers" }
       ]
     },
     {
@@ -2464,9 +2690,10 @@
       "owned": 5.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Lawson Promotion (Japan Only)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Gong Cha Promotion", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Lawson Promotion (Japan Only)" },
+        { "type": "Premium", "text": "Gong Cha Promotion" }
       ]
     },
     {
@@ -2476,8 +2703,9 @@
       "owned": 16,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Island Sanctuary", "text": "24,000 Seafarer's Cowries (Sanctuary Rank 10)", "relatedType": null, "relatedId": 0 }
+        { "type": "Island Sanctuary", "text": "24,000 Seafarer's Cowries (Sanctuary Rank 10)" }
       ]
     },
     {
@@ -2487,8 +2715,9 @@
       "owned": 4.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2498,9 +2727,10 @@
       "owned": 10.3,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "PvP", "text": "PvP Series 2 - Level 25", "relatedType": null, "relatedId": 0 },
-        { "type": "PvP", "text": "5,000 Trophy Crystals", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "PvP Series 2 - Level 25" },
+        { "type": "PvP", "text": "5,000 Trophy Crystals" }
       ]
     },
     {
@@ -2510,8 +2740,9 @@
       "owned": 8.1,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Treasure Hunt", "text": "Nesvaaz - Radz-at-Han - 3 Resplendent Feathers (The Excitatron 6000 or The Shifting Gymnasion Agonon)", "relatedType": null, "relatedId": 0 }
+        { "type": "Treasure Hunt", "text": "Nesvaaz - Radz-at-Han - 3 Resplendent Feathers (The Excitatron 6000 or The Shifting Gymnasion Agonon)" }
       ]
     },
     {
@@ -2521,8 +2752,9 @@
       "owned": 9.1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Island Sanctuary", "text": "50,000 Seafarer's Cowries (Sanctuary Rank 16)", "relatedType": null, "relatedId": 0 }
+        { "type": "Island Sanctuary", "text": "50,000 Seafarer's Cowries (Sanctuary Rank 16)" }
       ]
     },
     {
@@ -2532,8 +2764,9 @@
       "owned": 5,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Hunts", "text": "Ryubool Ja - Tuliyollal - 3,200 Sacks of Nuts", "relatedType": null, "relatedId": 0 }
+        { "type": "Hunts", "text": "Ryubool Ja - Tuliyollal - 3,200 Sacks of Nuts" }
       ]
     },
     {
@@ -2543,8 +2776,9 @@
       "owned": 17.1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Gold Saucer", "text": "300,000 MGP", "relatedType": null, "relatedId": 0 },
+        { "type": "Gold Saucer", "text": "300,000 MGP" },
         { "type": "Quest", "text": "Brave New World", "relatedType": "Quest", "relatedId": 69571 }
       ]
     },
@@ -2555,8 +2789,9 @@
       "owned": 15.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Coiningway - Hoper's Hold (Mare Lamentorum) - 18 Loporrit Carats (Rank 7)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Coiningway - Hoper's Hold (Mare Lamentorum) - 18 Loporrit Carats (Rank 7)" }
       ]
     },
     {
@@ -2566,8 +2801,9 @@
       "owned": 11.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Island Sanctuary", "text": "35,000 Seafarer's Cowries (Sanctuary Rank 12)", "relatedType": null, "relatedId": 0 }
+        { "type": "Island Sanctuary", "text": "35,000 Seafarer's Cowries (Sanctuary Rank 12)" }
       ]
     },
     {
@@ -2577,8 +2813,9 @@
       "owned": 20.6,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Ghanta - Svarna (Thavnair) - 18 Arkasodara Pana (Rank 7)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Ghanta - Svarna (Thavnair) - 18 Arkasodara Pana (Rank 7)" }
       ]
     },
     {
@@ -2588,9 +2825,10 @@
       "owned": 3.7,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Wondrous Tails", "text": "1 Khloe's Gold Certificate of Commendation", "relatedType": null, "relatedId": 0 },
-        { "type": "Wondrous Tails", "text": "600 Faux Leaves", "relatedType": null, "relatedId": 0 }
+        { "type": "Wondrous Tails", "text": "1 Khloe's Gold Certificate of Commendation" },
+        { "type": "Wondrous Tails", "text": "600 Faux Leaves" }
       ]
     },
     {
@@ -2600,6 +2838,7 @@
       "owned": 22,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "Gentlemen at Heart", "relatedType": "Quest", "relatedId": 70336 }
       ]
@@ -2611,8 +2850,9 @@
       "owned": 11.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Hunts", "text": "J'lakshai (Old Sharlayan) / Wilmetta (Radz-at-Han) - 3,200 Sacks Of Nuts", "relatedType": null, "relatedId": 0 }
+        { "type": "Hunts", "text": "J'lakshai (Old Sharlayan) / Wilmetta (Radz-at-Han) - 3,200 Sacks Of Nuts" }
       ]
     },
     {
@@ -2622,8 +2862,9 @@
       "owned": 3.1,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Deep Dungeon", "text": "Eureka Orthos - Gold Sack", "relatedType": null, "relatedId": 0 }
+        { "type": "Deep Dungeon", "text": "Eureka Orthos - Gold Sack" }
       ]
     },
     {
@@ -2633,6 +2874,7 @@
       "owned": 6.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Minstrel's Ballad: Endsinger's Aria", "relatedType": "Instance", "relatedId": 846 }
       ]
@@ -2644,8 +2886,9 @@
       "owned": 10.5,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2655,9 +2898,10 @@
       "owned": 8.4,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "PvP", "text": "PvP Series 4 - Level 25", "relatedType": null, "relatedId": 0 },
-        { "type": "PvP", "text": "5,000 Trophy Crystals", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "PvP Series 4 - Level 25" },
+        { "type": "PvP", "text": "5,000 Trophy Crystals" }
       ]
     },
     {
@@ -2667,8 +2911,9 @@
       "owned": 17.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "N-0598 - A-4 Research (Ultima Thule) - 18 Omicron Omnitokens (Rank 7)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "N-0598 - A-4 Research (Ultima Thule) - 18 Omicron Omnitokens (Rank 7)" }
       ]
     },
     {
@@ -2678,9 +2923,10 @@
       "owned": 2.6,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Wondrous Tails", "text": "1 Khloe's Gold Certificate of Commendation", "relatedType": null, "relatedId": 0 },
-        { "type": "Wondrous Tails", "text": "600 Faux Leaves", "relatedType": null, "relatedId": 0 }
+        { "type": "Wondrous Tails", "text": "1 Khloe's Gold Certificate of Commendation" },
+        { "type": "Wondrous Tails", "text": "600 Faux Leaves" }
       ]
     },
     {
@@ -2690,8 +2936,9 @@
       "owned": 2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2701,8 +2948,9 @@
       "owned": 1.3,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2712,9 +2960,10 @@
       "owned": 22.9,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Event", "text": "The Starlight Celebration (2022)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "The Starlight Celebration (2022)" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2724,9 +2973,10 @@
       "owned": 2,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "V&C Dungeon", "text": "Another Sil'dihn Subterrane", "relatedType": "Instance", "relatedId": 878 },
-        { "type": "V&C Dungeon", "text": "Trisassant - Old Sharlayan - 100 Sil'dihn Silvers", "relatedType": null, "relatedId": 0 }
+        { "type": "V&C Dungeon", "text": "Trisassant - Old Sharlayan - 100 Sil'dihn Silvers" }
       ]
     },
     {
@@ -2736,6 +2986,7 @@
       "owned": 13.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Dig Deep: The Sil'dihn Subterrane", "relatedType": "Achievement", "relatedId": 3153 }
       ]
@@ -2747,6 +2998,7 @@
       "owned": 6.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "Abyssos: The Eighth Circle (Savage)", "relatedType": "Instance", "relatedId": 884 }
       ]
@@ -2758,6 +3010,7 @@
       "owned": 5.1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Storm's Crown (Extreme)", "relatedType": "Instance", "relatedId": 871 }
       ]
@@ -2769,6 +3022,7 @@
       "owned": 1.3,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Vintage Vogue", "relatedType": "Achievement", "relatedId": 3185 }
       ]
@@ -2780,8 +3034,9 @@
       "owned": 3.1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2791,6 +3046,7 @@
       "owned": 15,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "A Labor of Leaf", "relatedType": "Quest", "relatedId": 70253 }
       ]
@@ -2802,8 +3058,9 @@
       "owned": 3.8,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Gold Saucer", "text": "4,000,000 MGP", "relatedType": null, "relatedId": 0 }
+        { "type": "Gold Saucer", "text": "4,000,000 MGP" }
       ]
     },
     {
@@ -2813,8 +3070,9 @@
       "owned": 3.4,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Treasure Hunt", "text": "Nesvaaz - Radz-at-Han - 3 Burning Horns (The Shifting Gymnasion Agonon - Gold Chests)", "relatedType": null, "relatedId": 0 }
+        { "type": "Treasure Hunt", "text": "Nesvaaz - Radz-at-Han - 3 Burning Horns (The Shifting Gymnasion Agonon - Gold Chests)" }
       ]
     },
     {
@@ -2824,8 +3082,9 @@
       "owned": 1.5,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Treasure Hunt", "text": "Nesvaaz - Radz-at-Han - 3 Bottles Of Exciting Tonic (The Excitatron 6000 - Gold Chests)", "relatedType": null, "relatedId": 0 }
+        { "type": "Treasure Hunt", "text": "Nesvaaz - Radz-at-Han - 3 Bottles Of Exciting Tonic (The Excitatron 6000 - Gold Chests)" }
       ]
     },
     {
@@ -2835,6 +3094,7 @@
       "owned": 4.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Mount Ordeals (Extreme)", "relatedType": "Instance", "relatedId": 924 }
       ]
@@ -2846,8 +3106,9 @@
       "owned": 1,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Purchase", "text": "Edelina - Mor Dhona - 50,000,000 Gil", "relatedType": null, "relatedId": 0 }
+        { "type": "Purchase", "text": "Edelina - Mor Dhona - 50,000,000 Gil" }
       ]
     },
     {
@@ -2857,8 +3118,9 @@
       "owned": 1,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Purchase", "text": "Edelina - Mor Dhona - 50,000,000 Gil", "relatedType": null, "relatedId": 0 }
+        { "type": "Purchase", "text": "Edelina - Mor Dhona - 50,000,000 Gil" }
       ]
     },
     {
@@ -2868,8 +3130,9 @@
       "owned": 5.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2879,6 +3142,7 @@
       "owned": 4.5,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "Anabaseios: The Twelfth Circle (Savage)", "relatedType": "Instance", "relatedId": 943 }
       ]
@@ -2890,9 +3154,10 @@
       "owned": 25.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Event", "text": "The Rising (2023)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "The Rising (2023)" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2902,6 +3167,7 @@
       "owned": 9.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Mononopeke", "relatedType": "Achievement", "relatedId": 3337 }
       ]
@@ -2913,9 +3179,10 @@
       "owned": 1.5,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "V&C Dungeon", "text": "Another Mount Rokkon", "relatedType": "Instance", "relatedId": 946 },
-        { "type": "V&C Dungeon", "text": "Trisassant - Old Sharlayan - 100 Shishu Coins", "relatedType": null, "relatedId": 0 }
+        { "type": "V&C Dungeon", "text": "Trisassant - Old Sharlayan - 100 Shishu Coins" }
       ]
     },
     {
@@ -2925,8 +3192,9 @@
       "owned": 5.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -2936,9 +3204,10 @@
       "owned": 2.6,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Wondrous Tails", "text": "1 Khloe's Gold Certificate of Commendation", "relatedType": null, "relatedId": 0 },
-        { "type": "Wondrous Tails", "text": "600 Faux Leaves", "relatedType": null, "relatedId": 0 }
+        { "type": "Wondrous Tails", "text": "1 Khloe's Gold Certificate of Commendation" },
+        { "type": "Wondrous Tails", "text": "600 Faux Leaves" }
       ]
     },
     {
@@ -2948,6 +3217,7 @@
       "owned": 3.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Voidcast Dais (Extreme)", "relatedType": "Instance", "relatedId": 950 }
       ]
@@ -2959,8 +3229,9 @@
       "owned": 23.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "seasonal",
       "sources": [
-        { "type": "Event", "text": "Final Fantasy XVI Collaboration", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "Final Fantasy XVI Collaboration" }
       ]
     },
     {
@@ -2970,8 +3241,9 @@
       "owned": 18.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Dawntrail Collector's Edition", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Dawntrail Collector's Edition" }
       ]
     },
     {
@@ -2981,6 +3253,7 @@
       "owned": 2.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "Wings of Hope", "relatedType": "Quest", "relatedId": 70331 }
       ]
@@ -2992,8 +3265,9 @@
       "owned": 3.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -3003,8 +3277,9 @@
       "owned": 20.1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "seasonal",
       "sources": [
-        { "type": "Event", "text": "410 MGF (Fall Guys Collaboration)", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "410 MGF (Fall Guys Collaboration)" }
       ]
     },
     {
@@ -3014,8 +3289,9 @@
       "owned": 7.3,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "PvP Series 6 - Level 25", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "PvP Series 6 - Level 25" }
       ]
     },
     {
@@ -3025,6 +3301,7 @@
       "owned": 3.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Abyssal Fracture (Extreme)", "relatedType": "Instance", "relatedId": 965 }
       ]
@@ -3036,9 +3313,10 @@
       "owned": 4,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Wondrous Tails", "text": "1 Khloe's Gold Certificate of Commendation", "relatedType": null, "relatedId": 0 },
-        { "type": "Wondrous Tails", "text": "600 Faux Leaves", "relatedType": null, "relatedId": 0 }
+        { "type": "Wondrous Tails", "text": "1 Khloe's Gold Certificate of Commendation" },
+        { "type": "Wondrous Tails", "text": "600 Faux Leaves" }
       ]
     },
     {
@@ -3048,6 +3326,7 @@
       "owned": 9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Good-willed Hunting", "relatedType": "Achievement", "relatedId": 3347 }
       ]
@@ -3059,8 +3338,9 @@
       "owned": 8.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Island Sanctuary", "text": "100,000 Seafarer's Cowries (Sanctuary Rank 20)", "relatedType": null, "relatedId": 0 }
+        { "type": "Island Sanctuary", "text": "100,000 Seafarer's Cowries (Sanctuary Rank 20)" }
       ]
     },
     {
@@ -3070,9 +3350,10 @@
       "owned": 17.4,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Event", "text": "Little Ladies' Day & Hatching-tide (2024)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "Little Ladies' Day & Hatching-tide (2024)" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -3082,8 +3363,9 @@
       "owned": 1.1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Twitch Campaign (August 2026)", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Twitch Campaign (August 2026)" }
       ]
     },
     {
@@ -3093,9 +3375,10 @@
       "owned": 1.6,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "V&C Dungeon", "text": "Another Aloalo Island", "relatedType": "Instance", "relatedId": 979 },
-        { "type": "V&C Dungeon", "text": "Trisassant - Old Sharlayan - 100 Aloalo Coins", "relatedType": null, "relatedId": 0 }
+        { "type": "V&C Dungeon", "text": "Trisassant - Old Sharlayan - 100 Aloalo Coins" }
       ]
     },
     {
@@ -3105,8 +3388,9 @@
       "owned": 8.4,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Island Sanctuary", "text": "Sanctuary Materiel Container", "relatedType": null, "relatedId": 0 }
+        { "type": "Island Sanctuary", "text": "Sanctuary Materiel Container" }
       ]
     },
     {
@@ -3116,9 +3400,10 @@
       "owned": 4.9,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Island Sanctuary", "text": "200 Vegetal Vouchers", "relatedType": null, "relatedId": 0 },
-        { "type": "Island Sanctuary", "text": "Sanctuary Materiel Container", "relatedType": null, "relatedId": 0 }
+        { "type": "Island Sanctuary", "text": "200 Vegetal Vouchers" },
+        { "type": "Island Sanctuary", "text": "Sanctuary Materiel Container" }
       ]
     },
     {
@@ -3128,8 +3413,9 @@
       "owned": 1.1,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "FATE", "text": "Edelina - Mor Dhona - 500 Turali Bicolor Gemstone Vouchers", "relatedType": null, "relatedId": 0 }
+        { "type": "FATE", "text": "Edelina - Mor Dhona - 500 Turali Bicolor Gemstone Vouchers" }
       ]
     },
     {
@@ -3139,8 +3425,9 @@
       "owned": 10.2,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Purchase", "text": "Neon - Solution Nine - 7,500,000 Gil", "relatedType": null, "relatedId": 0 }
+        { "type": "Purchase", "text": "Neon - Solution Nine - 7,500,000 Gil" }
       ]
     },
     {
@@ -3150,6 +3437,7 @@
       "owned": 24.7,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "Dawntrail", "relatedType": "Quest", "relatedId": 70495 }
       ]
@@ -3161,6 +3449,7 @@
       "owned": 4.5,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Worqor Lar Dor (Extreme)", "relatedType": "Instance", "relatedId": 833 }
       ]
@@ -3172,6 +3461,7 @@
       "owned": 4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Everkeep (Extreme)", "relatedType": "Instance", "relatedId": 996 }
       ]
@@ -3183,6 +3473,7 @@
       "owned": 5.8,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "A Life of Adventure VI", "relatedType": "Achievement", "relatedId": 3464 }
       ]
@@ -3194,8 +3485,9 @@
       "owned": 10.3,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "FATE", "text": "Uah'shepya - Solution Nine - 12 Ttokrrone Scales (FATE \"The Serpentlord Seethes\" - Shaaloani)", "relatedType": null, "relatedId": 0 }
+        { "type": "FATE", "text": "Uah'shepya - Solution Nine - 12 Ttokrrone Scales (FATE \"The Serpentlord Seethes\" - Shaaloani)" }
       ]
     },
     {
@@ -3205,6 +3497,7 @@
       "owned": 5.1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "AAC Light-heavyweight M4 (Savage)", "relatedType": "Instance", "relatedId": 992 }
       ]
@@ -3216,8 +3509,9 @@
       "owned": 1.1,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Gathering", "text": "Splendors Vendor - Solution Nine - 100 Mount Tokens (100,000 Orange Gatherer's Scrips)", "relatedType": null, "relatedId": 0 }
+        { "type": "Gathering", "text": "Splendors Vendor - Solution Nine - 100 Mount Tokens (100,000 Orange Gatherer's Scrips)" }
       ]
     },
     {
@@ -3227,6 +3521,7 @@
       "owned": 0.2,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Dawnbright Hunter", "relatedType": "Achievement", "relatedId": 3537 }
       ]
@@ -3238,8 +3533,9 @@
       "owned": 4.4,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Treasure Hunt", "text": "Uah'shepya - Solution Nine - 3 Twilight Gemstones (Cenote Ja Ja Gural or Vault Oneiron)", "relatedType": null, "relatedId": 0 }
+        { "type": "Treasure Hunt", "text": "Uah'shepya - Solution Nine - 3 Twilight Gemstones (Cenote Ja Ja Gural or Vault Oneiron)" }
       ]
     },
     {
@@ -3249,8 +3545,9 @@
       "owned": 8.3,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Hunts", "text": "Ryubool Ja - Tuliyollal - 3,200 Sacks of Nuts", "relatedType": null, "relatedId": 0 }
+        { "type": "Hunts", "text": "Ryubool Ja - Tuliyollal - 3,200 Sacks of Nuts" }
       ]
     },
     {
@@ -3260,8 +3557,9 @@
       "owned": 4.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Mountain Dew Promotion (NA Only)", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Mountain Dew Promotion (NA Only)" }
       ]
     },
     {
@@ -3271,8 +3569,9 @@
       "owned": 1.9,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Gathering", "text": "Splendors Vendor - Solution Nine - 100 Mount Tokens (100,000 Orange Gatherer's Scrips)", "relatedType": null, "relatedId": 0 }
+        { "type": "Gathering", "text": "Splendors Vendor - Solution Nine - 100 Mount Tokens (100,000 Orange Gatherer's Scrips)" }
       ]
     },
     {
@@ -3282,8 +3581,9 @@
       "owned": 1.6,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Wondrous Tails", "text": "600 Faux Leaves", "relatedType": null, "relatedId": 0 }
+        { "type": "Wondrous Tails", "text": "600 Faux Leaves" }
       ]
     },
     {
@@ -3293,8 +3593,9 @@
       "owned": 10.9,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Pavli - Dock Poga (Kozama'uka) - 18 Pelu Pelplumes (Rank 5)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Pavli - Dock Poga (Kozama'uka) - 18 Pelu Pelplumes (Rank 5)" }
       ]
     },
     {
@@ -3304,8 +3605,9 @@
       "owned": 0.6,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Wondrous Tails", "text": "600 Faux Leaves", "relatedType": null, "relatedId": 0 }
+        { "type": "Wondrous Tails", "text": "600 Faux Leaves" }
       ]
     },
     {
@@ -3315,8 +3617,9 @@
       "owned": 1.1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Chaotic Raid", "text": "Uah'shepya - Solution Nine - 99 Clouddark Demimateria I", "relatedType": null, "relatedId": 0 },
+        { "type": "Chaotic Raid", "text": "Uah'shepya - Solution Nine - 99 Clouddark Demimateria I" },
         { "type": "Chaotic Raid", "text": "The Cloud of Darkness (Chaotic)", "relatedType": "Instance", "relatedId": 1010 }
       ]
     },
@@ -3327,8 +3630,9 @@
       "owned": 1.6,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Chaotic Raid", "text": "Uah'shepya - Solution Nine - 75 Clouddark Demimateria II", "relatedType": null, "relatedId": 0 },
+        { "type": "Chaotic Raid", "text": "Uah'shepya - Solution Nine - 75 Clouddark Demimateria II" },
         { "type": "Chaotic Raid", "text": "The Cloud of Darkness (Chaotic)", "relatedType": "Instance", "relatedId": 1010 }
       ]
     },
@@ -3339,8 +3643,9 @@
       "owned": 0.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -3350,6 +3655,7 @@
       "owned": 2.5,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Minstrel's Ballad: Sphene's Burden", "relatedType": "Instance", "relatedId": 1017 }
       ]
@@ -3361,9 +3667,10 @@
       "owned": 7.6,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Cosmic Fortune - Sinus Ardonum", "relatedType": null, "relatedId": 0 },
-        { "type": "Cosmic Exploration", "text": "Mech Pilot Reward - Sinus Ardonum", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Cosmic Fortune - Sinus Ardonum" },
+        { "type": "Cosmic Exploration", "text": "Mech Pilot Reward - Sinus Ardonum" }
       ]
     },
     {
@@ -3373,9 +3680,10 @@
       "owned": 1.7,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Wondrous Tails", "text": "1 Khloe's Gold Certificate of Commendation", "relatedType": null, "relatedId": 0 },
-        { "type": "Wondrous Tails", "text": "600 Faux Leaves", "relatedType": null, "relatedId": 0 }
+        { "type": "Wondrous Tails", "text": "1 Khloe's Gold Certificate of Commendation" },
+        { "type": "Wondrous Tails", "text": "600 Faux Leaves" }
       ]
     },
     {
@@ -3385,6 +3693,7 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Crucible Contender", "relatedType": "Achievement", "relatedId": 4077 }
       ]
@@ -3396,8 +3705,9 @@
       "owned": 1,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Oizys", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Oizys" }
       ]
     },
     {
@@ -3407,6 +3717,7 @@
       "owned": 0.8,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "A Fork to Be Reckoned With I", "relatedType": "Achievement", "relatedId": 3668 }
       ]
@@ -3418,9 +3729,10 @@
       "owned": 10.9,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Occult Crescent", "text": "99 Chunks of Sanguinite", "relatedType": null, "relatedId": 0 },
-        { "type": "Occult Crescent", "text": "South Horn - Bronze/Silver Coffer", "relatedType": null, "relatedId": 0 }
+        { "type": "Occult Crescent", "text": "99 Chunks of Sanguinite" },
+        { "type": "Occult Crescent", "text": "South Horn - Bronze/Silver Coffer" }
       ]
     },
     {
@@ -3430,8 +3742,9 @@
       "owned": 1.5,
       "tradeable": false,
       "customMusic": false,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Twitch Campaign (December 2024)", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Twitch Campaign (December 2024)" }
       ]
     },
     {
@@ -3441,9 +3754,10 @@
       "owned": 0.5,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Deep Dungeon", "text": "99 First Light Relics", "relatedType": null, "relatedId": 0 },
-        { "type": "Deep Dungeon", "text": "Pilgrim's Traverse - Sack of First Light", "relatedType": null, "relatedId": 0 }
+        { "type": "Deep Dungeon", "text": "99 First Light Relics" },
+        { "type": "Deep Dungeon", "text": "Pilgrim's Traverse - Sack of First Light" }
       ]
     },
     {
@@ -3453,8 +3767,9 @@
       "owned": 6.2,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Veerul Ja - Gok Golma (Yak T'el) - 18 Mamool Ja Nanook (Rank 4)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Veerul Ja - Gok Golma (Yak T'el) - 18 Mamool Ja Nanook (Rank 4)" }
       ]
     },
     {
@@ -3464,6 +3779,7 @@
       "owned": 2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "AAC Cruiserweight M4 (Savage)", "relatedType": "Instance", "relatedId": 1026 }
       ]
@@ -3475,8 +3791,9 @@
       "owned": 5.1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Occult Crescent", "text": "5,000 Enlightenment Silver Pieces", "relatedType": null, "relatedId": 0 }
+        { "type": "Occult Crescent", "text": "5,000 Enlightenment Silver Pieces" }
       ]
     },
     {
@@ -3486,6 +3803,7 @@
       "owned": 0.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Out of This World", "relatedType": "Achievement", "relatedId": 3739 }
       ]
@@ -3497,9 +3815,10 @@
       "owned": 4.1,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Cosmic Fortune - Phaenna", "relatedType": null, "relatedId": 0 },
-        { "type": "Cosmic Exploration", "text": "Mech Pilot Reward - Phaenna", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Cosmic Fortune - Phaenna" },
+        { "type": "Cosmic Exploration", "text": "Mech Pilot Reward - Phaenna" }
       ]
     },
     {
@@ -3509,8 +3828,9 @@
       "owned": 0.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -3520,6 +3840,7 @@
       "owned": 1.7,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Recollection (Extreme)", "relatedType": "Instance", "relatedId": 1031 }
       ]
@@ -3531,8 +3852,9 @@
       "owned": 3.5,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "PvP Series 8 - Level 25", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "PvP Series 8 - Level 25" }
       ]
     },
     {
@@ -3542,8 +3864,9 @@
       "owned": 3.9,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Tribal", "text": "Rarkorgor - Shelter (Urqopacha) - 18 Yok Huy Wards (Rank 7)", "relatedType": null, "relatedId": 0 }
+        { "type": "Tribal", "text": "Rarkorgor - Shelter (Urqopacha) - 18 Yok Huy Wards (Rank 7)" }
       ]
     },
     {
@@ -3553,8 +3876,9 @@
       "owned": 2.5,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "PvP Series 10 - Level 25", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "PvP Series 10 - Level 25" }
       ]
     },
     {
@@ -3564,9 +3888,10 @@
       "owned": 0.6,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Deep Dungeon", "text": "99 First Light Relics", "relatedType": null, "relatedId": 0 },
-        { "type": "Deep Dungeon", "text": "Pilgrim's Traverse - Sack of First Light", "relatedType": null, "relatedId": 0 }
+        { "type": "Deep Dungeon", "text": "99 First Light Relics" },
+        { "type": "Deep Dungeon", "text": "Pilgrim's Traverse - Sack of First Light" }
       ]
     },
     {
@@ -3576,9 +3901,10 @@
       "owned": 8.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Event", "text": "All Saints' Wake (2025)", "relatedType": null, "relatedId": 0 },
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "All Saints' Wake (2025)" },
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -3588,8 +3914,9 @@
       "owned": 1.8,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -3599,6 +3926,7 @@
       "owned": 8.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "The White Wanderer", "relatedType": "Quest", "relatedId": 70910 }
       ]
@@ -3610,8 +3938,9 @@
       "owned": 0.8,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Trial", "text": "Smithy - Tuliyollal - 99 Guardian Arkveld Certificates", "relatedType": null, "relatedId": 0 },
+        { "type": "Trial", "text": "Smithy - Tuliyollal - 99 Guardian Arkveld Certificates" },
         { "type": "Trial", "text": "The Windward Wilds", "relatedType": "Instance", "relatedId": 1043 },
         { "type": "Trial", "text": "The Windward Wilds (Extreme)", "relatedType": "Instance", "relatedId": 1044 }
       ]
@@ -3623,6 +3952,7 @@
       "owned": 2.1,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Treasure Hunt", "text": "Vault Oneiron", "relatedType": "Instance", "relatedId": 1060 }
       ]
@@ -3634,8 +3964,9 @@
       "owned": 3.5,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 29,000 Cosmocredits", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 29,000 Cosmocredits" }
       ]
     },
     {
@@ -3645,8 +3976,9 @@
       "owned": 2.8,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 60 Phaenna Token Booklets", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 60 Phaenna Token Booklets" }
       ]
     },
     {
@@ -3656,6 +3988,7 @@
       "owned": 0.8,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Faerie Favors", "relatedType": "Achievement", "relatedId": 3817 }
       ]
@@ -3667,6 +4000,7 @@
       "owned": 1.1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Minstrel's Ballad: Necron's Embrace", "relatedType": "Instance", "relatedId": 1062 }
       ]
@@ -3678,8 +4012,9 @@
       "owned": 0.7,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Deep Dungeon", "text": "Pilgrim's Traverse - Silver Sack", "relatedType": null, "relatedId": 0 }
+        { "type": "Deep Dungeon", "text": "Pilgrim's Traverse - Silver Sack" }
       ]
     },
     {
@@ -3689,8 +4024,9 @@
       "owned": 0.6,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Auxesia", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Gold Ancient Record - Auxesia" }
       ]
     },
     {
@@ -3700,8 +4036,9 @@
       "owned": 0.9,
       "tradeable": true,
       "customMusic": false,
+      "availability": "available",
       "sources": [
-        { "type": "Wondrous Tails", "text": "600 Faux Leaves", "relatedType": null, "relatedId": 0 }
+        { "type": "Wondrous Tails", "text": "600 Faux Leaves" }
       ]
     },
     {
@@ -3711,9 +4048,10 @@
       "owned": 0.4,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "V&C Dungeon", "text": "Another Merchant's Tale", "relatedType": "Instance", "relatedId": 1079 },
-        { "type": "V&C Dungeon", "text": "Trisassant - Old Sharlayan - 100 Corvosi Manuscripts", "relatedType": null, "relatedId": 0 }
+        { "type": "V&C Dungeon", "text": "Trisassant - Old Sharlayan - 100 Corvosi Manuscripts" }
       ]
     },
     {
@@ -3723,6 +4061,7 @@
       "owned": 1.6,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Raid", "text": "AAC Heavyweight M4 (Savage)", "relatedType": "Instance", "relatedId": 1075 }
       ]
@@ -3734,8 +4073,9 @@
       "owned": 1.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "seasonal",
       "sources": [
-        { "type": "Event", "text": "Moogle Treasure Trove Event", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "Moogle Treasure Trove Event" }
       ]
     },
     {
@@ -3745,9 +4085,10 @@
       "owned": 3.4,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Cosmic Fortune - Oizys", "relatedType": null, "relatedId": 0 },
-        { "type": "Cosmic Exploration", "text": "Mech Pilot Reward - Oizys", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Cosmic Fortune - Oizys" },
+        { "type": "Cosmic Exploration", "text": "Mech Pilot Reward - Oizys" }
       ]
     },
     {
@@ -3757,8 +4098,9 @@
       "owned": 2.2,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 60 Oizys Token Booklets", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 60 Oizys Token Booklets" }
       ]
     },
     {
@@ -3768,8 +4110,9 @@
       "owned": 4.8,
       "tradeable": false,
       "customMusic": false,
+      "availability": "seasonal",
       "sources": [
-        { "type": "Event", "text": "Moonfire Faire (2026)", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "Moonfire Faire (2026)" }
       ]
     },
     {
@@ -3779,8 +4122,9 @@
       "owned": 0,
       "tradeable": false,
       "customMusic": false,
+      "availability": "seasonal",
       "sources": [
-        { "type": "Event", "text": "The Starlight Celebration (2026)", "relatedType": null, "relatedId": 0 }
+        { "type": "Event", "text": "The Starlight Celebration (2026)" }
       ]
     },
     {
@@ -3790,6 +4134,7 @@
       "owned": 0.3,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "The Wing Spirit Cometh", "relatedType": "Quest", "relatedId": 71005 }
       ]
@@ -3801,8 +4146,9 @@
       "owned": 0.9,
       "tradeable": false,
       "customMusic": true,
+      "availability": "premium",
       "sources": [
-        { "type": "Premium", "text": "Online Store", "relatedType": null, "relatedId": 0 }
+        { "type": "Premium", "text": "Online Store" }
       ]
     },
     {
@@ -3812,6 +4158,7 @@
       "owned": 1.2,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "Hell on Rails (Extreme)", "relatedType": "Instance", "relatedId": 1077 }
       ]
@@ -3823,8 +4170,9 @@
       "owned": 2.8,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 20,000 Cosmocredits", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 20,000 Cosmocredits" }
       ]
     },
     {
@@ -3834,8 +4182,9 @@
       "owned": 2.6,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 20,000 Cosmocredits", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 20,000 Cosmocredits" }
       ]
     },
     {
@@ -3845,8 +4194,9 @@
       "owned": 0.7,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "V&C Dungeon", "text": "Trisassant - Old Sharlayan - 100 Pieces of Corvosi Brass", "relatedType": null, "relatedId": 0 }
+        { "type": "V&C Dungeon", "text": "Trisassant - Old Sharlayan - 100 Pieces of Corvosi Brass" }
       ]
     },
     {
@@ -3856,6 +4206,7 @@
       "owned": 0.1,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Achievement", "text": "Worqor and Peace V", "relatedType": "Achievement", "relatedId": 3835 }
       ]
@@ -3867,6 +4218,7 @@
       "owned": 1.6,
       "tradeable": false,
       "customMusic": false,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "Clotted Crime", "relatedType": "Quest", "relatedId": 71018 }
       ]
@@ -3878,8 +4230,9 @@
       "owned": 0.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Gold Saucer", "text": "430 MGC", "relatedType": null, "relatedId": 0 }
+        { "type": "Gold Saucer", "text": "430 MGC" }
       ]
     },
     {
@@ -3889,8 +4242,9 @@
       "owned": 0.3,
       "tradeable": false,
       "customMusic": false,
+      "availability": "ranked",
       "sources": [
-        { "type": "PvP", "text": "PvP Series 12 - Level 25", "relatedType": null, "relatedId": 0 }
+        { "type": "PvP", "text": "PvP Series 12 - Level 25" }
       ]
     },
     {
@@ -3900,6 +4254,7 @@
       "owned": 0.8,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Quest", "text": "Bonds Unbroken", "relatedType": "Quest", "relatedId": 71035 }
       ]
@@ -3911,9 +4266,10 @@
       "owned": 0.9,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Occult Crescent", "text": "North Horn - Pot/Bunny Coffer", "relatedType": null, "relatedId": 0 },
-        { "type": "Occult Crescent", "text": "North Horn - Bronze/Silver Coffer", "relatedType": null, "relatedId": 0 }
+        { "type": "Occult Crescent", "text": "North Horn - Pot/Bunny Coffer" },
+        { "type": "Occult Crescent", "text": "North Horn - Bronze/Silver Coffer" }
       ]
     },
     {
@@ -3923,8 +4279,9 @@
       "owned": 1,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Achievement", "text": "Kornago Merchant - Bentbranch Meadows (Requires Achievement \"A Beast in the Hand V\")", "relatedType": null, "relatedId": 0 }
+        { "type": "Achievement", "text": "Kornago Merchant - Bentbranch Meadows (Requires Achievement \"A Beast in the Hand V\")" }
       ]
     },
     {
@@ -3934,10 +4291,11 @@
       "owned": 0.8,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Occult Crescent", "text": "Expedition Antiquarian - North Horn - 500 Arcane Amulets", "relatedType": null, "relatedId": 0 },
-        { "type": "Occult Crescent", "text": "The Forked Tower: Magic", "relatedType": null, "relatedId": 0 },
-        { "type": "Occult Crescent", "text": "The Forked Tower: Magic (Extreme)", "relatedType": null, "relatedId": 0 }
+        { "type": "Occult Crescent", "text": "Expedition Antiquarian - North Horn - 500 Arcane Amulets" },
+        { "type": "Occult Crescent", "text": "The Forked Tower: Magic" },
+        { "type": "Occult Crescent", "text": "The Forked Tower: Magic (Extreme)" }
       ]
     },
     {
@@ -3947,9 +4305,10 @@
       "owned": 2.7,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Cosmic Fortune - Auxesia", "relatedType": null, "relatedId": 0 },
-        { "type": "Cosmic Exploration", "text": "Mech Pilot Reward - Auxesia", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Cosmic Fortune - Auxesia" },
+        { "type": "Cosmic Exploration", "text": "Mech Pilot Reward - Auxesia" }
       ]
     },
     {
@@ -3959,8 +4318,9 @@
       "owned": 2.2,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 60 Auxesia Token Booklets", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 60 Auxesia Token Booklets" }
       ]
     },
     {
@@ -3970,6 +4330,7 @@
       "owned": 0.4,
       "tradeable": false,
       "customMusic": true,
+      "availability": "available",
       "sources": [
         { "type": "Trial", "text": "The Unmaking (Extreme)", "relatedType": "Instance", "relatedId": 1116 }
       ]
@@ -3981,8 +4342,9 @@
       "owned": 1.7,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 20,000 Cosmocredits", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 20,000 Cosmocredits" }
       ]
     },
     {
@@ -3992,8 +4354,9 @@
       "owned": 1.6,
       "tradeable": true,
       "customMusic": true,
+      "availability": "available",
       "sources": [
-        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 20,000 Cosmocredits", "relatedType": null, "relatedId": 0 }
+        { "type": "Cosmic Exploration", "text": "Mesouaidonque - 20,000 Cosmocredits" }
       ]
     }
   ]

@@ -100,14 +100,35 @@ public sealed class LocalisationTests
 
         foreach (string key in Loc.Table(InterfaceLanguage.English).Keys)
         {
-            // source.* labels are looked up from the dataset's own category strings, never as literals.
-            if (!used.Contains(key) && !key.StartsWith("source.", StringComparison.Ordinal))
+            // source.* labels are looked up from the dataset's own category strings, and availability.<class>
+            // labels from MountAvailabilityRules.Key, never as literals. The availability.hint.* lines are
+            // literals and are checked like everything else.
+            if (!used.Contains(key) && !key.StartsWith("source.", StringComparison.Ordinal) && !IsAvailabilityLabel(key))
             {
                 unused.Add(key);
             }
         }
 
         Assert.True(unused.Count == 0, "keys nothing asks for:\n  " + string.Join("\n  ", unused));
+    }
+
+    /// <summary>
+    /// True for a table key that is one availability class's own label - the keys
+    /// <see cref="UiText.Availability"/> builds from <see cref="MountAvailabilityRules.Key"/> rather than from a
+    /// literal, which is why the sweep above cannot see them.
+    /// </summary>
+    /// <param name="key">The table key to test.</param>
+    private static bool IsAvailabilityLabel(string key)
+    {
+        foreach (MountAvailability availability in MountAvailabilityRules.Classes)
+        {
+            if (string.Equals(key, "availability." + MountAvailabilityRules.Key(availability), StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     [Fact]

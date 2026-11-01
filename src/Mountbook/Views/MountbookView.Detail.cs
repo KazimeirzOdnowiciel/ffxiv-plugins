@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Glasswork;
@@ -208,7 +209,7 @@ public sealed partial class MountbookView
     /// artwork, where that flow would put a wrapped badge under the portrait at the window's left margin.
     /// </summary>
     private static float DrawColumnBadges(
-        (string? Text, Color? Tint)[] badges,
+        DetailBadge[] badges,
         float x,
         float y,
         float width,
@@ -529,35 +530,99 @@ public sealed partial class MountbookView
     /// shared buffer rather than a fresh array: this runs every frame, and nine tuples of a string and a colour
     /// is nine allocations a frame for values that are already interned strings.
     /// </summary>
-    private static (string? Text, Color? Tint)[] DetailBadges(MountViewState state, MountShelfItem item, bool sheetFacts)
+    private static DetailBadge[] DetailBadges(MountViewState state, MountShelfItem item, bool sheetFacts)
     {
+        // The availability class leads the row: it is the answer to "can I get this", and it is the only badge
+        // whose colour carries a meaning (the four unobtainable classes are four different tones).
+        BadgeBuffer[0] = new DetailBadge(
+            UiText.Availability(item.Availability),
+            AvailabilityTint(item.Availability),
+            AvailabilityHint(state, item.Availability));
+
         // A null patch is unrecorded, like every other flag: a "Patch unknown" pill is a placeholder,
         // and on the locked golden it was the badge that pushed "Flies" onto a line of its own.
-        BadgeBuffer[0] = (sheetFacts && !string.IsNullOrEmpty(item.Patch) ? item.Patch : null, null);
-        BadgeBuffer[1] = (sheetFacts ? SeatsText(item.Seats) : null, null);
+        BadgeBuffer[1] = new DetailBadge(sheetFacts && !string.IsNullOrEmpty(item.Patch) ? item.Patch : null);
+        BadgeBuffer[2] = new DetailBadge(sheetFacts ? SeatsText(item.Seats) : null);
         // "Unowned", not "Not collected": the chip has to read the same as the ownership filter and
         // the table column, or the same fact looks like two different things in one window.
-        BadgeBuffer[2] = (item.Owned ? Loc.T("badge.collected") : Loc.T("badge.unowned"), null);
+        BadgeBuffer[3] = new DetailBadge(item.Owned ? Loc.T("badge.collected") : Loc.T("badge.unowned"));
         // Only a recorded "yes" earns a badge: a null flag is unrecorded, and a "No tradeable"
         // badge would be noise on the 200-odd mounts that simply cannot be sold.
-        BadgeBuffer[3] = (item.Community?.Tradeable == true ? Loc.T("badge.tradeable") : null, null);
-        BadgeBuffer[4] = (item.Community?.CustomMusic == true ? Loc.T("badge.ownMusic") : null, null);
+        BadgeBuffer[4] = new DetailBadge(item.Community?.Tradeable == true ? Loc.T("badge.tradeable") : null);
+        BadgeBuffer[5] = new DetailBadge(item.Community?.CustomMusic == true ? Loc.T("badge.ownMusic") : null);
         // Barding is a sheet fact, not a dataset one: a chocobo's gear slots are recorded, so a
         // missing badge here really means "this mount wears nothing".
-        BadgeBuffer[5] = (sheetFacts && item.Barding ? Loc.T("badge.barding") : null, null);
+        BadgeBuffer[6] = new DetailBadge(sheetFacts && item.Barding ? Loc.T("badge.barding") : null);
         // A sheet flag, like Barding: absent really means "cannot fly", which is the useful
         // fact when a mount is the last thing between you and a hunt mark.
-        BadgeBuffer[6] = (sheetFacts && item.Flies ? Loc.T("badge.flies") : null, null);
+        BadgeBuffer[7] = new DetailBadge(sheetFacts && item.Flies ? Loc.T("badge.flies") : null);
         // The wanted state belongs in the header too: it is the one piece of the mount's state the player
         // set themselves, and the card marker is easy to miss at a glance.
-        BadgeBuffer[7] = (state.WantedIds.Contains(item.Id) ? Loc.T("badge.wanted") : null, Frame.Look.Accent);
-        BadgeBuffer[8] = (state.RecentIds.Contains(item.Id) ? Loc.T("badge.new") : null, Frame.Look.Accent);
+        BadgeBuffer[8] = new DetailBadge(
+            state.WantedIds.Contains(item.Id) ? Loc.T("badge.wanted") : null,
+            Frame.Look.Accent);
+        BadgeBuffer[9] = new DetailBadge(
+            state.RecentIds.Contains(item.Id) ? Loc.T("badge.new") : null,
+            Frame.Look.Accent);
 
         return BadgeBuffer;
     }
 
     /// <summary>One slot per badge <see cref="DetailBadges"/> writes, refilled in place every frame.</summary>
-    private static readonly (string? Text, Color? Tint)[] BadgeBuffer = new (string? Text, Color? Tint)[9];
+    private static readonly DetailBadge[] BadgeBuffer = new DetailBadge[10];
+
+    /// <summary>
+    /// One badge: its label, the colour it is drawn in when it has one, and the tooltip it explains itself with.
+    /// </summary>
+    /// <param name="Text">The label, or null for a slot this mount has nothing to say in.</param>
+    /// <param name="Tint">The colour, or null for the plain badge.</param>
+    /// <param name="Hint">The tooltip, or null for none.</param>
+    private readonly record struct DetailBadge(string? Text, Color? Tint = null, string? Hint = null);
+
+    /// <summary>
+    /// The colour a class is drawn in: the Look's own tokens, one per tone, so the four unobtainable classes are
+    /// four visibly different badges without any colour being invented here.
+    /// </summary>
+    /// <remarks>
+    /// This is the whole of the view's share of the classification: it turns a tone into a theme colour and
+    /// never decides which class a mount is in, which is what keeps a theme change from changing an answer.
+    /// </remarks>
+    /// <param name="availability">The class on the row.</param>
+    private static Color? AvailabilityTint(MountAvailability availability) =>
+        MountAvailabilityRules.ToneOf(availability) switch
+        {
+            MountAvailabilityTone.Positive => Frame.Look.Success,
+            MountAvailabilityTone.Informative => Frame.Look.Info,
+            MountAvailabilityTone.Caution => Frame.Look.Warning,
+            MountAvailabilityTone.Brand => Frame.Look.Accent,
+            MountAvailabilityTone.Negative => Frame.Look.Destructive,
+            _ => null,
+        };
+
+    /// <summary>
+    /// The badge's tooltip: what the class means and how many of the shelf's mounts share it, which is where the
+    /// per-class counts are shown (the filter's entries carry them too).
+    /// </summary>
+    /// <param name="state">The state whose availability counts to read.</param>
+    /// <param name="availability">The class on the row.</param>
+    private static string AvailabilityHint(MountViewState state, MountAvailability availability)
+    {
+        IReadOnlyList<MountAvailabilityCount> options = state.AvailabilityOptions;
+        var mounts = 0;
+        var total = 0;
+
+        for (var index = 0; index < options.Count; index++)
+        {
+            total += options[index].Mounts;
+
+            if (options[index].Class == availability)
+            {
+                mounts = options[index].Mounts;
+            }
+        }
+
+        return MountAvailabilityRules.Explain(availability, mounts, total);
+    }
 
     /// <summary>The seat sentence per seat count: four possible values, formatted once instead of every frame.</summary>
     private static readonly System.Collections.Generic.Dictionary<int, string> SeatsBadges = [];
@@ -605,16 +670,26 @@ public sealed partial class MountbookView
         return line;
     }
 
-    /// <summary>Draws one badge, tinted when the caller asked for it.</summary>
-    private static void DrawBadge((string? Text, Color? Tint) badge)
+    /// <summary>Draws one badge, tinted when the caller asked for it, and its tooltip when it has one.</summary>
+    private static void DrawBadge(DetailBadge badge)
     {
         if (badge.Tint is { } tint)
         {
             Gw.Badge(badge.Text!, tint);
-            return;
+        }
+        else
+        {
+            Gw.Badge(badge.Text!);
         }
 
-        Gw.Badge(badge.Text!);
+        // A hand-rolled hit test: Gw.Badge reserves its box the way Gw.Text does, so IsItemHovered() is not a
+        // reliable answer - the window-ownership half is the same rule every other hand-rolled test here uses.
+        if (badge.Hint is { } hint
+            && ImGui.IsWindowHovered()
+            && ImGui.IsMouseHoveringRect(ImGui.GetItemRectMin(), ImGui.GetItemRectMax()))
+        {
+            Gw.TooltipFor(true, hint);
+        }
     }
 
     /// <summary>
@@ -639,7 +714,7 @@ public sealed partial class MountbookView
     /// Without the wrap the last badge was cut mid-word in the narrow pane (`Not collec…` in a golden).
     /// </summary>
     private static void DrawBadgeRow(
-        (string? Text, Color? Tint)[] badges,
+        DetailBadge[] badges,
         float spacing,
         float paneRight)
     {
@@ -668,14 +743,7 @@ public sealed partial class MountbookView
                 }
             }
 
-            if (badges[index].Tint is { } tint)
-            {
-                Gw.Badge(label, tint);
-            }
-            else
-            {
-                Gw.Badge(label);
-            }
+            DrawBadge(badges[index]);
 
             first = false;
         }

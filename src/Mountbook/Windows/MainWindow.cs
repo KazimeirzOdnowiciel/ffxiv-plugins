@@ -113,6 +113,14 @@ public sealed class MainWindow : GlassWindow, IDisposable
     /// <summary>The source filter the current list was built with, so a change rebuilds it.</summary>
     private MountSourceKind lastSource = MountSourceKinds.Any;
 
+    /// <summary>The availability combo's cached entries and the revision they were built at.</summary>
+    private IReadOnlyList<MountAvailabilityCount> availabilityOptions = [];
+
+    private int availabilityOptionsRevision = int.MinValue;
+
+    /// <summary>The availability filter the current list was built with, so a change rebuilds it.</summary>
+    private MountAvailability? lastAvailability;
+
     /// <summary>The cached recently-collected set the view reads, and the revision it was built at.</summary>
     private HashSet<uint> recentIds = [];
 
@@ -281,6 +289,13 @@ public sealed class MainWindow : GlassWindow, IDisposable
         MountSourceKind savedSource = MountSourceKinds.Parse(config.SavedSource);
         state.SourceFilter = savedSource.IsKnown ? savedSource : MountSourceKinds.Any;
 
+        // The saved availability class is the key the file stores ("available", "premium"), which TryParseKey
+        // reads strictly: a word this build does not know reads as "any" and is rewritten as empty after the
+        // draw, rather than filtering the shelf down to the unclassified rows for a frame.
+        state.AvailabilityFilter = MountAvailabilityRules.TryParseKey(config.SavedAvailability, out MountAvailability savedAvailability)
+            ? savedAvailability
+            : null;
+
         // The presets, by reference: the row and the dialog only read them, and a delete applied after the draw
         // has to be visible on the next frame without a copy to keep in step.
         state.SavedViews = config.SavedViews;
@@ -322,6 +337,16 @@ public sealed class MainWindow : GlassWindow, IDisposable
         }
 
         state.SourceOptions = sourceOptions;
+
+        // The availability combo's counts describe the whole shelf, exactly like the source combo's, and are
+        // rebuilt with the catalogue rather than per frame: the tally walks every mount.
+        if (availabilityOptionsRevision != plugin.Catalog.Revision)
+        {
+            availabilityOptions = MountAvailabilityRules.Tally(plugin.Catalog.Items);
+            availabilityOptionsRevision = plugin.Catalog.Revision;
+        }
+
+        state.AvailabilityOptions = availabilityOptions;
 
         state.WantedIds = config.WantedMounts;
 
@@ -518,6 +543,10 @@ public sealed class MainWindow : GlassWindow, IDisposable
             // only button could not clear the very filter that emptied the list, and the reset was
             // then persisted straight back into the config.
             state.SourceFilter = MountSourceKinds.Any;
+
+            // Same for the availability class, which the saved "Farmable now" view sets from a query the
+            // clear button cannot reach.
+            state.AvailabilityFilter = null;
         }
 
         // The header's chrome flags are read after the draw, like every other view request.
@@ -647,7 +676,8 @@ public sealed class MainWindow : GlassWindow, IDisposable
             && lastExpansion == state.Expansion
             && lastOrder == state.Order
             && string.Equals(lastSearch, state.Search, StringComparison.Ordinal)
-            && lastSource == state.SourceFilter)
+            && lastSource == state.SourceFilter
+            && lastAvailability == state.AvailabilityFilter)
         {
             return false;
         }
@@ -660,6 +690,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
         state.OwnershipCounts = new MountQuery(state.Search, MountOwnership.All, state.Expansion, state.Order)
         {
             Source = state.SourceFilter,
+            Availability = state.AvailabilityFilter,
         }
             .OwnershipCounts(plugin.Catalog.Items, plugin.Configuration.WantedMounts);
 
@@ -670,6 +701,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
         state.Items = new MountQuery(state.Search, state.Ownership, state.Expansion, state.Order)
         {
             Source = state.SourceFilter,
+            Availability = state.AvailabilityFilter,
         }
             .Apply(plugin.Catalog.Items, state.WantedIds, state.Prices, shuffleSeed);
 
@@ -690,6 +722,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
 
         lastSearch = state.Search;
         lastSource = state.SourceFilter;
+        lastAvailability = state.AvailabilityFilter;
         lastOwnership = state.Ownership;
         lastExpansion = state.Expansion;
         lastOrder = state.Order;
@@ -959,6 +992,15 @@ public sealed class MainWindow : GlassWindow, IDisposable
             state.Expansion = view.Expansion;
             state.Order = view.Order;
             state.GroupBy = view.GroupBy;
+
+            // The class axis has two homes (this combo and the avail: term), and a preset states it in its query.
+            // Leaving the combo where it was would AND a second answer onto the preset's own, which is how the
+            // seeded "Farmable now" view came up empty for a player whose last class filter was Premium. The preset
+            // wins on the axis it speaks about, and says nothing about it when it does not.
+            if (MountSearchQuery.AvailabilityOf(view.Query) is not null)
+            {
+                state.AvailabilityFilter = null;
+            }
 
             // Choosing a preset is the answer the dialog was asking for, so it closes: a modal left over the
             // list means the player dismisses it before seeing what they chose.
@@ -1346,6 +1388,16 @@ public sealed class MainWindow : GlassWindow, IDisposable
         if (!string.Equals(config.SavedSource, sourceFilter, StringComparison.Ordinal))
         {
             config.SavedSource = sourceFilter;
+            changed = true;
+        }
+
+        string availabilityFilter = state.AvailabilityFilter is { } availability
+            ? MountAvailabilityRules.Key(availability)
+            : string.Empty;
+
+        if (!string.Equals(config.SavedAvailability, availabilityFilter, StringComparison.Ordinal))
+        {
+            config.SavedAvailability = availabilityFilter;
             changed = true;
         }
 

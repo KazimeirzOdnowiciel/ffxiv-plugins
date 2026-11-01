@@ -46,6 +46,7 @@ public sealed class LockedPreview : PreviewScene
             Total = items.Count,
             SelectedId = LockedId,
             SourceOptions = MountbookPreview.SourceOptions(items),
+            AvailabilityOptions = MountbookPreview.AvailabilityOptions(items),
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,

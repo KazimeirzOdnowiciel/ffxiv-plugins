@@ -73,8 +73,10 @@ public sealed class MountSourcesValidationTests
     [Fact]
     public void AChangeInsideTheBandPasses()
     {
-        string baseline = Snapshot((1, "7.0", 1), (2, "7.0", 1), (3, "7.0", 1), (4, "7.0", 1));
-        string candidate = Snapshot((1, "7.0", 1), (2, "7.0", 1), (3, "7.0", 1), (4, "7.0", 1), (5, "7.05", 1));
+        // Ids 61+ rather than 1+: 4 and 5 are the curated Legacy mounts, and a synthetic Quest row filed under
+        // one of them is a drift by design (MountAvailabilityRules.Curated).
+        string baseline = Snapshot((61, "7.0", 1), (62, "7.0", 1), (63, "7.0", 1), (64, "7.0", 1));
+        string candidate = Snapshot((61, "7.0", 1), (62, "7.0", 1), (63, "7.0", 1), (64, "7.0", 1), (65, "7.05", 1));
 
         MountSourcesValidationReport report = MountSourcesValidator.Validate(
             candidate,
@@ -403,7 +405,7 @@ public sealed class MountSourcesValidationTests
         // patch and no source refresh. It must ship as a warning - a reader has to accept it - and
         // the row band must not fire on it, or the only way out of an outage is a broken build.
         string candidate = SnapshotWithHeader(
-            "  \"schemaVersion\": 3,\n"
+            "  \"schemaVersion\": 4,\n"
             + "  \"enrichment\": \"sheet-only\",\n"
             + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
             + "  \"attributionUrl\": \"https://ffxivcollect.com\",\n",
@@ -429,7 +431,7 @@ public sealed class MountSourcesValidationTests
         // A machine without the game can still regenerate the data; it just cannot verify the two
         // facts the file does not carry. The report has to say so, without blocking the build.
         string candidate = SnapshotWithHeader(
-            "  \"schemaVersion\": 3,\n"
+            "  \"schemaVersion\": 4,\n"
             + "  \"enrichment\": \"full\",\n"
             + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
             + "  \"attributionUrl\": \"https://ffxivcollect.com\",\n",
@@ -450,7 +452,7 @@ public sealed class MountSourcesValidationTests
         // The block is the evidence the comparison happened. Covering fewer rows than the file carries
         // means some mounts were never compared, which is not the same thing as "they agreed".
         string candidate = SnapshotWithHeader(
-            "  \"schemaVersion\": 3,\n"
+            "  \"schemaVersion\": 4,\n"
             + "  \"enrichment\": \"full\",\n"
             + "  \"sheetCrossCheck\": { \"sheet\": \"Mount\", \"fields\": [\"ExtraSeats\", \"IsAirborne\"], \"mounts\": 1, \"seats\": 1, \"movement\": 1 },\n"
             + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
@@ -473,7 +475,7 @@ public sealed class MountSourcesValidationTests
         // The generator refuses to write a disagreeing snapshot, so reaching this means the file was
         // edited by hand or the sheet facts came from another game build. Either way it must not ship.
         string candidate = SnapshotWithHeader(
-            "  \"schemaVersion\": 3,\n"
+            "  \"schemaVersion\": 4,\n"
             + "  \"enrichment\": \"full\",\n"
             + "  \"sheetCrossCheck\": { \"sheet\": \"Mount\", \"fields\": [\"ExtraSeats\", \"IsAirborne\"], \"mounts\": 2, \"seats\": 1, \"movement\": 2 },\n"
             + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
@@ -496,7 +498,7 @@ public sealed class MountSourcesValidationTests
         // A block that compared Order and UIPriority says nothing about seats or movement, however
         // healthy its counts look.
         string candidate = SnapshotWithHeader(
-            "  \"schemaVersion\": 3,\n"
+            "  \"schemaVersion\": 4,\n"
             + "  \"enrichment\": \"full\",\n"
             + "  \"sheetCrossCheck\": { \"sheet\": \"Mount\", \"fields\": [\"Order\", \"UIPriority\"], \"mounts\": 1, \"seats\": 1, \"movement\": 1 },\n"
             + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
@@ -509,6 +511,72 @@ public sealed class MountSourcesValidationTests
 
         Assert.False(report.IsValid);
         Assert.Contains(MountSourcesValidator.CrossCheckFieldsCode, Codes(report));
+    }
+
+    [Fact]
+    public void AClassTheRulesDoNotDeriveIsADrift()
+    {
+        // The field is generator output. A row that states another class than its own obtain lines give is a hand
+        // edit or a build with other rules, and either one puts a badge and a filter on different answers.
+        string candidate = Snapshot((1, "7.0", 1)).Replace(
+            "\"availability\": \"available\"",
+            "\"availability\": \"premium\"",
+            StringComparison.Ordinal);
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.False(report.IsValid);
+        Assert.Contains(MountSourcesValidator.AvailabilityDriftCode, Codes(report));
+        Assert.Contains("1: file premium, rules available", ReportText(report), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnUnclassifiableRowWithObtainLinesFails()
+    {
+        // A type this build does not know, on a row that has lines: somebody has to decide what it is, so the
+        // snapshot must not ship with the row reading "No data".
+        string candidate = Snapshot((1, "7.0", 1)).Replace(
+            "\"type\": \"Quest\"",
+            "\"type\": \"Brand New Type\"",
+            StringComparison.Ordinal);
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.False(report.IsValid);
+        Assert.Contains(MountSourcesValidator.AvailabilityMissingCode, Codes(report));
+    }
+
+    [Fact]
+    public void NoCountsBlockIsAWarningAndAWrongOneIsAnError()
+    {
+        string noBlock = Snapshot((1, "7.0", 1)).Replace(
+            "  \"availability\": { \"available\": 1 },\n",
+            string.Empty,
+            StringComparison.Ordinal);
+
+        MountSourcesValidationReport warning = MountSourcesValidator.Validate(
+            noBlock,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.True(warning.IsValid, warning.ToText());
+        Assert.Contains(MountSourcesValidator.AvailabilityCountsMissingCode, Codes(warning));
+
+        string wrongCount = Snapshot((1, "7.0", 1)).Replace(
+            "  \"availability\": { \"available\": 1 },",
+            "  \"availability\": { \"available\": 7 },",
+            StringComparison.Ordinal);
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            wrongCount,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.False(report.IsValid);
+        Assert.Contains(MountSourcesValidator.AvailabilityCountsCode, Codes(report));
+        Assert.Contains("block 7, rows 1", ReportText(report), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -612,7 +680,7 @@ public sealed class MountSourcesValidationTests
     /// </summary>
     private static string Snapshot(params (uint Id, string Patch, int Sources)[] rows) =>
         SnapshotWithHeader(
-            "  \"schemaVersion\": 3,\n"
+            "  \"schemaVersion\": 4,\n"
             + "  \"enrichment\": \"full\",\n"
             + CrossCheckLine(rows.Length)
             + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
@@ -627,6 +695,42 @@ public sealed class MountSourcesValidationTests
         + ", \"movement\": " + rows.ToString(System.Globalization.CultureInfo.InvariantCulture) + " },\n";
 
     /// <summary>
+    /// The header's per-class availability block for <paramref name="rows"/>, in the generator's shape: the rows
+    /// this helper builds are one Quest line each, so a row with a source is Available and one without is Unknown.
+    /// </summary>
+    private static string AvailabilityLine(params (uint Id, string Patch, int Sources)[] rows)
+    {
+        var available = 0;
+        var unknown = 0;
+
+        foreach ((uint _, string _, int sources) in rows)
+        {
+            if (sources > 0)
+            {
+                available++;
+            }
+            else
+            {
+                unknown++;
+            }
+        }
+
+        var parts = new List<string>(2);
+
+        if (available > 0)
+        {
+            parts.Add("\"available\": " + available.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (unknown > 0)
+        {
+            parts.Add("\"unknown\": " + unknown.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        return "  \"availability\": { " + string.Join(", ", parts) + " },\n";
+    }
+
+    /// <summary>
     /// Builds a snapshot with a caller-supplied header: the way to test "no schemaVersion" (an empty
     /// header) or any other document-level fact without hand-writing a whole file.
     /// </summary>
@@ -635,6 +739,13 @@ public sealed class MountSourcesValidationTests
         var json = new StringBuilder();
         json.Append("{\n  \"generated\": \"2026-11-01\",\n  \"source\": \"ffxivcollect.com\",\n");
         json.Append(headerLines);
+
+        // The per-class block the generator writes, unless the caller supplied one: the rows this helper
+        // builds are one Quest line each, so a row with a source is Available and one without is Unknown.
+        if (!headerLines.Contains("\"availability\":", StringComparison.Ordinal))
+        {
+            json.Append(AvailabilityLine(rows));
+        }
         json.Append("  \"mounts\": [\n");
 
         for (var index = 0; index < rows.Length; index++)
@@ -642,7 +753,9 @@ public sealed class MountSourcesValidationTests
             (uint id, string patch, int sources) = rows[index];
             json.Append("    { \"id\": ").Append(id);
             json.Append(", \"patch\": \"").Append(patch).Append('"');
-            json.Append(", \"itemId\": 0, \"owned\": null, \"tradeable\": null, \"customMusic\": null, \"sources\": [");
+            json.Append(", \"itemId\": 0, \"owned\": null, \"tradeable\": null, \"customMusic\": null, \"availability\": \"");
+            json.Append(sources > 0 ? "available" : "unknown");
+            json.Append("\", \"sources\": [");
 
             for (var line = 0; line < sources; line++)
             {

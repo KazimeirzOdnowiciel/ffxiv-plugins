@@ -277,7 +277,7 @@ public sealed class ConfigurationMigrationTests
     }
 
     [Fact]
-    public void AFileFromBeforeSavedViewsKeepsEveryFieldAndGainsNoViews()
+    public void AFileFromBeforeSavedViewsKeepsEveryFieldAndGainsTheFarmableView()
     {
         Configuration config = Load("config-v4-pre-saved-views.json");
 
@@ -287,9 +287,13 @@ public sealed class ConfigurationMigrationTests
 
         Assert.Equal(Configuration.CurrentVersion, config.Version);
 
-        // A missing list keeps its initialiser, which is what lets the filter block test Count without a null
-        // guard - the same measured rule the other collections follow.
-        Assert.Empty(config.SavedViews);
+        // A missing list keeps its initialiser, and step 6 then adds the view the availability feature ships
+        // with - the one preset the feature is allowed to write, because the question it answers is the reason
+        // the feature exists.
+        Assert.Single(config.SavedViews);
+        Assert.Equal(SavedViewRules.FarmableViewName, config.SavedViews[0].Name);
+        Assert.Equal("avail:available", config.SavedViews[0].Query);
+        Assert.Equal(MountOwnership.Unowned, config.SavedViews[0].Ownership);
 
         // Everything the file carried still means what it meant: the migration adds a shape, it does not touch
         // a saved field.
@@ -463,12 +467,74 @@ public sealed class ConfigurationMigrationTests
 
         config.Migrate();
 
-        Assert.Single(config.SavedViews);
+        // Two after step 6: the damaged entry, repaired in place at the front, then the shipped view. A file
+        // that claims the current version still gets the sweep, which is why the null is gone either way.
+        Assert.Equal(2, config.SavedViews.Count);
         Assert.Equal("PvP only", config.SavedViews[0].Name);
         Assert.Equal(MountOwnership.All, config.SavedViews[0].Ownership);
         Assert.Equal(MountExpansion.All, config.SavedViews[0].Expansion);
         Assert.Equal(MountOrder.Name, config.SavedViews[0].Order);
         Assert.Equal(MountGrouping.None, config.SavedViews[0].GroupBy);
+    }
+
+    [Fact]
+    public void AFileAtTheCurrentVersionWithNoViewsKeepsTheListEmpty()
+    {
+        // The seed runs once, as step 6. A player who deleted the shipped view must not have it come back on every
+        // load, which is exactly what a property initialiser or an unversioned seed would do.
+        Configuration config = JsonConvert.DeserializeObject<Configuration>(
+            """
+            {
+              "Version": 6,
+              "SavedViews": []
+            }
+            """)!;
+
+        config.Migrate();
+
+        Assert.Equal(Configuration.CurrentVersion, config.Version);
+        Assert.Empty(config.SavedViews);
+    }
+
+    [Fact]
+    public void TheFarmableViewIsNotSeededTwiceWhenThePlayerAlreadyHasThatName()
+    {
+        Configuration config = JsonConvert.DeserializeObject<Configuration>(
+            """
+            {
+              "Version": 5,
+              "SavedViews": [
+                { "Name": "farmable NOW", "Query": "source:trial", "Ownership": 1, "Expansion": 0, "Order": 0, "GroupBy": 0 }
+              ]
+            }
+            """)!;
+
+        config.Migrate();
+
+        // One entry, the player's own, still saying what they saved: the seed only fills a gap, and the name
+        // comparison is the same case-insensitive one the row and the dialog use.
+        SavedView view = Assert.Single(config.SavedViews);
+        Assert.Equal("source:trial", view.Query);
+    }
+
+    [Fact]
+    public void TheSavedAvailabilityFilterIsCanonicalisedOrCleared()
+    {
+        // The rewrite is step 6, like the source filter's step 4: a file already at the current version is left
+        // alone here, and the main window's own write-back repairs a hand edit on the next frame (it reads through
+        // TryParseKey and saves the canonical key).
+        Configuration known = JsonConvert.DeserializeObject<Configuration>("""{ "Version": 5, "SavedAvailability": " PREMIUM " }""")!;
+        known.Migrate();
+        Assert.Equal("premium", known.SavedAvailability);
+
+        Configuration chosen = JsonConvert.DeserializeObject<Configuration>("""{ "Version": 5, "SavedAvailability": "Unknown" }""")!;
+        chosen.Migrate();
+        Assert.Equal("unknown", chosen.SavedAvailability);
+
+        // A value naming no class clears to "any" rather than filtering the shelf down to the unclassified rows.
+        Configuration broken = JsonConvert.DeserializeObject<Configuration>("""{ "Version": 5, "SavedAvailability": "someday" }""")!;
+        broken.Migrate();
+        Assert.Equal(string.Empty, broken.SavedAvailability);
     }
 
     [Fact]
