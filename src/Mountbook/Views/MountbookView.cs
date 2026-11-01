@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Glasswork;
 using Glasswork.Backend;
 using Mountbook.Services;
 
@@ -29,15 +30,68 @@ namespace Mountbook.Views;
 /// </remarks>
 public sealed partial class MountbookView
 {
-    /// <summary>The bottom inset <c>Gw.EndCard()</c> consumes below its content, measured at UI scale 1.</summary>
-    private const float CardBottomInset = 16f;
+    /// <summary>
+    /// The distance <c>Gw.EndCard()</c> leaves under the columns, in screen pixels, measured on an earlier
+    /// frame; not positive until the first measurement lands. It used to be a hand-measured 16 logical px
+    /// constant, which was one Look's large spacing at one UI scale and drifted the moment either moved.
+    /// </summary>
+    private float cardBottomInsetPx = -1f;
+
+    /// <summary>The UI scale <see cref="cardBottomInsetPx"/> was measured at; a scale change re-measures it.</summary>
+    private float cardBottomInsetScale = -1f;
+
+    /// <summary>
+    /// The pane's bottom edge in screen space, taken at the top of <see cref="Draw"/> before the card child
+    /// opens. See <see cref="LayoutMeasure.ColumnHeight"/> for why neither the reported content region nor a
+    /// child's clip rect can be trusted for this.
+    /// </summary>
+    private float paneBottomScreenY;
 
 
     /// <summary>One card's width: the 64 px tile plus room for a readable caption.</summary>
     private const float CellWidth = 120f;
 
+    /// <summary>
+    /// What the search box accepts beyond plain words. One string, because the tooltip and the empty
+    /// state both advertise it and two copies drift - the operator list is the whole discoverability of
+    /// the grammar.
+    /// </summary>
+    private static string SearchHint => Loc.T("search.hint");
+
+    /// <summary>Room outside a tile for its hover and selection halos, logical units.</summary>
+    private const float HaloRoom = 6f;
+
     /// <summary>Fitted captions and their measured width, keyed by mount and cell width.</summary>
-    private static readonly System.Collections.Generic.Dictionary<(uint Id, int Width), Caption> Captions = [];
+    private static readonly System.Collections.Generic.Dictionary<(uint Id, int Scale, int Width), Caption> Captions = [];
+
+    /// <summary>
+    /// Measured text widths, keyed by the text, the style it draws in and the UI scale. The detail pane used
+    /// to measure its title, the rarity clause, the market price and up to nine badges on every frame; a width
+    /// only changes when the Look's type face does, which is exactly what <c>MeasurementGeneration</c> names.
+    /// </summary>
+    private static readonly System.Collections.Generic.Dictionary<(string Text, TextStyle Style, int Scale), float> TextWidths = [];
+
+    /// <summary>
+    /// Text already trimmed to a width, keyed the same way plus the floored width. Fitting walks the string a
+    /// character at a time, so remembering the answer is what keeps the draw path free of per-frame work.
+    /// </summary>
+    private static readonly System.Collections.Generic.Dictionary<(string Text, TextStyle Style, int Scale, int Width), string> FittedText = [];
+
+    /// <summary>
+    /// The two-column header's sheet-fact line, keyed by the facts it is built from. The draw path must not
+    /// build strings, and most mounts share their combination, so this settles after a few dozen entries.
+    /// </summary>
+    private static readonly System.Collections.Generic.Dictionary<(string Patch, int Seats, bool Barding, bool Flies), string> SheetFactLines = [];
+
+    /// <summary>Small-button widths already summed, keyed by label and scale.</summary>
+    private static readonly System.Collections.Generic.Dictionary<(string Label, int Scale), float> SmallButtonWidths = [];
+
+    /// <summary>How many entries a measurement memo may hold before it is dropped and refilled.</summary>
+    /// <remarks>
+    /// Browsing the whole book asks about a few hundred distinct strings, so the cap is only a guard against a
+    /// future caller that builds its labels from the frame; clearing is cheaper than an eviction policy here.
+    /// </remarks>
+    private const int MeasureCacheLimit = 512;
 
     /// <summary>The share of the card the filter and card column takes; the detail pane takes the rest.</summary>
     private const float LeftColumnShare = 0.62f;
@@ -50,9 +104,17 @@ public sealed partial class MountbookView
 
     /// <summary>
     /// Labels for <c>Gw.Segmented</c>, in <see cref="MountOwnership"/> order. Static arrays, because
-    /// the widgets re-read them every frame and the draw path must not allocate.
+    /// the widgets re-read them every frame and the draw path must not allocate. They are read once, at
+    /// the first draw: the interface language is fixed for the session (<see cref="Loc.Use"/> runs in the
+    /// plugin's constructor), so there is nothing to invalidate.
     /// </summary>
-    private static readonly string[] OwnershipNames = { "All", "Owned", "Unowned", "Wanted" };
+    private static readonly string[] OwnershipNames =
+    [
+        Loc.T("ownership.all"),
+        Loc.T("ownership.owned"),
+        Loc.T("ownership.unowned"),
+        Loc.T("ownership.wanted"),
+    ];
 
     /// <summary>Cached chip labels with their counts; rebuilt only when the counts change.</summary>
     private readonly string[] ownershipLabels = (string[])OwnershipNames.Clone();
@@ -70,40 +132,51 @@ public sealed partial class MountbookView
 
     /// <summary>Labels for the expansion <c>Gw.ComboBox</c>, in <see cref="MountExpansion"/> order.</summary>
     private static readonly string[] ExpansionLabels =
-    {
-        "All",
-        "A Realm Reborn",
-        "Heavensward",
-        "Stormblood",
-        "Shadowbringers",
-        "Endwalker",
-        "Dawntrail",
-        "Unknown",
-    };
+    [
+        Loc.T("ownership.all"),
+        Loc.T("expansion.arr"),
+        Loc.T("expansion.hw"),
+        Loc.T("expansion.sb"),
+        Loc.T("expansion.shb"),
+        Loc.T("expansion.ew"),
+        Loc.T("expansion.dt"),
+        Loc.T("expansion.unknown"),
+    ];
 
     /// <summary>The two ways the shelf can draw the same list.</summary>
-    private static readonly string[] ViewLabels = ["Cards", "Table"];
+    private static readonly string[] ViewLabels = [Loc.T("view.cards"), Loc.T("view.table")];
 
     /// <summary>Labels for the "Group by" <c>Gw.ComboBox</c>, in <see cref="MountGrouping"/> order.</summary>
-    private static readonly string[] GroupLabels = ["No grouping", "Expansion", "Patch", "Source"];
+    private static readonly string[] GroupLabels =
+    [
+        Loc.T("group.none"),
+        Loc.T("group.expansion"),
+        Loc.T("group.patch"),
+        Loc.T("group.source"),
+    ];
 
     /// <summary>Labels for the order <c>Gw.ComboBox</c>, in <see cref="MountOrder"/> order.</summary>
+    /// <remarks>
+    /// "Surprise me" is the one order that is a verb: it exists so the top of the list is a mount nobody
+    /// would have picked, and saying so reads better than "Random", which sounds like a sort key.
+    /// </remarks>
     private static readonly string[] OrderLabels =
-    {
-        "Name",
-        "Oldest first",
-        "Most seats",
-        "Owned first",
-        "Newest first",
-        "Rarest first",
-        "Cheapest",
-        // The one order that is a verb: it exists so the top of the list is a mount nobody would have
-        // picked, and "Surprise me" says that where "Random" would read as a sort key.
-        "Surprise me",
-    };
+    [
+        Loc.T("order.name"),
+        Loc.T("order.oldest"),
+        Loc.T("order.seats"),
+        Loc.T("order.ownedFirst"),
+        Loc.T("order.newest"),
+        Loc.T("order.rarest"),
+        Loc.T("order.cheapest"),
+        Loc.T("order.surprise"),
+    ];
 
     /// <summary>The Look generation the cached measurements were taken at.</summary>
     private int measuredGeneration = int.MinValue;
+
+    /// <summary>The UI scale the cached measurements were taken at: a scale change invalidates them too.</summary>
+    private float measuredScale = -1f;
 
     /// <summary>
     /// Drops every cached text measurement in the view. Each one - the header action widths, the counts
@@ -131,6 +204,14 @@ public sealed partial class MountbookView
 
         // Static: the caption cache is shared by every view instance (and by the previews).
         Captions.Clear();
+        TextWidths.Clear();
+        FittedText.Clear();
+        SmallButtonWidths.Clear();
+        SheetFactLines.Clear();
+
+        // The card's inset belongs to the same generation: a Look can bring its own spacing.
+        cardBottomInsetPx = -1f;
+        cardBottomInsetScale = -1f;
     }
 
     private int filteredOwned = -1;
@@ -206,8 +287,27 @@ public sealed partial class MountbookView
             InvalidateMeasurements();
         }
 
+        // A UI-scale change has to drop them for the same reason, and the generation does not move for
+        // it: the header's count, percentage and expansion-strip widths are pixels measured at whatever
+        // scale was in force, and the strip's fit test is what decides whether a shipped feature draws
+        // inline or drops under the counters. Goldens render at scale 1, so only a live GlobalUiScale
+        // change can show this - which is exactly why it was never seen.
+        if (measuredScale != Frame.Scale)
+        {
+            measuredScale = Frame.Scale;
+            InvalidateMeasurements();
+        }
+
         // One list, kept next to the properties it resets: the window reads these after Draw returns.
         state.ClearRequests();
+
+        // The pane's bottom edge in screen space, captured at the top of the frame before the card child
+        // opens. Both the card's reported region and its clip rect describe the child, which for an
+        // auto-sized card grows with its content and runs past the window (measured 842 for a 660-tall pane);
+        // at window level, before any child, the reported region is the window's own.
+        paneBottomScreenY = ImGui.GetCursorScreenPos().Y + ImGui.GetContentRegionAvail().Y;
+
+        var columnsBottomScreenY = -1f;
 
         if (Gw.BeginCard())
         {
@@ -215,29 +315,82 @@ public sealed partial class MountbookView
 
             Gw.Divider();
 
-            DrawColumns(state);
+            columnsBottomScreenY = DrawColumns(state);
         }
 
         Gw.EndCard();
 
+        MeasureCardInset(columnsBottomScreenY);
+
         state.Committed = Gw.Committed;
     }
 
-    private void DrawColumns(MountViewState state)
+    /// <summary>
+    /// Records how much room <c>Gw.EndCard()</c> leaves under the columns, from the item rects either side
+    /// of it: the card lays one last item down ending at its own bottom edge, so the pair is the inset
+    /// itself - no spacing arithmetic, no Look token guessed twice, and it follows the UI scale.
+    /// </summary>
+    /// <param name="columnsBottomScreenY">The columns' bottom edge, or a negative value when no card drew.</param>
+    private void MeasureCardInset(float columnsBottomScreenY)
+    {
+        if (columnsBottomScreenY <= 0f)
+        {
+            return;
+        }
+
+        var inset = ImGui.GetItemRectMax().Y - columnsBottomScreenY;
+
+        // A zero or inverted difference means EndCard drew no card of its own (it skips when nothing inside
+        // could be visible), so the rects describe two different things and the reading is not one.
+        if (inset <= 0f)
+        {
+            return;
+        }
+
+        cardBottomInsetPx = inset;
+        cardBottomInsetScale = Frame.Scale;
+    }
+
+    /// <summary>
+    /// The inset to leave under the columns right now: the measured value once this UI scale has one, and
+    /// the card's own padding (the Look's large spacing) until then. Both are the same number by
+    /// construction; the measurement is what keeps it true when Glasswork or the scale changes.
+    /// </summary>
+    private float CardInset =>
+        LayoutMeasure.CardInset(
+            cardBottomInsetScale == Frame.Scale ? cardBottomInsetPx : -1f,
+            Frame.Look.SpaceLarge * Frame.Scale);
+
+    private float DrawColumns(MountViewState state)
     {
         var available = ImGui.GetContentRegionAvail();
         var gap = Frame.Look.SpaceLarge * Frame.Scale;
-        // Gw.EndCard() reserves a bottom inset of its own (measured 16 logical px at scale 1);
-        // sizing the columns to the raw available height overruns the window by that much and gives
-        // the window a scrollbar.
-        var height = MathF.Max(available.Y - (CardBottomInset * Frame.Scale), 1f);
+
+        // Gw.EndCard() pads the card by the Look's large spacing under our content, so sizing the columns to
+        // the raw available height overruns the window by that much and gives the window a scrollbar; the
+        // padding is measured rather than assumed, because it follows both the Look and the UI scale. The
+        // available height is only an upper bound: the card is an auto-sized child, so its content region
+        // grows with its content and reports more than the window has (measured 661-715 in a 660-tall
+        // window), which made the body taller than the pane and slid its last rows under the footer.
+        var height = LayoutMeasure.ColumnHeight(
+            paneBottomScreenY,
+            ImGui.GetCursorScreenPos().Y,
+            CardInset,
+            available.Y);
         var leftWidth = MathF.Max((available.X * LeftColumnShare) - gap, 1f);
 
         DrawFilterColumn(state, leftWidth, height);
 
+        // Both columns are children of this height, so either one's bottom edge is the card's content bottom;
+        // the maximum covers the one scene where the pane draws no child of its own - the no-selection
+        // placeholder - and the shorter text item would otherwise be read as the bottom of the card.
+        var bottomScreenY = ImGui.GetItemRectMax().Y;
+
         ImGui.SameLine(0f, gap);
 
         DrawDetailColumn(state, height, MathF.Max(available.X - (leftWidth + gap), 1f));
+
+        return MathF.Max(bottomScreenY, ImGui.GetItemRectMax().Y);
     }
 
     /// <summary>
@@ -293,15 +446,119 @@ public sealed partial class MountbookView
     /// The two-row band between them keeps the actions in the fixed footer - only the real
     /// one-per-row fallback below 360 has to move them into the scrolling body.
     /// </remarks>
+    private static float[]? detailActionWidths;
+
+    private static float detailActionWidthsScale;
+
+    /// <summary>
+    /// The width of <paramref name="text"/> in <paramref name="style"/>, measured once per text, style and
+    /// scale and dropped with the other measurements when a Look is applied.
+    /// </summary>
+    private static float TextWidth(string text, TextStyle style, float scale)
+    {
+        var key = (text, style, (int)MathF.Round(scale * 1000f));
+
+        if (TextWidths.TryGetValue(key, out var width))
+        {
+            return width;
+        }
+
+        var look = Frame.Look;
+        width = TextPaint.Measure(text, style, in look, scale).X;
+        Remember(TextWidths, key, width);
+        return width;
+    }
+
+    /// <summary>Stores a measurement, dropping the whole memo first if it has grown past its cap.</summary>
+    private static void Remember<TKey, TValue>(
+        System.Collections.Generic.Dictionary<TKey, TValue> memo,
+        TKey key,
+        TValue value)
+        where TKey : notnull
+    {
+        if (memo.Count >= MeasureCacheLimit)
+        {
+            memo.Clear();
+        }
+
+        memo[key] = value;
+    }
+
+    /// <summary>
+    /// The width <c>Gw.Button(ButtonSize.Small)</c> reserves for a label under the given Look: the footnote
+    /// role at semibold, one medium space each side, never narrower than the small control height. One
+    /// formula, shared by every place that has to decide whether two small buttons fit on a line. The price
+    /// and wiki labels ask for theirs on every frame, so the sum is remembered per label and scale.
+    /// </summary>
+    private static float SmallButtonWidth(string label, Look look, float scale)
+    {
+        var key = (label, (int)MathF.Round(scale * 1000f));
+
+        if (SmallButtonWidths.TryGetValue(key, out var width))
+        {
+            return width;
+        }
+
+        width = MathF.Max(
+            TextWidth(label, ActionLabelStyle, scale) + (look.SpaceMedium * scale * 2f),
+            look.ControlHeightSmall * scale);
+        Remember(SmallButtonWidths, key, width);
+        return width;
+    }
+
+    /// <summary>
+    /// The four detail actions' widths on one line: Ride, Link whistle, Mount Guide, Want/Unwant. Measured
+    /// from the labels under the Look's type face and cached per scale, because the old 470/360 budgets were
+    /// recorded for the Default button size and kept the row at two lines after the secondaries shrank.
+    /// "Unwant" is measured, not "Want": it is the wider of the two labels the toggle can draw.
+    /// </summary>
+    private static float[] DetailActionWidths(Look look, float scale)
+    {
+        if (detailActionWidths is { Length: 4 } && detailActionWidthsScale == scale)
+        {
+            return detailActionWidths;
+        }
+
+        Span<string> labels =
+        [
+            Loc.T("detail.ride"),
+            Loc.T("detail.linkWhistle"),
+            Loc.T("detail.mountGuide"),
+            Loc.T("detail.unwant"),
+        ];
+        var widths = new float[4];
+
+        for (var index = 0; index < labels.Length; index++)
+        {
+            var small = SmallButtonWidth(labels[index], look, scale);
+
+            // Ride keeps ButtonStyle.Prominent: its own padding plus the taller control box. One large
+            // space is the measured difference and it errs wide, which is the safe direction for a budget.
+            widths[index] = index == 0 ? small + (look.SpaceLarge * scale) : small;
+        }
+
+        detailActionWidths = widths;
+        detailActionWidthsScale = scale;
+        return widths;
+    }
+
+    /// <summary>
+    /// How many lines the detail actions need: 1 when all four share a line, 2 when the three older actions
+    /// share one and the wanted toggle drops to the next, 4 when even that does not fit.
+    /// </summary>
     private static int ActionRowCount(float available)
     {
+        var look = Frame.Look;
         var scale = Frame.Scale;
-        if (available >= (470f * scale))
+        var widths = DetailActionWidths(look, scale);
+        var gap = look.SpaceSmall * scale;
+
+        if (available >= widths[0] + widths[1] + widths[2] + widths[3] + (gap * 3f))
         {
             return 1;
         }
 
-        return available >= (360f * scale) ? 2 : 4;
+        return available >= widths[0] + widths[1] + widths[2] + (gap * 2f) ? 2 : 4;
     }
 
     private string RefreshFilterCounts(MountViewState state)
@@ -322,13 +579,11 @@ public sealed partial class MountbookView
 
         filteredOwned = owned;
         filteredShown = state.Items.Count;
-        filterText = string.Concat(
+        filterText = Loc.F(
+            "filter.summary",
             FormatInt(owned),
-            " of ",
             FormatInt(state.Items.Count),
-            " shown collected (",
-            FormatInt(MountProgress.Percent(owned, state.Items.Count)),
-            "%)");
+            FormatInt(MountProgress.Percent(owned, state.Items.Count)));
         return filterText;
     }
 

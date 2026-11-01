@@ -31,10 +31,10 @@ public static class MountTable
     /// <summary>Index of the acquire-method column.</summary>
     public const int SourceColumn = 3;
 
-    /// <summary>Index of the collected column.</summary>
+    /// <summary>Index of the collected column: the dot the view draws for a mount the player has.</summary>
     public const int OwnedColumn = 4;
 
-    /// <summary>Index of the community-rarity column.</summary>
+    /// <summary>Index of the community-ownership column ("Owners": the share of collectors who have it).</summary>
     public const int RarityColumn = 5;
 
     /// <summary>Index of the market-price column, empty until prices have been read.</summary>
@@ -76,16 +76,6 @@ public static class MountTable
         return item.Sources.Count > 0 ? item.Sources[0].Category : string.Empty;
     }
 
-    /// <summary>"Yes" for a collected mount, and an empty cell otherwise: a column of "No" is noise.</summary>
-    /// <param name="item">The mount to describe.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="item"/> is null.</exception>
-    public static string OwnedText(MountShelfItem item)
-    {
-        ArgumentNullException.ThrowIfNull(item);
-
-        return item.Owned ? "Yes" : string.Empty;
-    }
-
     /// <summary>
     /// The share of collectors who own the mount, as <c>3.4%</c>, <c>&lt;0.1%</c> for a rounded zero,
     /// or empty when the rarity is unrecorded. A rounding zero is printed as "fewer than one step"
@@ -105,8 +95,8 @@ public static class MountTable
         var rounded = Math.Round(percent, 1, MidpointRounding.AwayFromZero);
 
         return rounded <= 0d
-            ? string.Concat("<", MountRarity.Format(MountRarity.RoundingStep), "%")
-            : string.Concat(MountRarity.Format(rounded), "%");
+            ? Loc.F("table.rarity.fewer", MountRarity.Format(MountRarity.RoundingStep))
+            : Loc.F("table.rarity", MountRarity.Format(rounded));
     }
 
     /// <summary>

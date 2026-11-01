@@ -50,7 +50,7 @@ public sealed class MinimumPreview : IPreviewScreen
     /// <summary>Also the golden's file name: <c>goldens/minimum.png</c>.</summary>
     public string Name => "minimum";
 
-    public Look Look { get; } = Look.Eorzea();
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
     public ReadOnlySpan<PreviewInput> Script => [];
 

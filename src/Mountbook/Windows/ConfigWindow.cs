@@ -31,10 +31,10 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
 
     private int cachedTotal = -1;
 
-    private string progressText = "Open the main window once to build the mount catalog.";
+    private string progressText = Loc.T("config.loading");
 
     public ConfigWindow(Plugin plugin)
-        : base(plugin, "Mountbook Settings###MountbookConfig")
+        : base(plugin, Loc.T("window.config") + "###MountbookConfig")
     {
         // 900 rather than the original 840: the wanted-list row pushed the About section's diagnostics
         // button below the fold, and a player who opens settings to copy diagnostics should not have to
@@ -147,12 +147,12 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
             try
             {
                 ImGui.SetClipboardText(plugin.Host.Look.ToJson());
-                Gw.Toast("Theme JSON copied"u8, ToastKind.Success);
+                Gw.Toast(Loc.T("toast.themeCopied"), ToastKind.Success);
             }
             catch (Exception ex)
             {
                 Plugin.Log.Error(ex, "Could not copy the theme JSON to the clipboard.");
-                Gw.Toast("Could not copy the theme."u8, ToastKind.Error);
+                Gw.Toast(Loc.T("toast.themeCopyFailed"), ToastKind.Error);
             }
         }
 
@@ -166,6 +166,12 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
             config.SearchText = string.Empty;
             config.Ownership = MountOwnership.All;
             config.Expansion = MountExpansion.All;
+
+            // The source filter is one of the four filters the main window's empty state clears, and this
+            // Reset used to leave it behind: the settings button said "clears the search and filters" and
+            // then persisted the very filter that emptied the list back into the config.
+            config.SavedSource = string.Empty;
+
             config.Order = MountOrder.Name;
             config.SelectedMountId = 0;
             changed = true;
@@ -208,13 +214,15 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
                 id => names.TryGetValue(id, out string? name) ? name : null));
 
             Gw.Toast(
-                ids.Count == 1 ? "Copied 1 wanted mount" : $"{ids.Count} wanted mounts copied",
+                ids.Count == 1
+                    ? Loc.T("toast.wantedCopied.one")
+                    : Loc.F("toast.wantedCopied.many", ids.Count),
                 ToastKind.Success);
         }
         catch (Exception ex)
         {
             Plugin.Log.Error(ex, "Could not copy the wanted list to the clipboard.");
-            Gw.Toast("Could not copy the wanted list."u8, ToastKind.Error);
+            Gw.Toast(Loc.T("toast.wantedCopyFailed"), ToastKind.Error);
         }
     }
 
@@ -234,7 +242,7 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
         catch (Exception ex)
         {
             Plugin.Log.Error(ex, "Could not read the clipboard for a wanted list import.");
-            Gw.Toast("Could not read the clipboard."u8, ToastKind.Error);
+            Gw.Toast(Loc.T("toast.clipboardReadFailed"), ToastKind.Error);
 
             return false;
         }
@@ -310,14 +318,22 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
     /// </remarks>
     private static void FitToContent()
     {
-        var overflow = ImGui.GetScrollMaxY();
+        Vector2 size = ImGui.GetWindowSize();
+        float overflow = ImGui.GetScrollMaxY();
 
-        if (overflow <= 0f)
+        // Held inside the screen. At 125-150% UI scale the body is ~1.4x taller, and growing the window to
+        // its content put the About rows - and the buttons in them - below the desktop with no scrollbar to
+        // find them by. A remembered size that no longer fits is shrunk to the same limit; otherwise the
+        // rule is unchanged: grow by exactly the overflow, never shrink a window the player sized.
+        var limit = MathF.Max(320f, ImGui.GetMainViewport().WorkSize.Y - 48f);
+        var target = MathF.Min(overflow > 0f ? size.Y + overflow + 2f : size.Y, limit);
+
+        if (MathF.Abs(target - size.Y) < 1f)
         {
             return;
         }
 
-        ImGui.SetWindowSize(ImGui.GetWindowSize() + new Vector2(0f, overflow + 2f));
+        ImGui.SetWindowSize(new Vector2(size.X, target));
     }
 
     /// <summary>
@@ -334,12 +350,12 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
                 state.CatalogText,
                 plugin.Configuration.LookName,
                 plugin.Configuration.FollowGameTheme));
-            Gw.Toast("Diagnostics copied"u8, ToastKind.Success);
+            Gw.Toast(Loc.T("toast.diagnosticsCopied"), ToastKind.Success);
         }
         catch (Exception ex)
         {
             Plugin.Log.Error(ex, "Could not copy the diagnostics to the clipboard.");
-            Gw.Toast("Could not copy the diagnostics."u8, ToastKind.Error);
+            Gw.Toast(Loc.T("toast.diagnosticsCopyFailed"), ToastKind.Error);
         }
     }
 
@@ -373,14 +389,15 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
             ProgressFraction = plugin.Catalog.Total <= 0
                 ? 0f
                 : (float)plugin.Catalog.Owned / plugin.Catalog.Total,
-            CatalogText = string.Concat(
+            CatalogText = Loc.F(
+                "config.catalog.summary",
                 plugin.Catalog.Total.ToString(CultureInfo.InvariantCulture),
-                " mounts, ",
-                plugin.Catalog.SourceCount.ToString(CultureInfo.InvariantCulture),
-                " with obtain data"),
+                plugin.Catalog.SourceCount.ToString(CultureInfo.InvariantCulture)),
             // The assembly version, not the manifest: IPluginManifest has no Version member in API 15, and
             // the assembly version is what the packager stamps anyway.
-            VersionText = string.Concat("v", typeof(Plugin).Assembly.GetName().Version?.ToString() ?? "unknown"),
+            VersionText = Loc.F(
+                "config.version.text",
+                typeof(Plugin).Assembly.GetName().Version?.ToString() ?? Loc.T("config.version.unknown")),
             ThemeLabels = plugin.LookLabels,
             ThemeNames = lookNames,
             ThemeIndex = index,
@@ -408,7 +425,7 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
         catch (Exception ex)
         {
             Plugin.Log.Error(ex, "Could not open the themes folder '{Folder}'.", folder);
-            Gw.Toast("Could not open the folder."u8, ToastKind.Error);
+            Gw.Toast(Loc.T("toast.folderFailed"), ToastKind.Error);
         }
     }
 
@@ -426,8 +443,8 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
         cachedOwned = owned;
         cachedTotal = total;
         progressText = total <= 0
-            ? "Open the main window once to build the mount catalog."
-            : $"{owned} of {total} mounts collected.";
+            ? Loc.T("config.loading")
+            : Loc.F("config.progress.text", owned, total);
 
         return progressText;
     }

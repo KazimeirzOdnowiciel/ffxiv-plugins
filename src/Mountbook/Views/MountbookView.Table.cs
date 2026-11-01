@@ -57,13 +57,19 @@ public sealed partial class MountbookView
         // survives and the source cell truncates, and at 2:3 the name truncates instead. The name wins -
         // a truncated mount name is ambiguous, while "Achieve..." still reads, and the detail pane has the
         // whole line.
-        Gw.TableColumn("Name"u8, 3f, true, MountTable.ColumnFor(state.Order) == MountTable.NameColumn, false);
-        Gw.TableColumn("Patch"u8, 0f, false, MountTable.ColumnFor(state.Order) == MountTable.PatchColumn, false);
-        Gw.TableColumn("Seats"u8, 0f, false, MountTable.ColumnFor(state.Order) == MountTable.SeatsColumn, true);
-        Gw.TableColumn("Source"u8, 2f, true, false, false);
-        Gw.TableColumn("Collected"u8, 0f, false, MountTable.ColumnFor(state.Order) == MountTable.OwnedColumn, false);
-        Gw.TableColumn("Owned"u8, 0f, false, MountTable.ColumnFor(state.Order) == MountTable.RarityColumn, true);
-        Gw.TableColumn("Price"u8, 0f, false, MountTable.ColumnFor(state.Order) == MountTable.PriceColumn, false);
+        Gw.TableColumn(Loc.T("table.name"), 3f, true, MountTable.ColumnFor(state.Order) == MountTable.NameColumn, false);
+        Gw.TableColumn(Loc.T("table.patch"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.PatchColumn, false);
+        Gw.TableColumn(Loc.T("table.seats"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.SeatsColumn, true);
+        Gw.TableColumn(Loc.T("table.source"), 2f, true, false, false);
+
+        // "Owned" is the player's own bit, drawn as one dot instead of the word "Yes"; "Owners" is the
+        // share of collectors who have the mount, which the column had long called "Owned" while showing
+        // a percentage nobody owned. The heading is what a fit-content column is sized by, so the dot's
+        // column is as narrow as that five-letter word allows: 112 px of "Collected" was most of the
+        // width the name and the source were short of.
+        Gw.TableColumn(Loc.T("table.owned"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.OwnedColumn, false);
+        Gw.TableColumn(Loc.T("table.owners"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.RarityColumn, true);
+        Gw.TableColumn(Loc.T("table.price"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.PriceColumn, false);
 
         Gw.TableHeaders();
 
@@ -103,10 +109,10 @@ public sealed partial class MountbookView
             Gw.TableText(MountTable.SeatsText(item), TextRole.Footnote);
 
             Gw.TableCell();
-            Gw.TableText(MountTable.SourceText(item), TextRole.Footnote);
+            Gw.TableText(UiText.Source(MountTable.SourceText(item)), TextRole.Footnote);
 
             Gw.TableCell();
-            Gw.TableText(MountTable.OwnedText(item), TextRole.Footnote);
+            DrawOwnedDot(item.Owned, accent);
 
             Gw.TableCell();
             Gw.TableText(MountTable.RarityText(item), TextRole.Footnote);
@@ -121,4 +127,47 @@ public sealed partial class MountbookView
 
         Gw.EndTable();
     }
+
+    /// <summary>
+    /// The collected column's whole content: one filled accent dot for a mount the player has, an empty
+    /// cell otherwise.
+    /// </summary>
+    /// <remarks>
+    /// The word "Yes" said the same thing in 20 px of text, and the heading alone made the column 112 px
+    /// wide - the width the name and the source were short of. The reserve is the row's full height,
+    /// exactly as <c>Gw.TableText</c> reserves it, because <c>Gw.TableCell</c> centres a cell by the
+    /// height that column's content took the frame before: a shorter reserve would place the dot 5 px low
+    /// on the first frame it draws, and the previews render one frame, so the golden would show a
+    /// misalignment the client corrects and the reader never sees.
+    /// </remarks>
+    /// <param name="owned">Whether the player has collected the mount.</param>
+    /// <param name="accent">The Look's accent, the same ink the wanted names use.</param>
+    private static void DrawOwnedDot(bool owned, Color accent)
+    {
+        var scale = Frame.Scale;
+        var box = OwnedDotWidth * scale;
+        // The Look's own token, not MountLook.RowHeight: they differ while FollowGameTheme has the host
+        // building its Look from the game's theme, and the reserve has to match the row the table
+        // actually draws or the dot sits low inside it.
+        var rowHeight = Frame.Look.RowHeight * scale;
+        Vector2 origin = ImGui.GetCursorScreenPos();
+
+        ImGui.Dummy(new Vector2(box, rowHeight));
+
+        if (!owned)
+        {
+            return;
+        }
+
+        ImGui.GetWindowDrawList().AddCircleFilled(
+            new Vector2(origin.X + (box * 0.5f), origin.Y + (rowHeight * 0.5f)),
+            OwnedDotRadius * scale,
+            accent.ToAbgr());
+    }
+
+    /// <summary>The width the dot's cell reserves, logical units: the dot plus the gutter beside it.</summary>
+    private const float OwnedDotWidth = 12f;
+
+    /// <summary>The dot's radius, logical units.</summary>
+    private const float OwnedDotRadius = 4f;
 }

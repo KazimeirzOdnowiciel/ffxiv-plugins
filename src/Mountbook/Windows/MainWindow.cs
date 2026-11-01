@@ -39,6 +39,12 @@ public sealed class MainWindow : GlassWindow, IDisposable
 
     private string costText = string.Empty;
 
+    /// <summary>The price of the selection, kept beside the line it was formatted into: the tracker's default target.</summary>
+    private MountCost? costOfSelection;
+
+    /// <summary>The selection the tracker was last loaded for, so typing in the note is not overwritten per frame.</summary>
+    private uint grindForId;
+
     /// <summary>The item id whose price request failed, so the pane can say so and offer a retry.</summary>
     private uint marketFailedItem;
 
@@ -78,7 +84,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
     private bool itemsBuilt;
 
     /// <summary>The source combo's cached labels and the revision they were built at.</summary>
-    private string[] sourceLabels = ["Any"];
+    private string[] sourceLabels = [UiText.AnySource];
 
     private int sourceLabelsRevision = -1;
 
@@ -110,7 +116,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
     /// resets a user's window position.
     /// </summary>
     public MainWindow(Plugin plugin)
-        : base(plugin, "Mountbook###MountbookMain")
+        : base(plugin, Loc.T("window.main") + "###MountbookMain")
     {
         // FirstUseEver, not Always: a user who resizes the window keeps that size across sessions.
         Size = new Vector2(DefaultWidth, DefaultHeight);
@@ -133,31 +139,29 @@ public sealed class MainWindow : GlassWindow, IDisposable
     }
 
     /// <summary>
-    /// The priced source line of a mount, with progress, or empty when the mount costs no tokens. Only the
-    /// first priced line is read: a mount that costs two different tokens is rare, and two lines of
-    /// arithmetic under one heading is not worth the space.
+    /// The priced source line of a mount, or null when it costs no tokens. Only the first priced line is
+    /// read: a mount that costs two different tokens is rare, and two lines of arithmetic under one
+    /// heading is not worth the space.
     /// </summary>
     /// <param name="item">The mount in the pane, or null.</param>
-    private string DescribeCost(MountShelfItem? item)
+    private static MountCost? CostOf(MountShelfItem? item) =>
+        item is null ? null : MountCosts.FirstOf(item.Sources);
+
+    /// <summary>
+    /// The price with the player's own count, e.g. <c>12,000 Seafarer's Cowries - you have 3,400, 8,600
+    /// to go</c>, or empty when the mount costs no tokens.
+    /// </summary>
+    /// <param name="cost">The parsed price, or null.</param>
+    private string DescribeCost(MountCost? cost)
     {
-        if (item is null)
+        if (cost is null)
         {
             return string.Empty;
         }
 
-        foreach (MountSourceLine line in item.Sources)
-        {
-            if (MountCosts.Parse(line.Detail) is not { } cost)
-            {
-                continue;
-            }
+        uint itemId = stock.ItemIdOf(cost.Currency);
 
-            uint itemId = stock.ItemIdOf(cost.Currency);
-
-            return MountCosts.Describe(cost, itemId == 0 ? null : stock.Count(itemId));
-        }
-
-        return string.Empty;
+        return MountCosts.Describe(cost, itemId == 0 ? null : stock.Count(itemId));
     }
 
     /// <summary>
@@ -365,10 +369,24 @@ public sealed class MainWindow : GlassWindow, IDisposable
         if ((state.SelectedId ?? 0) != costForId)
         {
             costForId = state.SelectedId ?? 0;
-            costText = DescribeCost(selected);
+            costOfSelection = CostOf(selected);
+            costText = DescribeCost(costOfSelection);
         }
 
         state.CostText = costText;
+
+        // The tracker is loaded once per selection for the same reason, and for one more: the note is edited
+        // in place on the state, so re-reading the config every frame would eat the letter being typed.
+        if ((state.SelectedId ?? 0) != grindForId)
+        {
+            grindForId = state.SelectedId ?? 0;
+            _ = config.Grinds.TryGetValue(grindForId, out MountGrindRecord? grind);
+
+            state.GrindHave = MountGrind.Have(grind);
+            state.GrindWant = MountGrind.Target(grind, costOfSelection);
+            state.GrindNote = grind?.Note ?? string.Empty;
+            state.GrindVisible = costOfSelection is not null || MountGrind.IsTracked(grind);
+        }
 
         // Three ranks of answer: a lookup the player asked for (with its world), a price the batch read
         // already carries (no world, so it says "From"), and nothing.
@@ -376,7 +394,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
         // and comparing that against an unset failed id drew "Could not read the market." for a mount
         // nobody had asked about.
         state.MarketPriceText = marketItemId != 0 && marketItemId == marketFailedItem
-            ? "Could not read the market."
+            ? Loc.T("market.unreadable")
             : marketItemId != 0 && market.TryGetFresh(marketItemId, out MarketQuote? quote)
                 ? MountMarket.Describe(quote, DataCenterName())
                 : marketItemId != 0 && market.TryGetPrice(marketItemId, out int batchPrice)
@@ -388,6 +406,17 @@ public sealed class MainWindow : GlassWindow, IDisposable
         // A wanted toggle is a config write like any other: apply it before the browse-state diff
         // so both changes go through one SaveConfigSafe call after the draw.
         var wantedChanged = ApplyWantedToggle(config);
+
+        // The tracker's edits are the same kind of write, applied in the same place so a note typed on a
+        // frame that also changed a filter is still one save.
+        var grindChanged = ApplyGrind(config);
+
+        // The header's wanted badge is the board's only door (the task asked for no new header button).
+        if (state.BoardRequested)
+        {
+            plugin.OpenBoard();
+        }
+
         // The empty state's button asks for a reset; do it on the state so the query cache sees the
         // change and ApplyBrowseState persists it in the same frame.
         if (state.ClearFiltersRequested)
@@ -420,7 +449,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
 
         var browseChanged = ApplyBrowseState(config);
 
-        if (wantedChanged || browseChanged)
+        if (wantedChanged || browseChanged || grindChanged)
         {
             Plugin.SaveConfigSafe(config);
         }
@@ -439,7 +468,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
         {
             if (!plugin.Actions.Ride(actionItem.Id))
             {
-                Gw.Toast("Could not ride that mount. See the log."u8, ToastKind.Error);
+                Gw.Toast(Loc.T("toast.rideFailed"), ToastKind.Error);
             }
         }
 
@@ -472,7 +501,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
         {
             if (!plugin.Actions.OpenMountGuide())
             {
-                Gw.Toast("Could not open the Mount Guide. See the log."u8, ToastKind.Error);
+                Gw.Toast(Loc.T("toast.guideFailed"), ToastKind.Error);
             }
         }
 
@@ -480,7 +509,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
         {
             if (!plugin.Actions.LinkWhistle(actionItemId))
             {
-                Gw.Toast("Could not link that whistle. See the log."u8, ToastKind.Error);
+                Gw.Toast(Loc.T("toast.linkFailed"), ToastKind.Error);
             }
         }
     }
@@ -498,7 +527,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
         // number the player can check against the game.
         if (!plugin.Catalog.IsBuilt)
         {
-            Gw.Toast("Could not read your mounts. See the log."u8, ToastKind.Error);
+            Gw.Toast(Loc.T("toast.mountsUnreadable"), ToastKind.Error);
         }
         else
         {
@@ -670,8 +699,76 @@ public sealed class MainWindow : GlassWindow, IDisposable
         state.ToggleWantedId = null;
         state.WantedIds = config.WantedMounts;
         wantedRevision++;
+        plugin.BoardRevision++;
         return true;
     }
+
+    /// <summary>
+    /// Applies the tracker's edits to the persisted record, and returns whether the config changed so the
+    /// caller saves once after the draw.
+    /// </summary>
+    /// <remarks>
+    /// An empty record is removed rather than saved: dragging a stepper back to zero, or clearing a note,
+    /// must leave the config exactly as it was before the mount was ever touched. The timestamp is stamped
+    /// here, once, so the board's "updated" line and the file agree.
+    /// </remarks>
+    private bool ApplyGrind(Configuration config)
+    {
+        if (!state.GrindChanged)
+        {
+            return false;
+        }
+
+        state.GrindChanged = false;
+
+        uint mountId = state.SelectedId ?? 0;
+
+        if (mountId == 0)
+        {
+            return false;
+        }
+
+        var record = new MountGrindRecord
+        {
+            Have = Math.Max(state.GrindHave, 0),
+            Want = Math.Max(state.GrindWant, 0),
+            Note = state.GrindNote?.Trim() ?? string.Empty,
+        };
+
+        if (MountGrind.Kept(record) is null)
+        {
+            if (!config.Grinds.Remove(mountId))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            config.Grinds[mountId] = MountGrind.Touch(record, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        }
+
+        plugin.BoardRevision++;
+
+        return true;
+    }
+
+    /// <summary>
+    /// The cheapest price already known for a mount, in gil, or zero. Never asks the market (N2): the wanted
+    /// board draws what the batch read has, and an unpriced mount sorts last rather than costing a request.
+    /// </summary>
+    /// <param name="mountId">The mount id.</param>
+    internal int CachedPrice(uint mountId)
+    {
+        if (!plugin.Catalog.TryGetItemId(mountId, out uint itemId))
+        {
+            return 0;
+        }
+
+        return market.TryGetPrice(itemId, out int price) ? price : 0;
+    }
+
+    /// <summary>Bumped by the market whenever a read lands, so the board can drop rows priced on old data.</summary>
+    internal int PriceVersion => market.PriceVersion;
 
 
     /// <summary>The source combo's labels: "Any" plus every category on the shelf, cached by revision.</summary>
@@ -683,7 +780,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
         }
 
         string[] types = MountQuery.SourceTypes(plugin.Catalog.Items);
-        sourceLabels = ["Any", .. types];
+        sourceLabels = [UiText.AnySource, .. types];
         sourceLabelsRevision = lastRevision;
         return sourceLabels;
     }
@@ -797,7 +894,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
         catch (Exception ex)
         {
             Plugin.Log.Error(ex, "Could not open {Url} in a browser.", url);
-            Gw.Toast("Could not open the browser. See the log."u8, ToastKind.Error);
+            Gw.Toast(Loc.T("toast.browserFailed"), ToastKind.Error);
         }
     }
 
@@ -820,7 +917,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
         catch (Exception ex)
         {
             Plugin.Log.Error(ex, "Could not copy the missing mounts to the clipboard.");
-            Gw.Toast("Could not copy the list."u8, ToastKind.Error);
+            Gw.Toast(Loc.T("toast.copyMissingFailed"), ToastKind.Error);
         }
     }
 

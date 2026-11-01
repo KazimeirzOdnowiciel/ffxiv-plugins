@@ -35,7 +35,7 @@ public sealed class ConfigPreview : IPreviewScreen
     /// <summary>The window's default size, so the golden matches what a first-time user sees.</summary>
     public Vector2 WindowSize => new(560f, 900f);
 
-    public Look Look { get; } = Look.Eorzea();
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
     public ReadOnlySpan<PreviewInput> Script => [];
 

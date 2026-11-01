@@ -57,7 +57,7 @@ public sealed class GroupedPreview : IPreviewScreen
     /// </summary>
     public Vector2 WindowSize => new(1040f, 900f);
 
-    public Look Look { get; } = Look.Eorzea();
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
     public ReadOnlySpan<PreviewInput> Script => [];
 

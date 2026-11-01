@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
@@ -70,6 +71,7 @@ public sealed class Plugin : IDalamudPlugin
 
     private readonly MainWindow mainWindow;
     private readonly ConfigWindow configWindow;
+    private readonly WantedBoardWindow boardWindow;
 
     /// <summary>Set once the draw pass has failed, so it is logged on the transition and not per frame.</summary>
     private bool loggedDrawFailure;
@@ -86,8 +88,15 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Set once closing the host frame has failed, so it is logged on the transition only.</summary>
     private bool loggedEndFrameFailure;
 
+    /// <summary>Set once the first draw's cost has been logged: the split of the one frame Dalamud
+    /// reports as a hitch, kept out of the log on every later frame.</summary>
+    private bool firstFrameCostLogged;
+
     public Plugin()
     {
+        // Before anything else builds a label: the views read their strings once, at the first draw.
+        Localisation.Apply(PluginInterface, Log);
+
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         Configuration.Migrate();
 
@@ -97,7 +106,7 @@ public sealed class Plugin : IDalamudPlugin
         // Liquid, Minimal, HighContrast, Retro, Classic, Clear Blue/Grey/Green/Pink, Aurora,
         // Catppuccin, Nord - each also exists in a Light variant.
         SeedImportedThemes();
-        Host.Look = Look.Eorzea();
+        Host.Look = MountLook.Dense(Look.Eorzea());
         Host.FollowGameTheme = Configuration.FollowGameTheme;
         Theme.Bind(Host.Look);
 
@@ -128,9 +137,11 @@ public sealed class Plugin : IDalamudPlugin
 
         mainWindow = new MainWindow(this);
         configWindow = new ConfigWindow(this);
+        boardWindow = new WantedBoardWindow(this, mainWindow);
 
         WindowSystem.AddWindow(mainWindow);
         WindowSystem.AddWindow(configWindow);
+        WindowSystem.AddWindow(boardWindow);
 
         CommandManager.AddHandler(
             CommandName,
@@ -138,12 +149,7 @@ public sealed class Plugin : IDalamudPlugin
             {
                 // Enumerate every subcommand. A bare "opens the window" leaves the user
                 // guessing at what else exists.
-                HelpMessage = "Toggles the mount collection window.\n"
-                              + $"{CommandName} config - Opens the settings window.\n"
-                              + $"{CommandName} status - Prints how many mounts you have collected.\n"
-                              + $"{CommandName} missing - Prints how many mounts you are still missing.\n"
-                              + $"{CommandName} wanted - Prints how many mounts are on your wanted list.\n"
-                              + $"{CommandName} recent - Lists the mounts you collected in the last two weeks.",
+                HelpMessage = Loc.T("command.help"),
             });
 
         PluginInterface.UiBuilder.Draw += OnDraw;
@@ -175,9 +181,30 @@ public sealed class Plugin : IDalamudPlugin
         Host.Dispose();
     }
 
+    /// <summary>
+    /// Prefixes a chat line with the plugin's name. The tag itself is the plugin's identity and is not
+    /// translated; the sentence after it is (<see cref="Loc"/>).
+    /// </summary>
+    /// <param name="text">The localised sentence.</param>
+    private static string Tag(string text) => string.Concat("[", DisplayName, "] ", text);
+
     public void ToggleConfigUi() => configWindow.Toggle();
 
     public void ToggleMainUi() => mainWindow.Toggle();
+
+    /// <summary>
+    /// Opens the wanted board. Called from the header's wanted badge, which is its only door: the badge
+    /// already counts the mounts the board lists, and the task that added the board asked for no new
+    /// header button.
+    /// </summary>
+    public void OpenBoard() => boardWindow.IsOpen = true;
+
+    /// <summary>
+    /// Bumped whenever something the wanted board draws changes outside the catalog: a mount starred or
+    /// unstarred, a tracker record written. The board rebuilds its rows when this moves, instead of
+    /// re-allocating them every frame.
+    /// </summary>
+    internal int BoardRevision { get; set; }
 
     /// <summary>The folder the host reads theme JSONs from, for the settings window.</summary>
     public string ThemesDirectory => Host.Themes.Directory;
@@ -267,7 +294,7 @@ public sealed class Plugin : IDalamudPlugin
 
         var changed = !string.Equals(Configuration.LookName, name, StringComparison.Ordinal);
         Configuration.LookName = name;
-        Host.Look = chosen;
+        Host.Look = MountLook.Dense(chosen);
         Theme.Bind(Host.Look);
         LookRevision++;
 
@@ -369,11 +396,21 @@ public sealed class Plugin : IDalamudPlugin
         // Glasswork then marks that slot failed and Mono falls back to the current ImGui font for the
         // session. Not a Mountbook lifetime bug, and not fixable here without patching Dalamud - do not
         // add a workaround around it.
+        // The first draw after a load is the expensive one: Dalamud logs it as a HITCH past 100 ms
+        // and this project has never known which phase pays it. One Information line, once per load,
+        // splits it - the glass layer opening its frame, the theme/setup, the windows' own draw, the
+        // close - so a later session works on the phase that is actually slow.
+        Stopwatch? firstFrame = firstFrameCostLogged ? null : Stopwatch.StartNew();
+        var afterBegin = 0d;
+        var afterSetup = 0d;
+        var afterWindows = 0d;
+
         try
         {
             // BeginFrame inside the guard: a fault while the glass host opened its frame used to escape
             // the framework's draw pass entirely, and EndFrame never ran.
             Host.BeginFrame();
+            afterBegin = firstFrame?.Elapsed.TotalMilliseconds ?? 0d;
 
             // The theme library is only populated once the host has run a frame, so a theme file saved
             // by name cannot be resolved from the constructor. The saved Look is applied on the first
@@ -394,7 +431,10 @@ public sealed class Plugin : IDalamudPlugin
                 Theme.Bind(Host.Look);
             }
 
+            afterSetup = firstFrame?.Elapsed.TotalMilliseconds ?? 0d;
+
             WindowSystem.Draw();
+            afterWindows = firstFrame?.Elapsed.TotalMilliseconds ?? 0d;
 
             if (loggedDrawFailure)
             {
@@ -424,6 +464,18 @@ public sealed class Plugin : IDalamudPlugin
                     loggedEndFrameFailure = true;
                     Log.Error(ex, "Host.EndFrame failed; the next frame will try again.");
                 }
+            }
+
+            if (firstFrame is not null)
+            {
+                firstFrameCostLogged = true;
+                Log.Information(
+                    "First frame cost: open {Open:0.0} ms, setup {Setup:0.0} ms, windows {Windows:0.0} ms, close {Close:0.0} ms, total {Total:0.0} ms.",
+                    afterBegin,
+                    afterSetup - afterBegin,
+                    afterWindows - afterSetup,
+                    firstFrame.Elapsed.TotalMilliseconds - afterWindows,
+                    firstFrame.Elapsed.TotalMilliseconds);
             }
         }
     }
@@ -477,8 +529,7 @@ public sealed class Plugin : IDalamudPlugin
                 break;
 
             default:
-                ChatGui.PrintError(
-                    $"[{DisplayName}] Unknown subcommand '{args.Trim()}'. Try {CommandName}, {CommandName} config, {CommandName} status, {CommandName} missing, {CommandName} wanted or {CommandName} recent.");
+                ChatGui.PrintError(Tag(Loc.F("command.unknown", args.Trim(), CommandName)));
                 break;
         }
     }
@@ -496,7 +547,7 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         var missing = Catalog.Total - Catalog.Owned;
-        ChatGui.Print($"[{DisplayName}] {missing} of {Catalog.Total} mounts still missing.");
+        ChatGui.Print(Tag(Loc.F("command.missing", missing, Catalog.Total)));
     }
 
     /// <summary>Prints the size of the wanted list, and says so plainly when it is empty.</summary>
@@ -509,9 +560,9 @@ public sealed class Plugin : IDalamudPlugin
 
         var wanted = Configuration.WantedMounts.Count;
 
-        ChatGui.Print(wanted == 0
-            ? $"[{DisplayName}] Your wanted list is empty. Click a card's marker (or the Want button) to add one."
-            : $"[{DisplayName}] {wanted} mounts on your wanted list.");
+        ChatGui.Print(Tag(wanted == 0
+            ? Loc.T("command.wanted.empty")
+            : Loc.F("command.wanted", wanted)));
     }
 
     /// <summary>
@@ -537,17 +588,16 @@ public sealed class Plugin : IDalamudPlugin
 
         if (lines.Count == 0)
         {
-            ChatGui.Print(
-                $"[{DisplayName}] Nothing collected in the last two weeks. A mount you earn is listed here for fourteen days.");
+            ChatGui.Print(Tag(Loc.T("command.recent.empty")));
 
             return;
         }
 
-        ChatGui.Print($"[{DisplayName}] {MountRecentDigest.Summary(lines.Count)}.");
+        ChatGui.Print(Tag(Loc.F("command.recent.summary", MountRecentDigest.Summary(lines.Count))));
 
         foreach (RecentCollectedLine line in lines)
         {
-            ChatGui.Print($"  {line.Name} - {line.When}");
+            ChatGui.Print(Loc.F("command.recent.line", line.Name, line.When));
         }
     }
 
@@ -561,7 +611,7 @@ public sealed class Plugin : IDalamudPlugin
 
         if (!ClientState.IsLoggedIn)
         {
-            ChatGui.Print($"[{DisplayName}] Log in first.");
+            ChatGui.Print(Tag(Loc.T("command.login")));
             return false;
         }
 
@@ -570,8 +620,7 @@ public sealed class Plugin : IDalamudPlugin
             return true;
         }
 
-        ChatGui.PrintError(
-            $"[{DisplayName}] The mount catalog is not ready yet. Open {CommandName} once the game has finished loading.");
+        ChatGui.PrintError(Tag(Loc.F("command.catalogNotReady", CommandName)));
 
         return false;
     }
@@ -580,18 +629,17 @@ public sealed class Plugin : IDalamudPlugin
     {
         if (!ClientState.IsLoggedIn)
         {
-            ChatGui.Print($"[{DisplayName}] Log in to see how many mounts you have collected.");
+            ChatGui.Print(Tag(Loc.T("command.status.login")));
             return;
         }
 
         if (!Catalog.EnsureBuilt())
         {
-            ChatGui.PrintError(
-                $"[{DisplayName}] The mount catalog is not ready yet. Open {CommandName} once the game has finished loading.");
+            ChatGui.PrintError(Tag(Loc.F("command.catalogNotReady", CommandName)));
             return;
         }
 
         var percent = MountProgress.Percent(Catalog.Owned, Catalog.Total);
-        ChatGui.Print($"[{DisplayName}] {Catalog.Owned} of {Catalog.Total} mounts collected ({percent}%).");
+        ChatGui.Print(Tag(Loc.F("command.status", Catalog.Owned, Catalog.Total, percent)));
     }
 }

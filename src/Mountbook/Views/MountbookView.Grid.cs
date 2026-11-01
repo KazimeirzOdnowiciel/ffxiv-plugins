@@ -78,14 +78,12 @@ public sealed partial class MountbookView
         try
         {
             var search = state.Search;
-            _ = Gw.TextField(ref search, hint: "Search mounts and sources"u8);
+            _ = Gw.TextField(ref search, hint: Loc.T("filter.search.hint"));
             state.Search = search;
 
             // The operators exist but nothing on screen advertises them; a tooltip is the one hint that
             // costs no layout in any of the goldens.
-            Gw.TooltipFor(
-                ImGui.IsItemHovered(),
-                "Type to search. Narrow with tradeable:y, music:y, barding:y, flying:y, seats:>=2, patch:>=6.1 or owned:<1.");
+            Gw.TooltipFor(ImGui.IsItemHovered(), Loc.F("filter.search.tooltip", SearchHint));
 
             var ownership = (int)state.Ownership;
 
@@ -98,24 +96,24 @@ public sealed partial class MountbookView
             else
             {
                 ImGui.SetNextItemWidth(-1f);
-                _ = Gw.ComboBox(ref ownership, RefreshOwnershipLabels(state), label: "show"u8);
+                _ = Gw.ComboBox(ref ownership, RefreshOwnershipLabels(state), label: Loc.T("filter.show"));
             }
 
             state.Ownership = (MountOwnership)ownership;
 
             var expansion = (int)state.Expansion;
-            _ = Gw.ComboBox(ref expansion, ExpansionLabels, label: "Expansion"u8);
+            _ = Gw.ComboBox(ref expansion, ExpansionLabels, label: Loc.T("filter.expansion"));
             state.Expansion = (MountExpansion)expansion;
 
             // The acquire-method filter: "what do I still need from PvP" without a search that also matches lore.
             var source = SourceIndex(state);
-            _ = Gw.ComboBox(ref source, state.SourceLabels, label: "Source"u8);
+            _ = Gw.ComboBox(ref source, SourceLabelsFor(state), label: Loc.T("filter.source"));
             state.SourceFilter = source <= 0 || source >= state.SourceLabels.Length
                 ? string.Empty
                 : state.SourceLabels[source];
 
             var order = (int)state.Order;
-            _ = Gw.ComboBox(ref order, OrderLabels, label: "Order"u8);
+            _ = Gw.ComboBox(ref order, OrderLabels, label: Loc.T("filter.order"));
             state.Order = (MountOrder)order;
 
             // Grouping is a card-grid feature: the table already has a column for every fact the headings
@@ -123,7 +121,7 @@ public sealed partial class MountbookView
             if (state.ViewMode == MountViewMode.Grid)
             {
                 var grouping = (int)state.GroupBy;
-                _ = Gw.ComboBox(ref grouping, GroupLabels, label: "Group by"u8);
+                _ = Gw.ComboBox(ref grouping, GroupLabels, label: Loc.T("filter.groupBy"));
                 state.GroupBy = (MountGrouping)grouping;
             }
 
@@ -161,6 +159,35 @@ public sealed partial class MountbookView
         return 0;
     }
 
+    /// <summary>The source combo's labels: the dataset's categories, translated for display.</summary>
+    private string[] sourceLabelText = [];
+
+    /// <summary>The label array <see cref="sourceLabelText"/> was built from, compared by reference.</summary>
+    private string[]? sourceLabelSource;
+
+    /// <summary>
+    /// The labels the source combo draws. The window builds <see cref="MountViewState.SourceLabels"/> from
+    /// the dataset and the view stores a category as the filter, so the array is both the identity of a
+    /// filter and what the player reads; this is the one place the two are allowed to differ.
+    /// </summary>
+    /// <param name="state">The state whose source labels to translate.</param>
+    /// <returns>The display labels, rebuilt only when the window built a new array.</returns>
+    private string[] SourceLabelsFor(MountViewState state)
+    {
+        if (!ReferenceEquals(sourceLabelSource, state.SourceLabels))
+        {
+            sourceLabelSource = state.SourceLabels;
+            sourceLabelText = new string[state.SourceLabels.Length];
+
+            for (var index = 0; index < sourceLabelText.Length; index++)
+            {
+                sourceLabelText[index] = UiText.Source(state.SourceLabels[index]);
+            }
+        }
+
+        return sourceLabelText;
+    }
+
     /// <summary>
     /// The no-results state: a heading, one line that says what to do, and a button that does it.
     /// Placed about a third of the way down the card rather than at the very top, so it reads as a
@@ -170,9 +197,11 @@ public sealed partial class MountbookView
     {
         var scale = Frame.Scale;
         var look = Frame.Look;
+        // The hint under the title wraps to two lines at the narrow sizes, so the block reserves them:
+        // reserving one put the button on top of the second line in the 620 px window.
         var blockHeight = (look.Type.LineHeight(TextRole.Title) * scale)
-            + (look.Type.LineHeight(TextRole.Footnote) * scale)
-            + look.ControlHeight
+            + (look.Type.LineHeight(TextRole.Footnote) * scale * 2f)
+            + (look.ControlHeight * scale)
             + (look.SpaceMedium * scale * 2f);
         var top = ImGui.GetCursorScreenPos().Y + MathF.Max((height - blockHeight) * 0.5f, 0f);
         var left = ImGui.GetCursorScreenPos().X;
@@ -182,17 +211,24 @@ public sealed partial class MountbookView
         var onWantedList = state.Ownership == MountOwnership.Wanted;
 
         ImGui.SetCursorScreenPos(new Vector2(left, top));
-        Gw.Heading(onWantedList ? "Nothing on your wanted list" : "No mounts match");
+        Gw.Heading(onWantedList ? Loc.T("empty.wanted.title") : Loc.T("empty.match.title"));
 
         Gw.Text(
             onWantedList
-                ? "Click the dot on a card or the Want button to add one."
-                : "Clear the search, or widen the filters.",
+                ? Loc.T("empty.wanted.hint")
+                : Loc.T("empty.match.hint"),
             TextRole.Footnote);
+
+        // An empty list is where a player learns the grammar: the same sentence the search field's
+        // tooltip carries, so "no mounts match" also says how to ask a better question.
+        if (!onWantedList)
+        {
+            Gw.TextWrapped(SearchHint, TextRole.Footnote, look.TertiaryLabel);
+        }
 
         ImGui.Dummy(new Vector2(0f, look.SpaceMedium * scale));
 
-        if (Gw.Button(onWantedList ? "Show all mounts"u8 : "Clear filters"u8, ButtonStyle.Default, ButtonSize.Small))
+        if (Gw.Button(onWantedList ? Loc.T("empty.wanted.button") : Loc.T("empty.match.button"), ButtonStyle.Default, ButtonSize.Small))
         {
             state.ClearFiltersRequested = true;
         }
@@ -218,9 +254,10 @@ public sealed partial class MountbookView
 
         // Inset the whole grid: flush against the scrollbar and the panel edge reads as packed even
         // when the gutters themselves are even.
-        // SpaceSmall is the visual margin; the extra 6 px is room for the hover and selection halos, which
-        // paint outside the card and were being clipped by the child's clip rectangle on the outer columns.
-        var inset = (Frame.Look.SpaceSmall + 6f) * scale;
+        // SpaceSmall is the visual margin; HaloRoom is the extra room for the hover and selection halos,
+        // which paint outside the card and were being clipped by the child's clip rectangle on the outer
+        // columns. Both are logical, scaled once here.
+        var inset = (Frame.Look.SpaceSmall + HaloRoom) * scale;
         // The scrollbar is drawn inside the child's content region, so the right inset is only real
         // if its width is reserved as well - otherwise the last column hugs the bar.
         var scrollbar = ImGui.GetScrollMaxY() > 0f ? ImGui.GetStyle().ScrollbarSize : 0f;
@@ -230,7 +267,13 @@ public sealed partial class MountbookView
         var gutter = perRow > 1 ? MathF.Max(minGutter, (available - (perRow * cellPx)) / (perRow - 1)) : 0f;
 
         var pitchX = cellPx + gutter;
-        var pitchY = iconPx + captionGap + (lineHeight * 2f) + rowGap;
+
+        // Every row was pitched for two caption lines. A row whose names all fit on one line therefore
+        // reserved ~16 px it never drew - 14% of a short row - so the pitch is now the row's own tallest
+        // caption. The width is the one DrawCard measures its caption at, so the two cannot disagree.
+        var captionWidth = cellPx - (Frame.Look.SpaceExtraSmall * 2f * scale);
+        var singleRowHeight = iconPx + captionGap + lineHeight + rowGap;
+        var doubleRowHeight = singleRowHeight + lineHeight;
 
         // The hover ease advances once per frame, from the card the pointer was over last frame. It used
         // to advance inside the card body, which multiplied it by (1 - easing) for every card drawn
@@ -245,29 +288,65 @@ public sealed partial class MountbookView
         var headerPitch = (Frame.Look.Type.LineHeight(TextRole.Caption) + Frame.Look.SpaceMedium) * scale;
         var y = origin.Y;
 
+        // Only the rows the viewport can show are drawn. The grid used to declare all 369 cards
+        // every frame: the scroll child clipped the paint, but each card still paid its glass
+        // capture, two texture lookups and - on the first frame, where nothing is memoised - its
+        // text measurements. That was 163 ms of the 213 ms the client logged as a UiBuilder hitch
+        // on load. The walk still advances y for every row, so the scroll range is unchanged.
+        // One row of margin either side keeps a partly visible row drawing instead of popping in.
+        var visibleMin = ImGui.GetWindowPos();
+        var visibleMax = visibleMin + ImGui.GetWindowSize();
+        var visibleTop = visibleMin.Y - doubleRowHeight;
+        var visibleBottom = visibleMax.Y + doubleRowHeight;
+
         foreach (MountGroup group in groups)
         {
             if (group.Title.Length > 0)
             {
-                ImGui.SetCursorScreenPos(new Vector2(origin.X, y));
-                Gw.Text(group.Title, TextRole.Caption, Frame.Look.SecondaryLabel);
-                ImGui.SameLine(0f, Frame.Look.SpaceSmall * scale);
-                Gw.Text(FormatInt(group.Items.Count), TextRole.Caption, Frame.Look.TertiaryLabel);
+                if (y >= visibleTop && y <= visibleBottom)
+                {
+                    // The tile inside a cell is centred in it (see DrawCard's tileAt), so a heading flush
+                    // with origin.X stood 28 px to the left of every card in its section. It shares the tile's edge.
+                    ImGui.SetCursorScreenPos(new Vector2(origin.X + ((cellPx - iconPx) * 0.5f), y));
+                    Gw.Text(UiText.GroupTitle(group.Title, state.GroupBy), TextRole.Caption, Frame.Look.SecondaryLabel);
+                    ImGui.SameLine(0f, Frame.Look.SpaceSmall * scale);
+                    Gw.Text(FormatInt(group.Items.Count), TextRole.Caption, Frame.Look.TertiaryLabel);
+                }
 
+                // The heading's pitch belongs to the scroll range whether or not it is drawn.
                 y += headerPitch;
             }
 
-            for (var index = 0; index < group.Items.Count; index++)
+            for (var start = 0; start < group.Items.Count; start += perRow)
             {
-                var cell = new Vector2(
-                    origin.X + ((index % perRow) * pitchX),
-                    y + ((index / perRow) * pitchY));
+                int rowEnd = Math.Min(start + perRow, group.Items.Count);
+                var twoLine = false;
 
-                DrawCard(state, group.Items[index], cell, cellPx, iconPx, lineHeight, captionGap);
+                for (var index = start; index < rowEnd; index++)
+                {
+                    if (CaptionFor(group.Items[index], captionWidth, scale).Second.Length > 0)
+                    {
+                        twoLine = true;
+                        break;
+                    }
+                }
+
+                // The row's own pitch is what the scroll range is built from, so the height is
+                // advanced whether or not the row is drawn.
+                var rowHeight = twoLine ? doubleRowHeight : singleRowHeight;
+
+                if (y >= visibleTop && y <= visibleBottom)
+                {
+                    for (var index = start; index < rowEnd; index++)
+                    {
+                        var cell = new Vector2(origin.X + ((index % perRow) * pitchX), y);
+
+                        DrawCard(state, group.Items[index], cell, cellPx, iconPx, lineHeight, captionGap);
+                    }
+                }
+
+                y += rowHeight;
             }
-
-            int rows = (group.Items.Count + perRow - 1) / perRow;
-            y += rows * pitchY;
         }
 
         ImGui.SetCursorScreenPos(new Vector2(origin.X, y));
@@ -335,12 +414,17 @@ public sealed partial class MountbookView
         // captions are placed from the cell, not from the tile - and nothing is drawn when not pressed, which
         // keeps the goldens byte-identical.
         var pressed = hovered && ImGui.IsMouseDown(ImGuiMouseButton.Left);
+        // The cursor is a pixel API and Gw.Image takes logical units, so the inset is converted
+        // for the position and kept logical for the size. Subtracting a pixel inset from a logical
+        // size drew the pressed tile scale-squared smaller and off-centre inside its own selection
+        // ring, which is still drawn at the full tile.
         var pressInset = pressed ? 2f * Frame.Scale : 0f;
+        var pressInsetLogical = pressed ? 2f : 0f;
 
         ImGui.SetCursorScreenPos(tileAt + new Vector2(pressInset, pressInset));
         Gw.Image(
             TextureFor(state, item.IconId),
-            new Vector2(IconSize - (pressInset * 2f), IconSize - (pressInset * 2f)),
+            new Vector2(IconSize - (pressInsetLogical * 2f), IconSize - (pressInsetLogical * 2f)),
             radius: Frame.Look.RadiusSmall);
 
         if (selected || lift > 0.01f)
@@ -400,7 +484,7 @@ public sealed partial class MountbookView
                 2f * Frame.Scale);
 
             var freshHovered = ImGui.IsMouseHoveringRect(freshMin, freshMin + new Vector2(freshSide, freshSide), true);
-            Gw.TooltipFor(freshHovered, "Collected recently");
+            Gw.TooltipFor(freshHovered, Loc.T("card.recent"));
         }
 
         if (wanted)
@@ -437,7 +521,7 @@ public sealed partial class MountbookView
 
         var wantedToggled = markerHovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left);
 
-        Gw.TooltipFor(markerHovered, wanted ? "Remove from the wanted list" : "Add to the wanted list");
+        Gw.TooltipFor(markerHovered, wanted ? Loc.T("card.want.remove") : Loc.T("card.want.add"));
 
         if (wantedToggled)
         {
@@ -470,8 +554,14 @@ public sealed partial class MountbookView
             Gw.TooltipFor(
                 true,
                 item.Owned
-                    ? string.Concat(item.Name, "\n", "Double-click to ride")
-                    : string.Concat(item.Name, "\n", "Not collected"));
+                    ? Loc.F(
+                        "card.tooltip.owned",
+                        item.Name,
+                        Loc.T("card.ride"))
+                    : Loc.F(
+                        "card.tooltip.unowned",
+                        item.Name,
+                        Loc.T("card.uncollected")));
         }
 
         if (!markerHovered && hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
@@ -494,7 +584,10 @@ public sealed partial class MountbookView
     /// </summary>
     private static Caption CaptionFor(MountShelfItem item, float width, float scale)
     {
-        var key = (item.Id, (int)width);
+        // The width is pixels, so the scale belongs in the key: the same logical cell can produce the
+        // integer width a different scale did, and the stored widths are what the caption is centred
+        // and clipped against.
+        var key = (item.Id, (int)MathF.Round(scale * 1000f), (int)width);
         if (Captions.TryGetValue(key, out Caption cached))
         {
             return cached;
@@ -553,13 +646,10 @@ public sealed partial class MountbookView
     /// <summary>
     /// The width the caption really takes. Measured with the renderer's own text paint, not with
     /// ImGui.CalcTextSize: Gw.Text draws in Glasswork's font at the Look's type scale, so ImGui's
-    /// measurement came out narrow and names were cut just before the ellipsis.
+    /// measurement came out narrow and names were cut just before the ellipsis. Memoised per text, because a
+    /// fit asks it about every candidate truncation.
     /// </summary>
-    private static float CaptionWidth(string text, float scale)
-    {
-        var look = Frame.Look;
-        return TextPaint.Measure(text, TextRole.Callout, in look, scale).X;
-    }
+    private static float CaptionWidth(string text, float scale) => TextWidth(text, TextRole.Callout, scale);
 
     private static void DrawCaptionLine(string text, float width, float cellX, float cellWidth, float y, Color ink)
     {

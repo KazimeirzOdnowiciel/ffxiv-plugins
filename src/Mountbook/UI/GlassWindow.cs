@@ -37,11 +37,14 @@ public abstract class GlassWindow : Window
 
     public override void PreDraw()
     {
+        // Every radius here is pixels, like the pane's, so each one is scaled: leaving the frame and
+        // popup roundings at 3 and 4 px made a stock ImGui combo round visibly tighter than the
+        // Glasswork control beside it at any UI scale above 100%.
         ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, Radius * plugin.Host.Scale);
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3f);
-        ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, 3f);
-        ImGui.PushStyleVar(ImGuiStyleVar.PopupRounding, 4f);
-        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 6f);
+        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 3f * plugin.Host.Scale);
+        ImGui.PushStyleVar(ImGuiStyleVar.GrabRounding, 3f * plugin.Host.Scale);
+        ImGui.PushStyleVar(ImGuiStyleVar.PopupRounding, 4f * plugin.Host.Scale);
+        ImGui.PushStyleVar(ImGuiStyleVar.ScrollbarRounding, 6f * plugin.Host.Scale);
         ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, 0f);
 
         ImGui.PushStyleColor(ImGuiCol.Text, Theme.Text);

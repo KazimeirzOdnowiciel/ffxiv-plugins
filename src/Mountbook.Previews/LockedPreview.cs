@@ -55,7 +55,7 @@ public sealed class LockedPreview : IPreviewScreen
     /// <summary>Also the golden's file name: <c>goldens/locked.png</c>.</summary>
     public string Name => "locked";
 
-    public Look Look { get; } = Look.Eorzea();
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
     public ReadOnlySpan<PreviewInput> Script => [];
 

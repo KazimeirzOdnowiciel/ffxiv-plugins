@@ -76,7 +76,7 @@ public sealed class SourceRowsPreview : IPreviewScreen
     /// <summary>Tall on purpose: the whole detail pane, source rows included, has to be above the fold.</summary>
     public Vector2 WindowSize => new(940f, 1000f);
 
-    public Look Look { get; } = Look.Eorzea();
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
     public ReadOnlySpan<PreviewInput> Script => [];
 

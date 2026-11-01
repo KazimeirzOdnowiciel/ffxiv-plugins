@@ -21,10 +21,16 @@ public sealed class EmptyStatePreview : IPreviewScreen
 
     private readonly MountViewState state;
 
-    public EmptyStatePreview()
+    public EmptyStatePreview() => state = CreateState(MountOwnership.Wanted, string.Empty);
+
+    /// <summary>
+    /// The filtered-empty state: an empty list with the whole sample still counted behind it, because a
+    /// real window showing an empty Wanted list still reads "10 of 12".
+    /// </summary>
+    /// <param name="ownership">Which filter produced the empty list - it picks the branch's wording.</param>
+    /// <param name="search">The search text, so the no-match branch can show a query that matches nothing.</param>
+    internal static MountViewState CreateState(MountOwnership ownership, string search)
     {
-        // The list is empty but the collection is not: this is the filtered-empty state, so the statistics
-        // describe the whole sample (a real window showing an empty Wanted list still reads "10 of 12").
         IReadOnlyList<MountShelfItem> all = MountbookPreview.SampleMounts();
         var owned = 0;
 
@@ -36,7 +42,7 @@ public sealed class EmptyStatePreview : IPreviewScreen
             }
         }
 
-        state = new MountViewState
+        return new MountViewState
         {
             Items = [],
             Expansions = MountBreakdown.ByExpansion(all),
@@ -44,22 +50,56 @@ public sealed class EmptyStatePreview : IPreviewScreen
                 .OwnershipCounts(all, null),
             Owned = owned,
             Total = all.Count,
-            // The wanted filter is the dead end a player actually reaches ("I clicked Wanted and it's empty"),
-            // so the empty golden covers that wording; the other branch differs only in its two strings.
             SourceLabels = ["Any", "Achievement", "Event", "PvP", "Quest", "Trial"],
-            Ownership = MountOwnership.Wanted,
+            Ownership = ownership,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,
+            Search = search,
         };
     }
 
     /// <summary>Also the golden's file name: <c>goldens/empty.png</c>.</summary>
     public string Name => "empty";
 
-    /// <summary>Short: the empty state does not need the full window height.</summary>
-    public Vector2 WindowSize => new(1040f, 560f);
+    /// <summary>
+    /// Tall enough to contain the block it is testing. At 560 the filter column left the list about
+    /// forty pixels, so only the heading was in the image and the hint and its button were clipped - the
+    /// golden proved less than it claimed.
+    /// </summary>
+    public Vector2 WindowSize => new(1040f, 760f);
 
-    public Look Look { get; } = Look.Eorzea();
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+
+    public ReadOnlySpan<PreviewInput> Script => [];
+
+    public void Draw() => view.Draw(state);
+}
+
+/// <summary>
+/// The other empty state: a search that matches nothing.
+/// </summary>
+/// <remarks>
+/// Split from <c>empty</c> rather than swapping that scene over, because the two branches differ in
+/// three strings - the title, the hint and the operator list the hint carries - and that list is the
+/// only place the search grammar is advertised where a player is already stuck.
+/// </remarks>
+public sealed class NoMatchPreview : IPreviewScreen
+{
+    private readonly MountbookView view = new();
+
+    private readonly MountViewState state = EmptyStatePreview.CreateState(MountOwnership.All, "zzz");
+
+    /// <summary>Also the golden's file name: <c>goldens/nomatch.png</c>.</summary>
+    public string Name => "nomatch";
+
+    /// <summary>
+    /// Tall enough to contain the block it is testing. At 560 the filter column left the list about
+    /// forty pixels, so only the heading was in the image and the hint and its button were clipped - the
+    /// golden proved less than it claimed.
+    /// </summary>
+    public Vector2 WindowSize => new(1040f, 760f);
+
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
     public ReadOnlySpan<PreviewInput> Script => [];
 
@@ -131,7 +171,7 @@ public sealed class WantedPreview : IPreviewScreen
 
     public Vector2 WindowSize => new(1040f, 660f);
 
-    public Look Look { get; } = Look.Eorzea();
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
     public ReadOnlySpan<PreviewInput> Script => [];
 
@@ -188,7 +228,61 @@ public sealed class NarrowPreview : IPreviewScreen
 
     public Vector2 WindowSize => new(620f, 620f);
 
-    public Look Look { get; } = Look.Eorzea();
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+
+    public ReadOnlySpan<PreviewInput> Script => [];
+
+    public void Draw() => view.Draw(state);
+}
+
+/// <summary>
+/// The market path at the flagship size. <c>narrow</c> is the only other scene with a price, and at 620 px the
+/// pane is too narrow for the price button and the wiki link to share a line - so without this scene the
+/// one-row layout would never appear in a golden and a clipping bug there would ship unseen.
+/// </summary>
+public sealed class PricePreview : IPreviewScreen
+{
+    private readonly MountbookView view = new();
+    private readonly MountViewState state;
+
+    public PricePreview()
+    {
+        IReadOnlyList<MountShelfItem> items = MountbookPreview.SampleMounts();
+        var owned = 0;
+
+        for (var index = 0; index < items.Count; index++)
+        {
+            if (items[index].Owned)
+            {
+                owned++;
+            }
+        }
+
+        state = new MountViewState
+        {
+            Items = items,
+            Expansions = MountBreakdown.ByExpansion(items),
+            OwnershipCounts = new MountQuery(string.Empty, MountOwnership.All, MountExpansion.All, MountOrder.Name).OwnershipCounts(items, null),
+            Owned = owned,
+            Total = items.Count,
+            // A price and a listing count, frozen: the preview has no network, and a golden must not depend on
+            // one. Genie of the Lamp is the sample the fixtures record as tradeable.
+            SelectedId = 412u,
+            MarketCanCheck = true,
+            MarketPriceText = "2,999,999 gil | 12 listings | Shiva (Light)",
+            ItemName = "Genie of the Lamp",
+            Ownership = MountOwnership.All,
+            Expansion = MountExpansion.All,
+            Order = MountOrder.Name,
+        };
+    }
+
+    /// <summary>Also the golden's file name: <c>goldens/price.png</c>.</summary>
+    public string Name => "price";
+
+    public Vector2 WindowSize => new(1040f, 660f);
+
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
     public ReadOnlySpan<PreviewInput> Script => [];
 
@@ -256,7 +350,7 @@ public sealed class TablePreview : IPreviewScreen
 
     public Vector2 WindowSize => new(1040f, 660f);
 
-    public Look Look { get; } = Look.Eorzea();
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
     public ReadOnlySpan<PreviewInput> Script => [];
 

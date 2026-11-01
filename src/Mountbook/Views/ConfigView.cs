@@ -2,6 +2,7 @@ using System;
 using Dalamud.Bindings.ImGui;
 using Glasswork;
 using Glasswork.Backend;
+using Mountbook.Services;
 
 namespace Mountbook.Views;
 
@@ -55,11 +56,18 @@ public sealed class ConfigView
         return string.Concat(text.AsSpan(0, length).TrimEnd(), Ellipsis);
     }
 
+    /// <summary>How wide a footnote line draws, for <see cref="PathLabel"/>.</summary>
+    private static float MeasurePath(string text)
+    {
+        var look = Frame.Look;
+        return TextPaint.Measure(text, TextRole.Footnote, in look, Frame.Scale).X;
+    }
+
     private static void DrawCollection(ConfigViewState state)
     {
-        if (Gw.BeginSection("Collection"u8, "Names, icons, flavour text and obtain data come from the game's sheets."u8))
+        if (Gw.BeginSection(Loc.T("config.collection.title"), Loc.T("config.collection.subtitle")))
         {
-            Gw.BeginRow("Progress"u8);
+            Gw.BeginRow(Loc.T("config.progress"));
             Gw.Text(state.ProgressText, TextRole.Body);
             Gw.ProgressBar(Math.Clamp(state.ProgressFraction, 0f, 1f), 0f, Frame.Look.Accent);
             Gw.EndRow();
@@ -70,13 +78,13 @@ public sealed class ConfigView
 
     private static void DrawAppearance(ConfigViewState state)
     {
-        if (!Gw.BeginSection("Appearance"u8))
+        if (!Gw.BeginSection(Loc.T("config.appearance")))
         {
             Gw.EndSection();
             return;
         }
 
-        Gw.BeginRow("Theme"u8, "A Glasswork Look, or a theme JSON"u8);
+        Gw.BeginRow(Loc.T("config.theme"), Loc.T("config.theme.subtitle"));
 
         var index = state.ThemeIndex;
 
@@ -84,19 +92,19 @@ public sealed class ConfigView
         {
             ImGui.SetNextItemWidth(210f * Frame.Scale);
 
-            if (Gw.ComboBox(ref index, state.ThemeLabels, "theme"u8))
+            if (Gw.ComboBox(ref index, state.ThemeLabels, Loc.T("config.theme.label")))
             {
                 state.ThemePickedIndex = index;
             }
         }
         else
         {
-            Gw.Text("No themes found."u8, TextRole.Footnote);
+            Gw.Text(Loc.T("config.theme.none"), TextRole.Footnote);
         }
 
         Gw.EndRow();
 
-        Gw.BeginRow("Follow game theme"u8, "Match the game's own window theme instead"u8);
+        Gw.BeginRow(Loc.T("config.follow"), Loc.T("config.follow.subtitle"));
         var follow = state.FollowGameTheme;
 
         if (Gw.Toggle(ref follow, "##followgametheme"u8))
@@ -108,18 +116,18 @@ public sealed class ConfigView
 
         // Copying the JSON is what a user does right before editing a theme, and opening the folder is
         // where they edit it, so both live on the row that names the folder.
-        Gw.BeginRow("Themes folder"u8, "Drop a JSON here to add it"u8);
+        Gw.BeginRow(Loc.T("config.folder"), Loc.T("config.folder.subtitle"));
 
         var spacing = Frame.Look.SpaceSmall * Frame.Scale;
 
-        if (Gw.Button("Copy JSON"u8, ButtonStyle.Plain, ButtonSize.Small))
+        if (Gw.Button(Loc.T("config.copyJson"), ButtonStyle.Plain, ButtonSize.Small))
         {
             state.CopyThemeRequested = true;
         }
 
         ImGui.SameLine(0f, spacing);
 
-        if (Gw.Button("Open themes folder"u8, ButtonStyle.Plain, ButtonSize.Small))
+        if (Gw.Button(Loc.T("config.openFolder"), ButtonStyle.Plain, ButtonSize.Small))
         {
             state.OpenThemesFolderRequested = true;
         }
@@ -129,18 +137,22 @@ public sealed class ConfigView
         // A single measured line, not Gw.TextWrapped: that helper ignores a pushed wrap position, so the
         // path overflowed the pane and forced a horizontal scroll (the config golden showed it clipped
         // and the trailing glyph as "?"). Fit instead: the path is information, not a paragraph.
-        Gw.Text(Fit(state.ThemesDirectory, ImGui.GetContentRegionAvail().X, TextRole.Footnote), TextRole.Footnote);
+        // Head-ellipsised rather than tail-truncated: the tail is the part that names the folder
+        // ("...\Mountbook\themes"), and the full path is one hover away.
+        var pathWidth = MathF.Max(ImGui.GetContentRegionAvail().X, 1f);
+        Gw.Text(PathLabel.Shorten(state.ThemesDirectory, pathWidth, MeasurePath), TextRole.Footnote);
+        Gw.TooltipFor(ImGui.IsItemHovered(), state.ThemesDirectory);
 
         Gw.EndSection();
     }
 
     private static void DrawBrowse(ConfigViewState state)
     {
-        if (Gw.BeginSection("Browse"u8, "Search, filters, selection and the wanted list are saved automatically."u8))
+        if (Gw.BeginSection(Loc.T("config.browse"), Loc.T("config.browse.subtitle")))
         {
-            Gw.BeginRow("Saved state"u8, "Clears the search and filters, and forgets the selected mount."u8);
+            Gw.BeginRow(Loc.T("config.savedState"), Loc.T("config.savedState.subtitle"));
 
-            if (Gw.Button("Reset"u8, ButtonStyle.Default))
+            if (Gw.Button(Loc.T("config.reset"), ButtonStyle.Default))
             {
                 state.ResetBrowseRequested = true;
             }
@@ -151,18 +163,18 @@ public sealed class ConfigView
             // hunting list, a friend's "what should I farm"). Copy and import sit together so the round
             // trip is discoverable from either half; the count is not repeated here because the toast
             // after a copy already says how many went to the clipboard.
-            Gw.BeginRow("Wanted list"u8, "Share or import as JSON"u8);
+            Gw.BeginRow(Loc.T("config.wanted"), Loc.T("config.wanted.subtitle"));
 
             var spacing = Frame.Look.SpaceSmall * Frame.Scale;
 
-            if (Gw.Button("Copy wanted"u8, ButtonStyle.Plain, ButtonSize.Small))
+            if (Gw.Button(Loc.T("config.copyWanted"), ButtonStyle.Plain, ButtonSize.Small))
             {
                 state.CopyWantedRequested = true;
             }
 
             ImGui.SameLine(0f, spacing);
 
-            if (Gw.Button("Import from clipboard"u8, ButtonStyle.Plain, ButtonSize.Small))
+            if (Gw.Button(Loc.T("config.importWanted"), ButtonStyle.Plain, ButtonSize.Small))
             {
                 state.ImportWantedRequested = true;
             }
@@ -175,13 +187,13 @@ public sealed class ConfigView
 
     private static void DrawAbout(ConfigViewState state)
     {
-        if (Gw.BeginSection("About"u8))
+        if (Gw.BeginSection(Loc.T("config.about")))
         {
-            Gw.BeginRow("Version"u8);
+            Gw.BeginRow(Loc.T("config.version"));
             Gw.Text(state.VersionText, TextRole.Body);
             Gw.EndRow();
 
-            Gw.BeginRow("Catalog"u8);
+            Gw.BeginRow(Loc.T("config.catalog"));
             Gw.Text(state.CatalogText, TextRole.Body);
             Gw.EndRow();
 
@@ -189,14 +201,14 @@ public sealed class ConfigView
             // horizontal scrollbar (the config golden showed it clipped mid-word).
             Gw.Text(
                 Fit(
-                    "Obtain data ships with the plugin; nothing is downloaded.",
+                    Loc.T("config.obtain.note"),
                     ImGui.GetContentRegionAvail().X,
                     TextRole.Footnote),
                 TextRole.Footnote);
 
             // A bug report needs version, collection size and theme; one button puts all three on the
             // clipboard instead of asking the player to hunt through logs.
-            if (Gw.Button("Copy diagnostics"u8, ButtonStyle.Plain, ButtonSize.Small))
+            if (Gw.Button(Loc.T("config.diagnostics"), ButtonStyle.Plain, ButtonSize.Small))
             {
                 state.CopyDiagnosticsRequested = true;
             }

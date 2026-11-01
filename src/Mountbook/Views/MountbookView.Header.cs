@@ -30,12 +30,12 @@ public sealed partial class MountbookView
         {
             // Themes is not here: it opened the same folder as Settings > Appearance > Open themes
             // folder, and a second door to one folder is 70 px of chrome for nothing.
-            Span<string> labels = ["Settings", "Refresh", "Copy missing"];
+            Span<string> labels = [Loc.T("header.settings"), Loc.T("header.refresh"), Loc.T("header.copyMissing")];
             Span<string> hints =
             [
-                "Open the settings window",
-                "Re-read your collection from the game",
-                "Copy every uncollected mount in this list to the clipboard",
+                Loc.T("header.settings.hint"),
+                Loc.T("header.refresh.hint"),
+                Loc.T("header.copyMissing.hint"),
             ];
             var gap = look.SpaceSmall * scale;
             var x = left;
@@ -86,19 +86,17 @@ public sealed partial class MountbookView
             return actionWidths;
         }
 
-        Span<string> labels = ["Settings", "Refresh", "Copy missing"];
+        Span<string> labels = [Loc.T("header.settings"), Loc.T("header.refresh"), Loc.T("header.copyMissing")];
         actionWidths = new float[3];
         actionWidthsScale = scale;
 
         for (var index = 0; index < labels.Length; index++)
         {
-            // What Gw.Button(ButtonSize.Small) reserves: the footnote role at semibold, one medium space
-            // each side, and never narrower than the small control height. This used to measure the callout
-            // role, which is larger, so every button was followed by a few pixels more than the gap.
-            actionWidths[index] = MathF.Max(
-                TextPaint.Measure(labels[index], ActionLabelStyle, in look, scale).X
-                    + (look.SpaceMedium * scale * 2f),
-                look.ControlHeightSmall * scale);
+            // The same formula as the rest of the header (and the detail pane): a small button reserves its
+            // label at footnote/semibold, one medium space each side, never narrower than the control height.
+            // It used to measure the callout role here, which is larger, so every button was followed by a
+            // few pixels more than the gap it drew with.
+            actionWidths[index] = SmallButtonWidth(labels[index], look, scale);
         }
 
         return actionWidths;
@@ -142,7 +140,7 @@ public sealed partial class MountbookView
         var ringPx = RingSize * scale;
         var gap = look.SpaceMedium * scale;
 
-        Gw.Heading("Mountbook"u8);
+        Gw.Heading(Loc.T("window.main"));
 
         var at = ImGui.GetCursorScreenPos();
         var contentRight = at.X + ImGui.GetContentRegionAvail().X;
@@ -170,7 +168,7 @@ public sealed partial class MountbookView
 
         Gw.TooltipFor(
             ImGui.IsItemHovered(),
-            string.Concat(countText, " - ", percentText, " of the game's mounts"));
+            Loc.F("header.collected.tooltip", countText, percentText));
 
         // ...and the two statistics lines sit beside it.
         ImGui.SetCursorScreenPos(new Vector2(textLeft, at.Y));
@@ -179,30 +177,39 @@ public sealed partial class MountbookView
         ImGui.SetCursorScreenPos(new Vector2(textLeft, at.Y + firstLine + stackGap));
         Gw.Text(remainingText, TextRole.Footnote);
 
-        // The per-expansion strip only draws on that second line if it fits before the actions'
-        // clearance; otherwise it is dropped whole rather than truncated.
+        // The per-expansion strip draws on that second line while it clears the actions, and on a line of
+        // its own under the counters when it does not. Dropping it in that band made a shipped feature look
+        // removed at both narrow window sizes - indistinguishable from having never had one.
         var stripLeft = textLeft + remainingWidth + (look.SpaceLarge * scale);
         var actionsClaim = ActionsWidth(look, scale);
         var actionsLeft = contentRight - actionsClaim;
-        var stripRight = stripLeft + StripWidth(state, look, scale);
+        var stripWidth = StripWidth(state, look, scale);
+        var stripInline = stripWidth > 0f && stripLeft + stripWidth < actionsLeft - (look.SpaceSmall * scale);
 
-        if (actionsClaim > 0f && stripRight < actionsLeft - (look.SpaceSmall * scale))
+        if (stripInline)
         {
             DrawExpansionStrip(state, stripLeft, at.Y + firstLine + stackGap);
         }
 
         var badgeText = RefreshWantedCount(state.WantedIds.Count);
 
+        // The badge sits below the two statistics lines, so it is part of the block height. Without
+        // it the badge overlapped the filter footnote (the wanted golden showed the collision).
+        var badgeHeight = badgeText.Length > 0
+            ? secondLine + stackGap
+            : 0f;
+
         if (badgeText.Length > 0)
         {
             ImGui.SetCursorScreenPos(new Vector2(textLeft, at.Y + firstLine + secondLine + (stackGap * 2f)));
             Gw.Badge(badgeText, look.Accent);
 
-            // The badge is a shortcut into the list it counts: hovering it promises a click, and a
-            // click switches the ownership filter to Wanted.
+            // The badge is a shortcut into the list it counts: hovering it promises a click, and a click
+            // shows the wanted mounts and opens the board that tracks them. The board is what a token
+            // grind needs - the shelf answers "which", the board answers "how far".
             var badgeHovered = ImGui.IsItemHovered();
 
-            Gw.TooltipFor(badgeHovered, "Click to show only your wanted mounts");
+            Gw.TooltipFor(badgeHovered, Loc.T("header.wanted.hint"));
 
             if (badgeHovered)
             {
@@ -211,8 +218,18 @@ public sealed partial class MountbookView
                 if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                 {
                     state.Ownership = MountOwnership.Wanted;
+                    state.BoardRequested = true;
                 }
             }
+        }
+
+        // The strip's own line, under everything the counters block already draws. It costs the header one
+        // footnote line and a gap, which is why the sizes that fit it inline are left exactly as they were.
+        var stripBelow = stripWidth > 0f && !stripInline;
+
+        if (stripBelow)
+        {
+            DrawExpansionStrip(state, textLeft, at.Y + firstLine + secondLine + (stackGap * 2f) + badgeHeight);
         }
 
         // The actions need to clear both lines: a button is taller than a text line, so sharing a
@@ -227,12 +244,8 @@ public sealed partial class MountbookView
             }
         }
 
-        // The badge sits below the two statistics lines, so it is part of the block height. Without
-        // it the badge overlapped the filter footnote (the wanted golden showed the collision).
-        var badgeHeight = badgeText.Length > 0
-            ? (look.Type.LineHeight(TextRole.Footnote) * scale) + stackGap
-            : 0f;
-        var blockHeight = MathF.Max(ringPx, firstLine + secondLine + stackGap + badgeHeight);
+        var stripHeight = stripBelow ? secondLine + stackGap : 0f;
+        var blockHeight = MathF.Max(ringPx, firstLine + secondLine + stackGap + badgeHeight + stripHeight);
 
         ImGui.SetCursorScreenPos(new Vector2(at.X, at.Y + blockHeight + (look.SpaceSmall * scale)));
 
@@ -269,20 +282,41 @@ public sealed partial class MountbookView
                 ImGui.SetCursorScreenPos(new Vector2(left, top));
             }
 
-            Gw.Text(ExpansionLabel(state, index), TextRole.Footnote);
+            // The strip is the filter for the expansion it counts, not decoration: the label of the
+            // active one takes the accent, a hover promises a click, and the click toggles it (clicking
+            // the active one goes back to every expansion). It is drawn as text either way, so no
+            // golden moves where the filter is All.
+            var filter = MountBreakdown.FilterOf(state.Expansions[index]);
+            var active = state.Expansion == filter;
 
-            if (ImGui.IsItemHovered())
+            Gw.Text(ExpansionLabel(state, index), TextRole.Footnote, active ? look.Accent : null);
+
+            // A hand-rolled hit test, because Gw.Text reserves its box with a Dummy that carries no ImGui
+            // id: IsItemHovered() never reports it, which is why the tooltip this replaces never appeared.
+            // Same rule as every other hand-rolled test here - the window must own the pointer as well as
+            // the rect, or a dropdown or the settings window over the strip would click it.
+            var overLabel = ImGui.IsWindowHovered()
+                && ImGui.IsMouseHoveringRect(ImGui.GetItemRectMin(), ImGui.GetItemRectMax());
+
+
+            if (overLabel)
             {
                 ExpansionProgress expansion = state.Expansions[index];
                 Gw.TooltipFor(
                     true,
-                    string.Concat(
-                        expansion.Name,
-                        ": ",
+                    Loc.F(
+                        "header.expansion.tooltip",
+                        UiText.Expansion(expansion.Name),
                         expansion.Owned.ToString(CultureInfo.InvariantCulture),
-                        " of ",
                         expansion.Total.ToString(CultureInfo.InvariantCulture),
-                        " collected"));
+                        active ? Loc.T("header.expansion.widen") : Loc.T("header.expansion.narrow")));
+
+                ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+
+                if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
+                {
+                    state.Expansion = active ? MountExpansion.All : filter;
+                }
             }
         }
     }
@@ -364,11 +398,10 @@ public sealed partial class MountbookView
         for (var index = 0; index < expansionLabels.Length; index++)
         {
             ExpansionProgress expansion = state.Expansions[index];
-            expansionLabels[index] = string.Concat(
-                expansion.ShortName,
-                " ",
-                expansion.Percent.ToString(CultureInfo.InvariantCulture),
-                "%");
+            expansionLabels[index] = Loc.F(
+                "header.expansion.label",
+                UiText.ExpansionShort(expansion.ShortName),
+                expansion.Percent.ToString(CultureInfo.InvariantCulture));
             var look = Frame.Look;
             expansionWidths[index] = TextPaint.Measure(expansionLabels[index], TextRole.Footnote, in look, Frame.Scale).X;
             expansionCounts[index, 0] = expansion.Owned;
@@ -385,12 +418,8 @@ public sealed partial class MountbookView
 
         countedOwned = state.Owned;
         countedTotal = state.Total;
-        countText = string.Concat(
-            FormatInt(state.Owned),
-            " of ",
-            FormatInt(state.Total),
-            " collected");
-        percentText = string.Concat(FormatInt(MountProgress.Percent(state.Owned, state.Total)), "%");
+        countText = Loc.F("header.collected", FormatInt(state.Owned), FormatInt(state.Total));
+        percentText = Loc.F("header.percent", FormatInt(MountProgress.Percent(state.Owned, state.Total)));
 
         var look = Frame.Look;
         var scale = Frame.Scale;
@@ -398,11 +427,9 @@ public sealed partial class MountbookView
         percentWidthCache = TextPaint.Measure(percentText, TextRole.Footnote, in look, scale).X;
         remainingText = state.Total switch
         {
-            0 => "no mounts loaded",
-            _ when state.Total > state.Owned => string.Concat(
-                FormatInt(state.Total - state.Owned),
-                " still missing"),
-            _ => "every mount collected",
+            0 => Loc.T("header.remaining.none"),
+            _ when state.Total > state.Owned => Loc.F("header.remaining.some", FormatInt(state.Total - state.Owned)),
+            _ => Loc.T("header.remaining.all"),
         };
 
         remainingWidthCache = TextPaint.Measure(remainingText, TextRole.Footnote, in look, scale).X;
@@ -416,7 +443,7 @@ public sealed partial class MountbookView
         }
 
         countedWanted = wanted;
-        wantedText = wanted <= 0 ? string.Empty : string.Concat(FormatInt(wanted), " wanted");
+        wantedText = wanted <= 0 ? string.Empty : Loc.F("header.wanted", FormatInt(wanted));
         return wantedText;
     }
 
@@ -450,9 +477,9 @@ public sealed partial class MountbookView
         for (var index = 0; index < OwnershipNames.Length; index++)
         {
             ownershipCounts[index] = state.OwnershipCounts[index];
-            ownershipLabels[index] = string.Concat(
+            ownershipLabels[index] = Loc.F(
+                "chip.count",
                 OwnershipNames[index],
-                " ",
                 ownershipCounts[index].ToString(CultureInfo.InvariantCulture));
         }
 

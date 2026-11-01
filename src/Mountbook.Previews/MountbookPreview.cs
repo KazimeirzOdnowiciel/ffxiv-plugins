@@ -33,6 +33,15 @@ public sealed class MountbookPreview : IPreviewScreen
 
     public MountbookPreview()
     {
+        state = CreateState();
+    }
+
+    /// <summary>
+    /// The browse state both this scene and <see cref="WidePreview"/> draw: the same twelve
+    /// mounts, the same selection and the same labels, so the two images cannot drift apart.
+    /// </summary>
+    internal static MountViewState CreateState()
+    {
         var items = SampleMounts();
         var owned = 0;
 
@@ -44,7 +53,7 @@ public sealed class MountbookPreview : IPreviewScreen
             }
         }
 
-        state = new MountViewState
+        return new MountViewState
         {
             Items = items,
             Expansions = MountBreakdown.ByExpansion(items),
@@ -67,7 +76,7 @@ public sealed class MountbookPreview : IPreviewScreen
     public Vector2 WindowSize => new(1040f, 660f);
 
     /// <summary>The Look the plugin sets on its host, so the golden shows what users see.</summary>
-    public Look Look { get; } = Look.Eorzea();
+    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
     public ReadOnlySpan<PreviewInput> Script => [];
 

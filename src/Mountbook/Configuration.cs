@@ -70,6 +70,23 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public string LookName { get; set; } = "eorzea";
 
+    /// <summary>
+    /// What the player has banked toward each mount, keyed by mount id: the tokens counted, the target
+    /// and their own note. Absent means never touched, which is why the pane draws no tracker for a
+    /// mount that is not in here (and why the dictionary may stay empty).
+    /// </summary>
+    /// <remarks>
+    /// A record is only written when it holds something: dragging a stepper back to zero removes its
+    /// entry rather than leaving an empty one behind, so the file cannot fill with noise.
+    /// </remarks>
+    public Dictionary<uint, MountGrindRecord> Grinds { get; set; } = [];
+
+    /// <summary>How the wanted board orders its rows.</summary>
+    public MountBoardSort BoardSort { get; set; }
+
+    /// <summary>Persisted so the wanted board comes back open, like the main window.</summary>
+    public bool BoardWindowOpen { get; set; }
+
     /// <summary>When on, the host restyles to the player's own game window theme.</summary>
     public bool FollowGameTheme { get; set; }
 
@@ -95,6 +112,10 @@ public sealed class Configuration : IPluginConfiguration
         SavedSource ??= string.Empty;
         RecentCollected ??= new Dictionary<uint, long>();
 
+        // A file written before the grind tracker existed has no member for it at all, and Dalamud's
+        // deserialiser leaves a missing collection null rather than running the initialiser.
+        Grinds ??= new Dictionary<uint, MountGrindRecord>();
+
         if (string.IsNullOrWhiteSpace(LookName))
         {
             LookName = "eorzea";
@@ -114,6 +135,11 @@ public sealed class Configuration : IPluginConfiguration
 
         ViewMode = MountViewModeRules.Normalize(ViewMode);
         GroupBy = MountGroupingRules.Normalize(GroupBy);
+
+        if (!Enum.IsDefined(BoardSort))
+        {
+            BoardSort = MountBoardSort.Patch;
+        }
 
         if (Version >= CurrentVersion)
         {

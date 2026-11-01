@@ -24,10 +24,10 @@ public sealed partial class MountbookView
         var top = ImGui.GetCursorScreenPos().Y + MathF.Max((height - blockHeight) * 0.45f, 0f);
 
         ImGui.SetCursorScreenPos(new Vector2(left, top));
-        Gw.Heading("No mount selected"u8);
+        Gw.Heading(Loc.T("detail.none.title"));
 
         ImGui.SetCursorScreenPos(new Vector2(left, top + (look.Type.LineHeight(TextRole.Title) * scale) + (look.SpaceMedium * scale)));
-        Gw.Text("Select a card to see its details."u8, TextRole.Footnote);
+        Gw.Text(Loc.T("detail.none.hint"), TextRole.Footnote);
     }
 
     private static void DrawDetailColumn(MountViewState state, float height, float width)
@@ -67,12 +67,18 @@ public sealed partial class MountbookView
         // below the fold was the worst part of the narrow layout. Only the secondary actions scroll.
         var footerRows = stacked ? 1 : actionRows;
 
-        // A Gw.Button is taller than Look.ControlHeight, so reserving exactly ControlHeight per row left the
-        // last line (the disabled-reason text) under the clip - the locked golden showed the reason missing.
-        var rowHeight = (Frame.Look.ControlHeight + Frame.Look.SpaceSmall) * Frame.Scale;
+        // A Gw.Button is taller than Look.ControlHeight: Gw reserves its item as
+        // Max(drawn height, Look.MinHit), so at the default metrics the row is 44 px while 34 px was
+        // reserved. Pairing that 34 with a SpaceSmall fudge left the row two pixels short, which the column
+        // reported as scrollMax.Y 2 in the live window - invisible until a scrollbar appears under a footer
+        // that has nothing to scroll. The line is reserved only when there IS a reason: an owned mount with
+        // live actions draws nothing there, and paying 20-27 px of body for an empty strip pushed the first
+        // "How to obtain" row out of view (main.png showed it sliced by the footer).
+        var reasonLine = ActionReason(state, item) is null ? 0f : ImGui.GetTextLineHeight();
+        var rowHeight = MathF.Max(Frame.Look.ControlHeight, Frame.Look.MinHit) * Frame.Scale;
         var footer = (rowHeight * footerRows)
             + (style.ItemSpacing.Y * (footerRows + 1))
-            + ImGui.GetTextLineHeight();
+            + reasonLine;
         var bodyHeight = MathF.Max(ImGui.GetContentRegionAvail().Y - footer, 1f);
 
         PushScrollbarInk();
@@ -124,97 +130,330 @@ public sealed partial class MountbookView
         ImGui.EndChild();
     }
 
-    private static void DrawDetailBody(MountViewState state, MountShelfItem item)
+    /// <summary>
+    /// The two-column header: the portrait in a ~40% column with the title, the rarity line, the state badges
+    /// and the sheet facts to its right.
+    /// </summary>
+    /// <remarks>
+    /// A two-column header was tried once and reverted, and the reason is worth keeping: that attempt put the
+    /// 168px hero beside a title column that had 46px left, so the pane read as a portrait with a sliver of
+    /// text and a band of dead space beside it. The form that works is the inverse - a 96-112px portrait
+    /// beside a column that keeps at least 170px - so <see cref="LayoutMeasure.DetailHeader"/> gates it on the
+    /// pane width and this method can assume the column is there.
+    /// <para>
+    /// The sheet-only facts (patch, seats, barding, can fly) leave the badge row for one fitted footnote line:
+    /// they are the same for every mount of their kind and nobody picks a mount by them, while a badge row
+    /// costs the width the title needs. The state and community badges stay badges, because they change.
+    /// </para>
+    /// </remarks>
+    private static void DrawDetailHeaderColumns(MountViewState state, MountShelfItem item, float artWidth)
     {
-        var width = MathF.Max(ImGui.GetContentRegionAvail().X / Frame.Scale, 1f);
+        var look = Frame.Look;
+        var scale = Frame.Scale;
+        var plate = look.SpaceSmall * scale;
+        var gutter = look.SpaceLarge * scale;
+        var gap = ImGui.GetStyle().ItemSpacing.Y;
 
-        // The artwork is portrait (roughly square), so it is fitted inside the hero box at its own
-        // aspect and centred, never stretched to the pane width and never cropped to a banner slice.
-        // The leftover width stays card surface, which reads as a portrait rather than a broken image.
-        var heroBoxWidth = width;
-        var heroBoxHeight = HeroHeight;
+        var origin = ImGui.GetCursorScreenPos();
+        var paneWidth = MathF.Max(ImGui.GetContentRegionAvail().X, 1f);
+        var hero = HeroFit(state, item, artWidth, artWidth);
+        var boxPx = artWidth * scale;
+
+        // The mat sits inside the pane's left edge, so the image starts one small space in and is centred in
+        // the art box; the text column starts after the mat and one large space of gutter.
+        var artTop = new Vector2(
+            origin.X + plate + MathF.Max((boxPx - (hero.X * scale)) * 0.5f, 0f),
+            origin.Y + plate);
+
+        var artBottom = DrawHeroArt(state, item, artTop, hero);
+        var columnX = origin.X + (plate * 2f) + boxPx + gutter;
+        var columnWidth = MathF.Max((origin.X + paneWidth) - columnX, 1f);
+
+        ImGui.SetCursorScreenPos(new Vector2(columnX, artTop.Y));
+        DrawTitle(item);
+
+        var bottom = ImGui.GetItemRectMax().Y;
+        var next = bottom + gap;
+
+        ImGui.SetCursorScreenPos(new Vector2(columnX, next));
+
+        if (DrawRarityLine(state, item))
+        {
+            bottom = ImGui.GetItemRectMax().Y;
+            next = bottom + gap;
+        }
+
+        bottom = DrawColumnBadges(
+            DetailBadges(state, item, sheetFacts: false),
+            columnX,
+            next,
+            columnWidth,
+            look.SpaceSmall * scale);
+
+        var facts = SheetFactLine(item);
+
+        if (facts.Length > 0)
+        {
+            ImGui.SetCursorScreenPos(new Vector2(columnX, bottom + gap));
+            Gw.Text(FitRole(facts, columnWidth, scale, TextRole.Footnote), TextRole.Footnote);
+            bottom = ImGui.GetItemRectMax().Y;
+        }
+
+        // Whichever column is taller decides where the rest of the pane starts: the artwork when the title is
+        // short, the text when the badges wrap.
+        ImGui.SetCursorScreenPos(new Vector2(origin.X, MathF.Max(artBottom, bottom) + gap));
+    }
+
+    /// <summary>
+    /// The badges placed a row at a time inside a rectangle, returning the bottom of the last row. The stacked
+    /// header lets ImGui's line flow wrap the row (<see cref="DrawBadgeRow"/>); here the row lives beside the
+    /// artwork, where that flow would put a wrapped badge under the portrait at the window's left margin.
+    /// </summary>
+    private static float DrawColumnBadges(
+        (string? Text, Color? Tint)[] badges,
+        float x,
+        float y,
+        float width,
+        float spacing)
+    {
+        var look = Frame.Look;
+        var scale = Frame.Scale;
+        var rowTop = y;
+        var rowBottom = y;
+        var cursorX = x;
+
+        for (var index = 0; index < badges.Length; index++)
+        {
+            if (badges[index].Text is not { } label)
+            {
+                continue;
+            }
+
+            var badgeWidth = BadgeWidth(label, look, scale);
+
+            // The first badge always starts the row, however narrow the column is: a badge that is wider
+            // than the column has to overflow rather than loop back onto an empty line of its own.
+            if (cursorX > x && cursorX + badgeWidth > x + width)
+            {
+                cursorX = x;
+                rowTop = rowBottom + spacing;
+                rowBottom = rowTop;
+            }
+
+            ImGui.SetCursorScreenPos(new Vector2(cursorX, rowTop));
+            DrawBadge(badges[index]);
+            rowBottom = MathF.Max(rowBottom, ImGui.GetItemRectMax().Y);
+            cursorX += badgeWidth + spacing;
+        }
+
+        return rowBottom;
+    }
+
+    /// <summary>
+    /// The mount's name at the cursor, fitted to the width left on the line. In the stacked header that width is
+    /// the pane - at the narrow window size a long name ran past the edge, which the 1040px golden could never
+    /// show - and in the two-column header it is the title column, where the same call is what stops a long
+    /// name from being clipped by the artwork beside it.
+    /// </summary>
+    private static void DrawTitle(MountShelfItem item)
+    {
+        var titleWidth = MathF.Max(ImGui.GetContentRegionAvail().X, 1f);
+        Gw.Text(FitRole(item.Name, titleWidth, Frame.Scale, TextRole.Title), TextRole.Title);
+    }
+
+    /// <summary>
+    /// The one number a collector cannot get in game, on the line at the cursor: an unrecorded rarity draws
+    /// nothing rather than a placeholder line, and the return value says whether anything was drawn so a
+    /// caller tracking its own vertical position does not read a stale item rect.
+    /// </summary>
+    private static bool DrawRarityLine(MountViewState state, MountShelfItem item)
+    {
+        var rarity = MountRarity.Describe(item.Community?.OwnedPercent);
+
+        if (rarity.Length == 0)
+        {
+            return false;
+        }
+
+        // The full sentence does not fit the narrow pane (measured: it ran past the card and was
+        // cut mid-word in the narrow golden), so the clause is dropped before the number is
+        // ellipsised, and the fitted result is only a last resort.
+        var scale = Frame.Scale;
+        var paneWidth = MathF.Max(ImGui.GetContentRegionAvail().X, 1f);
+
+        if (TextWidth(rarity, TextRole.Footnote, scale) > paneWidth)
+        {
+            rarity = MountRarity.DescribeCompact(item.Community!.OwnedPercent);
+        }
+
+        Gw.Text(FitRole(rarity, paneWidth, scale, TextRole.Footnote), TextRole.Footnote);
+        Gw.TooltipFor(ImGui.IsItemHovered(), Loc.T("detail.rarity.tooltip"));
+        return true;
+    }
+
+    /// <summary>
+    /// The artwork fitted inside a box: at the texture's own aspect ratio, never stretched and never cropped,
+    /// with a square assumed while the window has not resolved the texture yet.
+    /// </summary>
+    private static Vector2 HeroFit(MountViewState state, MountShelfItem item, float boxWidth, float boxHeight)
+    {
         var source = state.TextureSizes.TryGetValue(item.ArtId, out Vector2 size) && size.X > 0f && size.Y > 0f
             ? size
             : new Vector2(1f, 1f);
 
-        var sourceAspect = source.X / source.Y;
-        var heroWidth = heroBoxWidth;
-        var heroHeight = heroWidth / sourceAspect;
+        var aspect = source.X / source.Y;
+        var width = boxWidth;
+        var height = width / aspect;
 
-        if (heroHeight > heroBoxHeight)
+        if (height > boxHeight)
         {
-            heroHeight = heroBoxHeight;
-            heroWidth = heroHeight * sourceAspect;
+            height = boxHeight;
+            width = height * aspect;
         }
 
-        // Gw.Image takes logical units, but the cursor, the mat rect on the draw list and the centring
-        // offset are all in pixels. Mixing the two only looked right at 100% UI scale: at 150% the mat
-        // stayed at its logical size while the portrait grew half again, and the pair drifted left.
-        var scalePx = Frame.Scale;
-        var heroPx = new Vector2(heroWidth, heroHeight) * scalePx;
-        var heroBoxPx = heroBoxWidth * scalePx;
+        return new Vector2(width, height);
+    }
 
-        // Artwork first, then the title block, both centred in the pane. A two-column header was
-        // tried here (portrait left, name and badges beside it) and reverted: two visual reviews
-        // called it unbalanced, a band of dead space beside a tall portrait, with no gain over this.
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + MathF.Max((heroBoxPx - heroPx.X) * 0.5f, 0f));
-
-        // A plate behind the artwork: without it a portrait floats on the card surface and the pane
-        // has no frame of reference. PanelRaised is the Look's own raised surface, at reduced alpha so
-        // it reads as a mat, not as another panel.
-        var platePad = Frame.Look.SpaceSmall * scalePx;
-        var artAt = ImGui.GetCursorScreenPos();
-        var plateRadius = (Frame.Look.RadiusMedium * scalePx) + platePad;
+    /// <summary>
+    /// Draws the artwork at <paramref name="topLeft"/> and returns the bottom of its mat. The mat is the Look's
+    /// own raised surface at reduced alpha: without it a portrait floats on the card surface and the pane has
+    /// no frame of reference.
+    /// </summary>
+    /// <param name="topLeft">The image's top-left corner, in screen pixels; the mat extends one small space outside it.</param>
+    /// <param name="size">The image's drawn size, in logical units.</param>
+    private static float DrawHeroArt(MountViewState state, MountShelfItem item, Vector2 topLeft, Vector2 size)
+    {
+        var scale = Frame.Scale;
+        var plate = Frame.Look.SpaceSmall * scale;
+        var drawn = size * scale;
 
         ImGui.GetWindowDrawList().AddRectFilled(
-            artAt - new Vector2(platePad, platePad),
-            artAt + heroPx + new Vector2(platePad, platePad),
+            topLeft - new Vector2(plate, plate),
+            topLeft + drawn + new Vector2(plate, plate),
             // Frame.Look, not the Theme facade: Theme is bound by the windows, so in the headless
             // preview it is unbound and the plate vanished (the golden hash did not even change).
             ImGui.GetColorU32(PlateColor(Frame.Look.TertiaryBackground)),
-            plateRadius);
+            (Frame.Look.RadiusMedium * scale) + plate);
 
-        Gw.Image(TextureFor(state, item.ArtId), new Vector2(heroWidth, heroHeight), radius: Frame.Look.RadiusMedium);
+        ImGui.SetCursorScreenPos(topLeft);
+        Gw.Image(TextureFor(state, item.ArtId), size, radius: Frame.Look.RadiusMedium);
 
-        // The title is measured to the pane: at the narrow window size a long name ran past the
-        // edge, which the 1040px golden could never show.
-        var titleWidth = MathF.Max(ImGui.GetContentRegionAvail().X, 1f);
-        Gw.Text(FitRole(item.Name, titleWidth, Frame.Scale, TextRole.Title), TextRole.Title);
+        return topLeft.Y + drawn.Y + plate;
+    }
 
-        DrawBadges(state, item);
+    /// <summary>
+    /// The share of the detail pane the artwork column takes, before it is clamped to the art bounds.
+    /// Together with <see cref="HeaderChrome"/> it puts the column at roughly 40% of the pane.
+    /// </summary>
+    private const float HeaderArtShare = 0.32f;
 
-        // The one number a collector cannot get in game. Under the badges and above the wiki link,
-        // because it is the first thing a rare mount is judged by; an unrecorded rarity draws nothing
-        // rather than a placeholder line.
-        var rarity = MountRarity.Describe(item.Community?.OwnedPercent);
+    /// <summary>The artwork box's width bounds in the two-column header, in logical units.</summary>
+    private const float HeaderArtMin = 96f;
 
-        if (rarity.Length > 0)
+    /// <summary>
+    /// The largest the artwork box grows, in logical units. Past this the portrait starts taking room the title
+    /// column needs on a pane that is already giving it 40%, which is the trade this header exists to avoid.
+    /// </summary>
+    private const float HeaderArtMax = 112f;
+
+    /// <summary>
+    /// The narrowest title column the two-column header may draw into, in logical units. Below it the header
+    /// reads as a portrait with a sliver of text beside it, which is exactly the shape the reverted attempt
+    /// had; <see cref="LayoutMeasure.DetailTwoColumnMinWidth"/> is the pane width that guarantees it, with room
+    /// left over for the longest names.
+    /// </summary>
+    private const float TitleColumnMin = 170f;
+
+    /// <summary>
+    /// What the artwork column takes beyond the image: a small space of mat on each side and one large space of
+    /// gutter before the text column. Logical units, so it is added to logical widths and scaled once.
+    /// </summary>
+    private static float HeaderChrome => (Frame.Look.SpaceSmall * 2f) + Frame.Look.SpaceLarge;
+
+    /// <summary>
+    /// The largest share of the body the hero portrait may take. Above it the first "How to obtain" row lands
+    /// under the fixed footer, which is the one row the pane exists to show.
+    /// </summary>
+    private const float HeroShare = 0.35f;
+
+    /// <summary>
+    /// Below this body height the portrait is not drawn at all: at the minimum window size the pane cannot
+    /// hold a portrait, a title, two badge rows and one source row, and the picture is the only element there
+    /// that carries no information.
+    /// </summary>
+    private const float HeroMinBody = 340f;
+
+    private static void DrawDetailBody(MountViewState state, MountShelfItem item)
+    {
+        var width = MathF.Max(ImGui.GetContentRegionAvail().X / Frame.Scale, 1f);
+
+        // The body height is honest: the child is sized from the window's own geometry
+        // (LayoutMeasure.ColumnHeight). Before that fix this region reported 661-715 inside a 660-tall window,
+        // so a cap taken from it could never bite.
+        var bodyAvailHeight = MathF.Max(ImGui.GetContentRegionAvail().Y / Frame.Scale, 1f);
+        var showHero = bodyAvailHeight >= HeroMinBody;
+
+        // The header has two forms and the pane's width picks between them. Stacked is the original: a
+        // full-width portrait band with the title, the badges and the rarity line under it. Two-column puts
+        // a small portrait in a ~40% column with that same block beside it, which is where the body comes
+        // from - roughly 90px of the scroll, i.e. the first "How to obtain" row at the default window size.
+        var header = LayoutMeasure.DetailHeader(
+            width,
+            HeaderArtShare,
+            HeaderArtMin,
+            HeaderArtMax,
+            HeaderChrome,
+            TitleColumnMin,
+            TextWidth(item.Name, TextRole.Title, Frame.Scale));
+
+        if (showHero && header.TwoColumn)
         {
-            // The full sentence does not fit the narrow pane (measured: it ran past the card and was
-            // cut mid-word in the narrow golden), so the clause is dropped before the number is
-            // ellipsised, and the fitted result is only a last resort.
-            var look = Frame.Look;
-            var scale = Frame.Scale;
-            var paneWidth = MathF.Max(ImGui.GetContentRegionAvail().X, 1f);
-
-            if (TextPaint.Measure(rarity, TextRole.Footnote, in look, scale).X > paneWidth)
+            DrawDetailHeaderColumns(state, item, header.ArtWidth);
+        }
+        else
+        {
+            if (showHero)
             {
-                rarity = MountRarity.DescribeCompact(item.Community!.OwnedPercent);
+                // The artwork is portrait (roughly square): fitted inside the hero box at its own aspect and
+                // centred, never stretched to the pane width and never cropped to a banner slice. The leftover
+                // width stays card surface, which reads as a portrait rather than as a broken image.
+                var hero = HeroFit(state, item, width, MathF.Min(HeroHeight, bodyAvailHeight * HeroShare));
+                var heroPx = hero * Frame.Scale;
+                var heroBoxPx = width * Frame.Scale;
+
+                // Gw.Image takes logical units, but the cursor, the mat rect on the draw list and the
+                // centring offset are all in pixels. Mixing the two only looked right at 100% UI scale:
+                // at 150% the mat stayed at its logical size while the portrait grew half again, and the
+                // pair drifted left.
+                ImGui.SetCursorScreenPos(
+                    ImGui.GetCursorScreenPos() + new Vector2(MathF.Max((heroBoxPx - heroPx.X) * 0.5f, 0f), 0f));
+
+                DrawHeroArt(state, item, ImGui.GetCursorScreenPos(), hero);
             }
 
-            Gw.Text(FitRole(rarity, paneWidth, scale, TextRole.Footnote), TextRole.Footnote);
-            Gw.TooltipFor(ImGui.IsItemHovered(), "Share of the ffxivcollect player base that owns this mount");
+            DrawTitle(item);
+            DrawBadges(state, item);
+            DrawRarityLine(state, item);
         }
 
         // The price is the one fact a player asks the market for, not the book: the request costs a
         // network round trip, so it is a button and never an automatic fetch on selection.
+        // The wiki link shares that line when both fit: measured, not assumed, because the pair used to clip
+        // to "Ch" in the narrow pane and the fix at the time was to stack them, which cost a whole row for a
+        // 360px pane that now has room.
+        var priceLabel = state.MarketCheckInFlight ? Loc.T("detail.price.checking") : Loc.T("detail.price.check");
+        var wikiLabel = Loc.T("detail.wiki.open");
+        var priceWidth = SmallButtonWidth(priceLabel, Frame.Look, Frame.Scale);
+        var wikiWidth = SmallButtonWidth(wikiLabel, Frame.Look, Frame.Scale);
+        var actionGap = Frame.Look.SpaceSmall * Frame.Scale;
+        var paneAvail = MathF.Max(ImGui.GetContentRegionAvail().X, 1f);
+        var wikiBesidePrice = state.MarketCanCheck && (priceWidth + actionGap + wikiWidth) <= paneAvail;
+
         if (state.MarketCanCheck)
         {
-            // Its own line: beside the wiki button the label was clipped to "Ch" in the narrow pane,
-            // and a truncated button is worse than a taller pane.
             var pressed = state.MarketCheckInFlight
-                ? Gw.Button("Checking"u8, ButtonStyle.Plain, ButtonSize.Small)
-                : Gw.Button("Check price"u8, ButtonStyle.Plain, ButtonSize.Small);
+                ? Gw.Button(Loc.T("detail.price.checking"), ButtonStyle.Plain, ButtonSize.Small)
+                : Gw.Button(Loc.T("detail.price.check"), ButtonStyle.Plain, ButtonSize.Small);
 
             if (pressed)
             {
@@ -223,11 +462,17 @@ public sealed partial class MountbookView
 
             Gw.TooltipFor(
                 ImGui.IsItemHovered(),
-                "Ask Universalis for the cheapest listing of this mount's whistle on your world");
+                Loc.T("detail.price.tooltip"));
 
             if (state.MarketPriceText.Length > 0)
             {
                 Gw.TooltipFor(ImGui.IsItemHovered(), state.MarketPriceText);
+            }
+
+            if (wikiBesidePrice)
+            {
+                ImGui.SameLine(0f, actionGap);
+                DrawWikiButton(state);
             }
         }
 
@@ -239,12 +484,10 @@ public sealed partial class MountbookView
 
         // Under the badges, above the scroll: the book explains how to start, the wiki explains the whole
         // fight, and a scrolling pane would hide the link right where the source text is.
-        if (Gw.Button("Open the wiki page"u8, ButtonStyle.Plain, ButtonSize.Small))
+        if (!wikiBesidePrice)
         {
-            state.WikiRequested = true;
+            DrawWikiButton(state);
         }
-
-        Gw.TooltipFor(ImGui.IsItemHovered(), "Open the Gamer Escape page for this mount in a browser");
 
         // Obtain data before the flavour text: "where do I get it" is the question the pane exists to
         // answer, and below the portrait plus a paragraph of lore it used to start at the fold.
@@ -268,28 +511,95 @@ public sealed partial class MountbookView
         var spacing = Frame.Look.SpaceSmall * Frame.Scale;
         var paneRight = ImGui.GetWindowPos().X + ImGui.GetWindowContentRegionMax().X;
 
-        // The wanted state belongs in the header too: it is the one piece of the mount's state the player
-        // set themselves, and the card marker is easy to miss at a glance.
-        DrawBadgeRow(
-            [
-                (string.IsNullOrEmpty(item.Patch) ? "Patch unknown" : item.Patch, null),
-                (SeatsText(item.Seats), null),
-                (item.Owned ? "Collected" : "Not collected", null),
-                // Only a recorded "yes" earns a badge: a null flag is unrecorded, and a "No tradeable"
-                // badge would be noise on the 200-odd mounts that simply cannot be sold.
-                (item.Community?.Tradeable == true ? "Tradeable" : null, null),
-                (item.Community?.CustomMusic == true ? "Own music" : null, null),
-                // Barding is a sheet fact, not a dataset one: a chocobo's gear slots are recorded, so a
-                // missing badge here really means "this mount wears nothing".
-                (item.Barding ? "Barding" : null, null),
-                // A sheet flag, like Barding: absent really means "cannot fly", which is the useful
-                // fact when a mount is the last thing between you and a hunt mark.
-                (item.Flies ? "Flies" : null, null),
-                (state.WantedIds.Contains(item.Id) ? "Wanted" : null, Frame.Look.Accent),
-                (state.RecentIds.Contains(item.Id) ? "New" : null, Frame.Look.Accent),
-            ],
-            spacing,
-            paneRight);
+        DrawBadgeRow(DetailBadges(state, item, sheetFacts: true), spacing, paneRight);
+    }
+
+    /// <summary>
+    /// The detail pane's badges in draw order. <paramref name="sheetFacts"/> false is the two-column header,
+    /// where the sheet-only pills move onto <see cref="SheetFactLine"/>; the entries stay in the array so the
+    /// order cannot drift between the two forms.
+    /// </summary>
+    private static (string? Text, Color? Tint)[] DetailBadges(MountViewState state, MountShelfItem item, bool sheetFacts)
+    {
+        return
+        [
+            // A null patch is unrecorded, like every other flag: a "Patch unknown" pill is a placeholder,
+            // and on the locked golden it was the badge that pushed "Flies" onto a line of its own.
+            (sheetFacts && !string.IsNullOrEmpty(item.Patch) ? item.Patch : null, null),
+            (sheetFacts ? SeatsText(item.Seats) : null, null),
+            // "Unowned", not "Not collected": the chip has to read the same as the ownership filter and
+            // the table column, or the same fact looks like two different things in one window.
+            (item.Owned ? Loc.T("badge.collected") : Loc.T("badge.unowned"), null),
+            // Only a recorded "yes" earns a badge: a null flag is unrecorded, and a "No tradeable"
+            // badge would be noise on the 200-odd mounts that simply cannot be sold.
+            (item.Community?.Tradeable == true ? Loc.T("badge.tradeable") : null, null),
+            (item.Community?.CustomMusic == true ? Loc.T("badge.ownMusic") : null, null),
+            // Barding is a sheet fact, not a dataset one: a chocobo's gear slots are recorded, so a
+            // missing badge here really means "this mount wears nothing".
+            (sheetFacts && item.Barding ? Loc.T("badge.barding") : null, null),
+            // A sheet flag, like Barding: absent really means "cannot fly", which is the useful
+            // fact when a mount is the last thing between you and a hunt mark.
+            (sheetFacts && item.Flies ? Loc.T("badge.flies") : null, null),
+            // The wanted state belongs in the header too: it is the one piece of the mount's state the player
+            // set themselves, and the card marker is easy to miss at a glance.
+            (state.WantedIds.Contains(item.Id) ? Loc.T("badge.wanted") : null, Frame.Look.Accent),
+            (state.RecentIds.Contains(item.Id) ? Loc.T("badge.new") : null, Frame.Look.Accent),
+        ];
+    }
+
+    /// <summary>
+    /// The sheet-only facts as one line - patch, seats, barding, can fly - for the two-column header. Cached by
+    /// the facts themselves because the draw path must not build strings, and two mounts of the same kind share
+    /// the answer: the labels are fixed for the session, like every other static label array here.
+    /// </summary>
+    private static string SheetFactLine(MountShelfItem item)
+    {
+        var key = (Patch: item.Patch ?? string.Empty, item.Seats, item.Barding, item.Flies);
+
+        if (SheetFactLines.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
+        var parts = new System.Collections.Generic.List<string>(4);
+
+        if (item.Patch is { Length: > 0 } patch)
+        {
+            parts.Add(patch);
+        }
+
+        if (SeatsText(item.Seats) is { } seats)
+        {
+            parts.Add(seats);
+        }
+
+        if (item.Barding)
+        {
+            parts.Add(Loc.T("badge.barding"));
+        }
+
+        if (item.Flies)
+        {
+            parts.Add(Loc.T("badge.flies"));
+        }
+
+        // The separator is a string-table entry, and ASCII on purpose: the headless atlas a golden renders with
+        // has no middle dot, so one would draw as a placeholder in every golden of this line.
+        var line = string.Join(Loc.T("detail.facts.separator"), parts);
+        Remember(SheetFactLines, key, line);
+        return line;
+    }
+
+    /// <summary>Draws one badge, tinted when the caller asked for it.</summary>
+    private static void DrawBadge((string? Text, Color? Tint) badge)
+    {
+        if (badge.Tint is { } tint)
+        {
+            Gw.Badge(badge.Text!, tint);
+            return;
+        }
+
+        Gw.Badge(badge.Text!);
     }
 
     /// <summary>
@@ -299,6 +609,15 @@ public sealed partial class MountbookView
     /// wrap check pushed a badge onto a second line while the first still had room for it.
     /// </summary>
     private static readonly TextStyle BadgeStyle = new(TextRole.Caption, FontWeight.Semibold);
+
+    /// <summary>
+    /// The width <c>Gw.Badge</c> draws a label at: the caption role at semibold, one small space of padding each
+    /// side, and never narrower than its own height, so a one-character badge is a circle.
+    /// </summary>
+    private static float BadgeWidth(string label, Look look, float scale)
+        => MathF.Max(
+            TextPaint.LineHeight(BadgeStyle, in look, scale) + (look.SpaceExtraSmall * scale * 2f),
+            TextWidth(label, BadgeStyle, scale) + (look.SpaceSmall * scale * 2f));
 
     /// <summary>
     /// Draws the badges, starting a new line when the next one would cross <paramref name="paneRight"/>.
@@ -312,8 +631,6 @@ public sealed partial class MountbookView
         var scale = Frame.Scale;
         var look = Frame.Look;
         var first = true;
-        var badgePadding = look.SpaceSmall * scale;
-        var badgeHeight = TextPaint.LineHeight(BadgeStyle, in look, scale) + (look.SpaceExtraSmall * scale * 2f);
 
         for (var index = 0; index < badges.Length; index++)
         {
@@ -322,9 +639,7 @@ public sealed partial class MountbookView
                 continue;
             }
 
-            var width = MathF.Max(
-                badgeHeight,
-                TextPaint.Measure(label, BadgeStyle, in look, scale).X + (badgePadding * 2f));
+            var width = BadgeWidth(label, look, scale);
 
             if (!first)
             {
@@ -351,23 +666,38 @@ public sealed partial class MountbookView
         }
     }
 
+    /// <summary>
+    /// A dim label and its value on one line, the value ellipsised only when it genuinely cannot fit. The
+    /// label is drawn first and the remaining width is measured from there, so the pair can never overflow the
+    /// pane; text is never wrapped, because a wrapped value silently costs the second line this exists to save.
+    /// </summary>
+    private static void DrawLabelledValue(ImU8String label, string value)
+    {
+        var look = Frame.Look;
+        var scale = Frame.Scale;
+        Gw.Text(label, TextRole.Footnote);
+        ImGui.SameLine(0f, look.SpaceSmall * scale);
+        var width = MathF.Max(ImGui.GetContentRegionAvail().X, 1f);
+        Gw.Text(FitRole(value, width, scale, TextRole.Body), TextRole.Body);
+    }
+
     private static void DrawSources(MountViewState state, MountShelfItem item)
     {
-        if (Gw.BeginSection("How to obtain"u8))
+        if (Gw.BeginSection(Loc.T("detail.obtain.section")))
         {
             // The whistle is what a player actually buys or earns; the dataset carries only its id, the
             // wait layer resolves the name.
             if (!string.IsNullOrEmpty(state.ItemName))
             {
-                // A plain label and value, not a row: the row layout right-aligns the value and truncated a
-                // one-line description to "that grants?" in this narrow pane.
-                Gw.Text("Whistle"u8, TextRole.Footnote);
-                Gw.Text(state.ItemName, TextRole.Body);
+                // One line, not two: "Whistle" over its value cost 20px for a single word and this pane has
+                // three label/value pairs fighting for the same space. The value is fitted, never wrapped, so
+                // a long whistle name cannot push the pair onto a second line by accident.
+                DrawLabelledValue(Loc.T("detail.whistle"), state.ItemName);
             }
 
             if (item.Sources.Count == 0)
             {
-                Gw.Text("No source recorded for this mount yet."u8, TextRole.Footnote);
+                Gw.Text(Loc.T("detail.obtain.none"), TextRole.Footnote);
             }
 
             // The price first: a token mount's question is "how much is left", and it belongs above the
@@ -377,6 +707,13 @@ public sealed partial class MountbookView
                 // Wrapped, not fitted: the number at the end ("8,600 to go") is the reason the line is
                 // there, and a one-line Gw.Text ran off the pane edge in the sources golden.
                 Gw.TextWrapped(state.CostText, TextRole.Body);
+            }
+
+            // Directly under the price, because the two answer the same question from two sides: the
+            // price line counts the bags, this one counts what the player has banked on purpose.
+            if (state.GrindVisible)
+            {
+                DrawGrind(state);
             }
 
             for (var index = 0; index < item.Sources.Count; index++)
@@ -401,24 +738,114 @@ public sealed partial class MountbookView
 
                 Gw.TooltipFor(
                     ImGui.IsItemHovered(),
-                    string.Concat("Open the Gamer Escape page for ", source.Detail, " in a browser"));
+                    Loc.F("detail.source.tooltip", source.Detail));
             }
-;
         }
 
         Gw.EndSection();
     }
 
     /// <summary>
-    /// The action row. "Ride" is disabled for a mount the player does not own, whatever the window
-    /// says; "Ride", "Link whistle" and "Mount Guide" are disabled while the window reports a
-    /// reason. Only an enabled button reports a click, so the window never has to second-guess a
-    /// request it cannot honour. "Want"/"Unwant" is always live: it only toggles the hunting list.
+    /// The tracker: a bar, the count that fills it, the two steppers that move the count, and the player's
+    /// own note. One row of chrome, drawn only for a mount that costs tokens or already has a record.
     /// </summary>
     /// <remarks>
-    /// <paramref name="rows"/> is <see cref="ActionRowCount"/>'s answer: 1 all four share a line,
-    /// 2 the three older actions share one and the wanted button drops to the next, 4 one per line.
+    /// The count is two steppers rather than a text field because banking a token is one click after a duty,
+    /// and typing a number into a field loses that click to the keyboard. A fixed item width keeps the pair
+    /// inside the narrowest detail pane the window allows.
+    /// <para>
+    /// Every control writes the state, and a change raises <see cref="MountViewState.GrindChanged"/>: the
+    /// window persists the record once after the draw, so a typed note is one save rather than one per key.
+    /// </para>
     /// </remarks>
+    private static void DrawGrind(MountViewState state)
+    {
+        var look = Frame.Look;
+        var scale = Frame.Scale;
+
+        // The bar first: the fraction answers "how far off am I" without arithmetic, and the count below
+        // says exactly what it is drawn from.
+        Gw.ProgressBar(MountGrind.Fraction(state.GrindHave, state.GrindWant), 0f, look.Accent);
+        Gw.TooltipFor(
+            ImGui.IsItemHovered(),
+            MountGrind.Remaining(state.GrindHave, state.GrindWant));
+
+        var have = state.GrindHave;
+        var want = state.GrindWant;
+        var gap = look.SpaceMedium * scale;
+
+        Gw.Text(MountGrind.Label(have, want), TextRole.Footnote);
+
+        // Two labelled steppers rather than two anonymous ones: with the ids hidden they read as the same
+        // control twice, and the labels are short enough that the pair fits the narrowest detail pane.
+        if (Gw.Stepper(ref have, 1, 0, MaxGrindTokens, Loc.T("grind.have")))
+        {
+            state.GrindChanged = true;
+        }
+
+        Gw.TooltipFor(ImGui.IsItemHovered(), Loc.T("grind.have.tooltip"));
+
+        ImGui.SameLine(0f, gap);
+
+        if (Gw.Stepper(ref want, 1, 0, MaxGrindTokens, Loc.T("grind.want")))
+        {
+            state.GrindChanged = true;
+        }
+
+        Gw.TooltipFor(ImGui.IsItemHovered(), Loc.T("grind.want.tooltip"));
+
+        state.GrindHave = have;
+        state.GrindWant = want;
+
+        var note = state.GrindNote;
+        _ = Gw.TextField(ref note, hint: Loc.T("grind.note.hint"), maxLength: MaxNoteLength);
+
+        // The field is the truth while it is focused, or the frame that follows a keystroke would restore
+        // the saved value and eat the letter. It is persisted when it is left - one config write per
+        // note rather than one per key, and the note survives an alt-tab mid-word.
+        state.GrindNote = note;
+
+        if (ImGui.IsItemDeactivatedAfterEdit())
+        {
+            state.GrindChanged = true;
+        }
+    }
+
+    /// <summary>
+    /// The largest count the steppers allow. Not a game limit: a hand-edited config can hold more, and the
+    /// interface must draw it rather than clamp it away, this only bounds what the arrows can reach.
+    /// </summary>
+    private const int MaxGrindTokens = 99_999;
+
+    /// <summary>Long enough for a sentence about where the player stands, short enough to stay one line.</summary>
+    private const int MaxNoteLength = 120;
+
+    /// <summary>
+    /// The wiki link. Drawn either beside the price check (when the two fit on a line) or on its own line, so
+    /// the button and its tooltip exist in exactly one place.
+    /// </summary>
+    private static void DrawWikiButton(MountViewState state)
+    {
+        if (Gw.Button(Loc.T("detail.wiki.open"), ButtonStyle.Plain, ButtonSize.Small))
+        {
+            state.WikiRequested = true;
+        }
+
+        Gw.TooltipFor(ImGui.IsItemHovered(), Loc.T("detail.wiki.tooltip"));
+    }
+
+    /// <summary>
+    /// The single line the footer draws under the buttons: why the first blocked action is blocked. Computed
+    /// before the footer is sized so a mount with nothing blocked does not reserve the line, and shared with
+    /// the drawing code so the reservation and the text can never disagree.
+    /// </summary>
+    private static string? ActionReason(MountViewState state, MountShelfItem item)
+        => RideReason(state, item) ?? Reason(state.LinkDisabledReason) ?? Reason(state.GuideDisabledReason);
+
+    /// <summary>The Ride button's disabled reason, or null when the mount can be summoned.</summary>
+    private static string? RideReason(MountViewState state, MountShelfItem item)
+        => item.Owned ? Reason(state.RideDisabledReason) : Loc.T("detail.reason.unowned");
+
     /// <summary>
     /// Draws the Ride button, the one action that must never hide behind a scroll, and returns why it is
     /// disabled (null when it is live). The reason is *returned*, not drawn here: text ends the ImGui row, and
@@ -426,16 +853,16 @@ public sealed partial class MountbookView
     /// </summary>
     private static string? DrawRideAction(MountViewState state, MountShelfItem item)
     {
-        var rideReason = item.Owned ? Reason(state.RideDisabledReason) : "Not collected.";
+        var rideReason = RideReason(state, item);
 
         ImGui.BeginDisabled(rideReason is not null);
 
-        if (Gw.Button("Ride"u8, ButtonStyle.Prominent))
+        if (Gw.Button(Loc.T("detail.ride"), ButtonStyle.Prominent))
         {
             state.RideRequested = true;
         }
 
-        Gw.TooltipFor(ImGui.IsItemHovered(), "Summon this mount");
+        Gw.TooltipFor(ImGui.IsItemHovered(), Loc.T("detail.ride.tooltip"));
 
         ImGui.EndDisabled();
 
@@ -450,12 +877,12 @@ public sealed partial class MountbookView
 
         ImGui.BeginDisabled(linkReason is not null);
 
-        if (Gw.Button("Link whistle"u8, ButtonStyle.Default))
+        if (Gw.Button(Loc.T("detail.linkWhistle"), ButtonStyle.Plain, ButtonSize.Small))
         {
             state.LinkRequested = true;
         }
 
-        Gw.TooltipFor(ImGui.IsItemHovered(), "Post the whistle as a chat item link");
+        Gw.TooltipFor(ImGui.IsItemHovered(), Loc.T("detail.link.tooltip"));
 
         ImGui.EndDisabled();
 
@@ -472,12 +899,12 @@ public sealed partial class MountbookView
 
         ImGui.BeginDisabled(guideReason is not null);
 
-        if (Gw.Button("Mount Guide"u8, ButtonStyle.Default))
+        if (Gw.Button(Loc.T("detail.mountGuide"), ButtonStyle.Plain, ButtonSize.Small))
         {
             state.GuideRequested = true;
         }
 
-        Gw.TooltipFor(ImGui.IsItemHovered(), "Open the game's Mount Guide");
+        Gw.TooltipFor(ImGui.IsItemHovered(), Loc.T("detail.guide.tooltip"));
 
         ImGui.EndDisabled();
 
@@ -491,17 +918,28 @@ public sealed partial class MountbookView
 
         var wanted = state.WantedIds.Contains(item.Id);
 
-        if (Gw.Button(wanted ? "Unwant"u8 : "Want"u8, ButtonStyle.Default))
+        if (Gw.Button(wanted ? Loc.T("detail.unwant") : Loc.T("detail.want"), ButtonStyle.Plain, ButtonSize.Small))
         {
             state.ToggleWantedId = item.Id;
         }
 
-        Gw.TooltipFor(ImGui.IsItemHovered(), wanted ? "Remove from your wanted list" : "Add to your wanted list");
+        Gw.TooltipFor(ImGui.IsItemHovered(), wanted ? Loc.T("detail.want.remove.hint") : Loc.T("detail.want.add.hint"));
 
         return linkReason ?? guideReason;
     }
 
-    /// <summary>The full action block, for the layouts that fit it in the fixed footer.</summary>
+    /// <summary>
+    /// The full action block, for the layouts that fit it in the fixed footer: "Ride" is disabled for a mount
+    /// the player does not own, whatever the window says, and the three older actions are disabled while the
+    /// window reports a reason. Only an enabled button reports a click, so the window never has to
+    /// second-guess a request it cannot honour. "Want"/"Unwant" is always live: it only toggles the hunting
+    /// list. The reason line under the row is exactly <see cref="ActionReason"/>'s answer, which is also what
+    /// the footer reserves space for.
+    /// </summary>
+    /// <param name="rows">
+    /// <see cref="ActionRowCount"/>'s answer: 1 all four share a line, 2 the three older actions share one and
+    /// the wanted button drops to the next, 4 one per line.
+    /// </param>
     private static void DrawActions(MountViewState state, MountShelfItem item, int rows)
     {
         // The row sits on the column's bottom edge, where a hovered button would grow past the clip.
@@ -533,41 +971,37 @@ public sealed partial class MountbookView
         }
     }
 
+    /// <summary>Fits a caption-role label to the pane, remembering the answer per width.</summary>
     private static string Fit(string name, float width, float scale)
-    {
-        if (CaptionWidth(name, scale) <= width)
-        {
-            return name;
-        }
-
-        const string Ellipsis = "\u2026";
-        int length = name.Length;
-        while (length > 1 && CaptionWidth(string.Concat(name.AsSpan(0, length), Ellipsis), scale) > width)
-        {
-            length--;
-        }
-
-        return string.Concat(name.AsSpan(0, length).TrimEnd(), Ellipsis);
-    }
+        => FitTo(name, width, TextRole.Callout, scale);
 
     /// <summary>Same fit as <see cref="Fit"/>, for a different text role (the title is larger).</summary>
     private static string FitRole(string name, float width, float scale, TextRole role)
+        => FitTo(name, width, role, scale);
+
+    /// <summary>
+    /// The rule lives in <see cref="TextFit"/>; this is the cache in front of it. Fitting a title walks it a
+    /// character at a time with a fresh concat per step, which is far too much to repeat every frame, and the
+    /// width it was fitted to barely moves - so the answer is keyed by the floored width and reused until the
+    /// pane is a whole pixel narrower or wider.
+    /// </summary>
+    private static string FitTo(string name, float width, TextStyle style, float scale)
     {
-        var look = Frame.Look;
-        if (TextPaint.Measure(name, role, in look, scale).X <= width)
+        if (TextWidth(name, style, scale) <= width)
         {
             return name;
         }
 
-        const string Ellipsis = "\u2026";
-        int length = name.Length;
-        while (length > 1
-            && TextPaint.Measure(string.Concat(name.AsSpan(0, length), Ellipsis), role, in look, scale).X > width)
+        var key = (name, style, (int)MathF.Round(scale * 1000f), (int)MathF.Floor(width));
+
+        if (FittedText.TryGetValue(key, out var fitted))
         {
-            length--;
+            return fitted;
         }
 
-        return string.Concat(name.AsSpan(0, length).TrimEnd(), Ellipsis);
+        fitted = TextFit.Fit(name, width, text => TextWidth(text, style, scale));
+        Remember(FittedText, key, fitted);
+        return fitted;
     }
 
     /// <summary>The artwork mat: the Look's raised surface at 45% of its own alpha.</summary>
@@ -577,14 +1011,18 @@ public sealed partial class MountbookView
         return faded.ToVector4();
     }
 
-    private static string SeatsText(int seats)
+    /// <summary>
+    /// "1 seat" / "4 seats", or null when the sheet records no seat count: an "Unknown seats" pill is a
+    /// placeholder rather than a fact, and it was one of the badges that wrapped the row.
+    /// </summary>
+    private static string? SeatsText(int seats)
     {
         if (seats <= 0)
         {
-            return "Unknown seats";
+            return null;
         }
 
-        return seats == 1 ? "1 seat" : string.Concat(FormatInt(seats), " seats");
+        return seats == 1 ? Loc.T("badge.seats.one") : Loc.F("badge.seats.many", FormatInt(seats));
     }
 
     private static string? Reason(string? reason) =>

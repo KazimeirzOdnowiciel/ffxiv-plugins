@@ -110,6 +110,30 @@ public static class MountBreakdown
     }
 
     /// <summary>
+    /// The expansion filter one entry of the progress strip stands for: the entry's name is the table's
+    /// own, so the match is exact, and the trailing "Other" bucket (mounts whose patch does not parse) is
+    /// the filter's <see cref="MountExpansion.Unknown" />, which is the same set.
+    /// </summary>
+    /// <param name="entry">An entry from <see cref="ByExpansion" />.</param>
+    /// <returns>The filter that would show exactly that entry's mounts.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="entry"/> is null.</exception>
+    public static MountExpansion FilterOf(ExpansionProgress entry)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+
+        for (var index = 0; index < Expansions.Length; index++)
+        {
+            if (string.Equals(Expansions[index].Name, entry.Name, StringComparison.Ordinal))
+            {
+                // MountExpansion runs All, then the expansions in release order, so the slot is index + 1.
+                return (MountExpansion)(index + 1);
+            }
+        }
+
+        return MountExpansion.Unknown;
+    }
+
+    /// <summary>
     /// The expansion slot for a patch string, or -1 when it carries no usable major version.
     /// </summary>
     private static int ExpansionIndex(string patch)

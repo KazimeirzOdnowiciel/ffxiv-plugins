@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using Mountbook.Services;
 using Xunit;
 
@@ -110,6 +112,49 @@ public sealed class MountBreakdownTests
         }
 
         Assert.Equal(4, total);
+    }
+
+    /// <summary>
+    /// Clicking an entry of the progress strip filters the list to that expansion, so the filter an entry
+    /// maps to has to select exactly the mounts the entry counts - including the trailing "Other" bucket,
+    /// which is the filter's Unknown. The strip and the list then cannot disagree.
+    /// </summary>
+    [Fact]
+    public void EveryStripEntryMapsToTheFilterThatSelectsItsOwnMounts()
+    {
+        MountShelfItem[] items =
+        [
+            Item("A", "2.1", true),
+            Item("B", "3.3", false),
+            Item("C", "3.55a", true),
+            Item("D", "4.0", false),
+            Item("E", "5.2", true),
+            Item("F", "6.5", false),
+            Item("G", "7.0", true),
+            Item("H", string.Empty, false),
+        ];
+
+        IReadOnlyList<ExpansionProgress> rows = MountBreakdown.ByExpansion(items);
+
+        Assert.Equal(7, rows.Count);
+
+        foreach (ExpansionProgress row in rows)
+        {
+            MountExpansion filter = MountBreakdown.FilterOf(row);
+            int shown = new MountQuery(string.Empty, MountOwnership.All, filter, MountOrder.Name).Apply(items).Count;
+
+            Assert.Equal(row.Total, shown);
+        }
+    }
+
+    [Fact]
+    public void StripEntriesMapToDistinctFiltersAndNeverToAll()
+    {
+        IReadOnlyList<ExpansionProgress> rows = MountBreakdown.ByExpansion([Item("A", "6.1", true), Item("B", "", false)]);
+        MountExpansion[] filters = [.. rows.Select(MountBreakdown.FilterOf)];
+
+        Assert.DoesNotContain(MountExpansion.All, filters);
+        Assert.Equal(filters.Length, filters.Distinct().Count());
     }
 
     private static MountShelfItem Item(string name, string patch, bool owned) =>

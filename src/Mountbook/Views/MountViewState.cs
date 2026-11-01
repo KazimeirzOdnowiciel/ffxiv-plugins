@@ -77,6 +77,27 @@ public sealed class MountViewState
     /// </summary>
     public string CostText { get; set; } = string.Empty;
 
+    /// <summary>
+    /// True when the selected mount has a progress row worth drawing: it costs tokens, or the player has
+    /// already written something down for it. A mount nobody tracked costs the pane no space.
+    /// </summary>
+    public bool GrindVisible { get; set; }
+
+    /// <summary>Tokens banked toward the selected mount, as the pane draws and edits it.</summary>
+    public int GrindHave { get; set; }
+
+    /// <summary>The selected mount's target: the player's own, else the shop price, else zero.</summary>
+    public int GrindWant { get; set; }
+
+    /// <summary>The player's note on the selected mount, as the pane edits it.</summary>
+    public string GrindNote { get; set; } = string.Empty;
+
+    /// <summary>
+    /// True on the frame a tracker control finished an edit. A one-frame pulse like <see cref="ToggleWantedId"/>:
+    /// the window writes the record to the config after the draw, so typing a note is one save, not one per key.
+    /// </summary>
+    public bool GrindChanged { get; set; }
+
     /// <summary>How many mounts the player owns, over every mount in the game (not over <see cref="Items"/>).</summary>
     public int Owned { get; set; }
 
@@ -144,11 +165,13 @@ public sealed class MountViewState
         GuideRequested = false;
         WikiRequested = false;
         ToggleWantedId = null;
+        GrindChanged = false;
         ClearFiltersRequested = false;
         SettingsRequested = false;
         RefreshRequested = false;
         CopyMissingRequested = false;
         SourceLinkRequested = null;
+        BoardRequested = false;
     }
 
     /// <summary>True when the window should open the selected mount's wiki page in a browser.</summary>
@@ -178,6 +201,13 @@ public sealed class MountViewState
 
     /// <summary>True when the header's copy-missing action was clicked.</summary>
     public bool CopyMissingRequested { get; set; }
+
+    /// <summary>
+    /// True when the header's wanted badge was clicked. The badge is the wanted board's only door: the
+    /// task that added the board asked for no new header button, and the badge already counts exactly the
+    /// mounts the board lists.
+    /// </summary>
+    public bool BoardRequested { get; set; }
 
     /// <summary>The acquire-method filter ("Trial", "PvP", ...), or empty for any.</summary>
     public string SourceFilter { get; set; } = string.Empty;

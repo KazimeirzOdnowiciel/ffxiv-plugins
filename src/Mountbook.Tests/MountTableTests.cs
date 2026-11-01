@@ -38,13 +38,6 @@ public sealed class MountTableTests
     public void SourceIsBlankWithoutObtainData() => Assert.Equal(string.Empty, MountTable.SourceText(Item()));
 
     [Fact]
-    public void CollectedIsYesOrNothing()
-    {
-        Assert.Equal("Yes", MountTable.OwnedText(Item(owned: true)));
-        Assert.Equal(string.Empty, MountTable.OwnedText(Item(owned: false)));
-    }
-
-    [Fact]
     public void RarityIsAPercentage()
     {
         Assert.Equal("3.4%", MountTable.RarityText(Item(ownedPercent: 3.4)));

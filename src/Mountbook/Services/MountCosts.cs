@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 
 namespace Mountbook.Services;
@@ -86,6 +87,30 @@ public static class MountCosts
         }
 
         return currency.Length == 0 ? null : new MountCost(amount, currency, note);
+    }
+
+    /// <summary>
+    /// The first token price among <paramref name="lines"/>, or null when the mount costs no tokens.
+    /// </summary>
+    /// <remarks>
+    /// Only the first priced line counts, here and everywhere: a mount that costs two different tokens is
+    /// rare, and two lines of arithmetic under one heading is not worth the space.
+    /// </remarks>
+    /// <param name="lines">The mount's source lines.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="lines"/> is null.</exception>
+    public static MountCost? FirstOf(IReadOnlyList<MountSourceLine> lines)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+
+        foreach (MountSourceLine line in lines)
+        {
+            if (Parse(line.Detail) is { } cost)
+            {
+                return cost;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
