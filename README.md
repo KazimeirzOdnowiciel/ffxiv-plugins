@@ -30,6 +30,24 @@ version does not show up right away.
 | **Mechanic Watch** | 0.2.0.2 | A party-wide grid of the statuses you choose to care about, so you can see at a glance who has what during a fight. |
 | **Enemy List Cast Bars** | 1.0.0.1 | Draws a cast bar and the cast name onto each enemy-list row, highlighting interruptible casts. — *third party, MIT, see [credits](#credits)* |
 
+## Screenshots
+
+Mountbook, drawn by its own preview scenes rather than captured from a session: the card grid, the
+table, a detail pane with a market price, the settings window and the grid grouped by expansion. They
+are reproducible — one command regenerates all five, and the same command checks that the committed
+files are still what the scenes draw — so a screenshot cannot quietly describe a version that no
+longer exists. Sizes, provenance and the one command: [`docs/screenshots.md`](docs/screenshots.md).
+
+![Mountbook's card grid, with a mount selected](docs/screenshots/card-grid.png)
+
+![The same book as a sortable table](docs/screenshots/table.png)
+
+![The detail pane: badges, market price on demand, and the how-to-obtain rows](docs/screenshots/detail-pane.png)
+
+![The grid grouped by expansion](docs/screenshots/grouped.png)
+
+![The settings window](docs/screenshots/config.png)
+
 ## Repository layout
 
 ```
