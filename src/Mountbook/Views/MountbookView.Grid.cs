@@ -16,14 +16,20 @@ public sealed partial class MountbookView
     /// <summary>Eased hover lift, 0 to 1; one value is enough because one card hovers at a time.</summary>
     private float cardLift;
 
-    /// <summary>The mount the current lift belongs to, so the glow never follows the pointer around.</summary>
     /// <summary>The card the pointer was over on the last draw, which the hover ease follows.</summary>
     private uint hoveredCardId;
 
     /// <summary>The filter block's own height, measured on an earlier frame; not positive until the first measurement lands.</summary>
     private float filtersHeightPx = -1f;
 
-    /// <summary>The UI scale <see cref="filtersHeightPx"/> was measured at; a scale change re-measures it.</summary>
+    /// <summary>The grouped shelf last built, and the two values it was built from: the list by reference (the
+    /// window hands over a new one only when the query re-ran) and the grouping it was split by.</summary>
+    private static IReadOnlyList<MountGroup>? cachedGroups;
+    private static IReadOnlyList<MountShelfItem>? cachedGroupsSource;
+    private static MountGrouping cachedGroupsBy;
+
+    /// <summary>The UI scale <see cref="filtersHeightPx"/> was measured at: the height is re-taken every frame,
+    /// so this only says whether the previous one is still usable for the squeeze test.</summary>
     private float filtersHeightScale = -1f;
 
     private void DrawFilterColumn(MountViewState state, float width, float height)
@@ -495,7 +501,19 @@ public sealed partial class MountbookView
 
         // The sections share the same lattice as the flat grid, one run of rows each: grouping changes
         // where a row starts, never the column pitch, so the tiles stay in one lattice either way.
-        IReadOnlyList<MountGroup> groups = MountGroups.Build(state.Items, state.GroupBy);
+        // Built once per (list, grouping) rather than once per frame: Build allocates a dictionary, a list per
+        // heading and a titles list, and sorts them, for the whole filtered shelf. The list is the same reference
+        // until the window re-runs the query, which is the same signal the window's own caches key on.
+        if (cachedGroups is null
+            || !ReferenceEquals(cachedGroupsSource, state.Items)
+            || cachedGroupsBy != state.GroupBy)
+        {
+            cachedGroups = MountGroups.Build(state.Items, state.GroupBy);
+            cachedGroupsSource = state.Items;
+            cachedGroupsBy = state.GroupBy;
+        }
+
+        IReadOnlyList<MountGroup> groups = cachedGroups;
         var headerPitch = (Frame.Look.Type.LineHeight(TextRole.Caption) + Frame.Look.SpaceMedium) * scale;
         var y = origin.Y;
 
@@ -612,7 +630,8 @@ public sealed partial class MountbookView
         else if (lift > 0.01f)
         {
             // The hover lift lukat liked. Its halo paints outside the card, so the grid reserves room for
-            // it on both sides (see the inset below) - without that the outer columns were cut off.
+            // it on both sides (see the `inset` DrawGrid passes to DrawCard) - without that the outer
+            // columns were cut off.
             Gw.BeginGlow(new GlowSpec
             {
                 Intensity = 0.22f * lift,
@@ -755,7 +774,6 @@ public sealed partial class MountbookView
             DrawCaptionLine(caption.Second, caption.SecondWidth, cell.X, cellPx, captionTop + lineHeight, ink);
         }
 
-
         // The tooltip says what a double-click does, which is the one card gesture with no visible
         // affordance. Built only while hovered, so it costs nothing per frame.
         // "\n", not Environment.NewLine: the view must not format for the machine it happens to run on
@@ -789,6 +807,9 @@ public sealed partial class MountbookView
         }
     }
 
+    /// <summary>How many wrapped captions are kept before the map is dropped; see <see cref="CaptionFor"/>.</summary>
+    private const int CaptionCacheLimit = 1024;
+
     /// <summary>
     /// The caption to draw for a card: word-wrapped to at most two lines, each measured with the
     /// renderer's own text paint, and shortened with an ellipsis only when two lines still overflow.
@@ -805,7 +826,11 @@ public sealed partial class MountbookView
         }
 
         var caption = Wrap(item.Name, width, scale);
-        if (Captions.Count > 1024)
+
+        // A higher cap than the shared 512, on purpose: a caption is keyed by the pixel width it was wrapped to,
+        // so dragging the window edge through a few pixels creates a whole new generation of entries. 512 would
+        // clear the map mid-drag, when re-measuring every visible caption is exactly what the cache is for.
+        if (Captions.Count > CaptionCacheLimit)
         {
             Captions.Clear();
         }

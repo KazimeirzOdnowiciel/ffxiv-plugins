@@ -25,7 +25,7 @@ public sealed record MarketQuote(
     long LastUploadTimeUnix);
 
 /// <summary>
-/// The Universalist API's per-item quote: building the request, reading the answer, and saying it in
+/// The Universalis API's per-item quote: building the request, reading the answer, and saying it in
 /// one line.
 /// </summary>
 /// <remarks>

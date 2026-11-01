@@ -50,7 +50,4 @@ public sealed record MountShelfHeader(
 
     /// <summary>True when the snapshot records a sheet cross-check that actually ran.</summary>
     public bool HasCrossCheck => CrossCheck is not null;
-
-    /// <summary>A header for a document that has none: version zero, nothing claimed.</summary>
-    public static MountShelfHeader Empty { get; } = new(0, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty);
 }

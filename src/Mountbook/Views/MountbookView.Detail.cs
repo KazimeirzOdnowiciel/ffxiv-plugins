@@ -54,9 +54,9 @@ public sealed partial class MountbookView
         var style = ImGui.GetStyle();
         var actionRows = ActionRowCount(width);
 
-        // Only the one-per-row fallback below 360 logical px lives in the scrolling body. The one-
-        // and two-row layouts keep the actions in a fixed footer: hiding the primary action below a
-        // scroll is worse than shrinking the body by a row.
+        // Only the one-per-row fallback lives in the scrolling body - the case where even the three older
+        // actions do not fit the footer together. The one- and two-row layouts keep the actions in a fixed
+        // footer: hiding the primary action below a scroll is worse than shrinking the body by a row.
         var stacked = actionRows > 2;
 
         // One row keeps a fixed, always-visible footer. When the buttons really stack there is no
@@ -76,10 +76,8 @@ public sealed partial class MountbookView
         // "How to obtain" row out of view (main.png showed it sliced by the footer).
         var reasonLine = ActionReason(state, item) is null ? 0f : ImGui.GetTextLineHeight();
         var rowHeight = MathF.Max(Frame.Look.ControlHeight, Frame.Look.MinHit) * Frame.Scale;
-        var footer = (rowHeight * footerRows)
-            + (style.ItemSpacing.Y * (footerRows + 1))
-            + reasonLine;
-        var bodyHeight = MathF.Max(ImGui.GetContentRegionAvail().Y - footer, 1f);
+        var footer = LayoutMeasure.DetailFooter(rowHeight, footerRows, style.ItemSpacing.Y, reasonLine);
+        var bodyHeight = LayoutMeasure.BodyHeight(ImGui.GetContentRegionAvail().Y, footer);
 
         PushScrollbarInk();
 
@@ -114,7 +112,7 @@ public sealed partial class MountbookView
                 if (stackedReason is not null)
                 {
                     var paneWidth = MathF.Max(ImGui.GetContentRegionAvail().X, 1f);
-                    Gw.Text(Fit(stackedReason, paneWidth, Frame.Scale), TextRole.Footnote);
+                    Gw.Text(FitRole(stackedReason, paneWidth, Frame.Scale, TextRole.Footnote), TextRole.Footnote);
                 }
             }
             finally
@@ -397,6 +395,8 @@ public sealed partial class MountbookView
         // full-width portrait band with the title, the badges and the rarity line under it. Two-column puts
         // a small portrait in a ~40% column with that same block beside it, which is where the body comes
         // from - roughly 90px of the scroll, i.e. the first "How to obtain" row at the default window size.
+        // The measured title is pixels and the rule's arguments are logical, so it is divided here: the one
+        // place the two unit systems meet in this file.
         var header = LayoutMeasure.DetailHeader(
             width,
             HeaderArtShare,
@@ -404,7 +404,7 @@ public sealed partial class MountbookView
             HeaderArtMax,
             HeaderChrome,
             TitleColumnMin,
-            TextWidth(item.Name, TextRole.Title, Frame.Scale));
+            TextWidth(item.Name, TextRole.Title, Frame.Scale) / Frame.Scale);
 
         if (showHero && header.TwoColumn)
         {
@@ -460,14 +460,12 @@ public sealed partial class MountbookView
                 state.MarketCheckRequested = true;
             }
 
+            // One tooltip, not two on the same item: the price when there is one, the explanation of what the
+            // button asks for when there is not. Two TooltipFor calls on one item drew both boxes at once
+            // whenever a price was known - and the second replaced the first, so the explanation was dead text.
             Gw.TooltipFor(
                 ImGui.IsItemHovered(),
-                Loc.T("detail.price.tooltip"));
-
-            if (state.MarketPriceText.Length > 0)
-            {
-                Gw.TooltipFor(ImGui.IsItemHovered(), state.MarketPriceText);
-            }
+                state.MarketPriceText.Length > 0 ? state.MarketPriceText : Loc.T("detail.price.tooltip"));
 
             if (wikiBesidePrice)
             {
@@ -525,37 +523,44 @@ public sealed partial class MountbookView
     }
 
     /// <summary>
-    /// The detail pane's badges in draw order. <paramref name="sheetFacts"/> false is the two-column header,
-    /// where the sheet-only pills move onto <see cref="SheetFactLine"/>; the entries stay in the array so the
-    /// order cannot drift between the two forms.
+    /// The detail pane's badges in draw order, written into <see cref="BadgeBuffer"/>. <paramref name="sheetFacts"/>
+    /// false is the two-column header, where the sheet-only pills move onto <see cref="SheetFactLine"/>; the
+    /// entries stay in the array - and in their own slots - so the order cannot drift between the two forms. A
+    /// shared buffer rather than a fresh array: this runs every frame, and nine tuples of a string and a colour
+    /// is nine allocations a frame for values that are already interned strings.
     /// </summary>
     private static (string? Text, Color? Tint)[] DetailBadges(MountViewState state, MountShelfItem item, bool sheetFacts)
     {
-        return
-        [
-            // A null patch is unrecorded, like every other flag: a "Patch unknown" pill is a placeholder,
-            // and on the locked golden it was the badge that pushed "Flies" onto a line of its own.
-            (sheetFacts && !string.IsNullOrEmpty(item.Patch) ? item.Patch : null, null),
-            (sheetFacts ? SeatsText(item.Seats) : null, null),
-            // "Unowned", not "Not collected": the chip has to read the same as the ownership filter and
-            // the table column, or the same fact looks like two different things in one window.
-            (item.Owned ? Loc.T("badge.collected") : Loc.T("badge.unowned"), null),
-            // Only a recorded "yes" earns a badge: a null flag is unrecorded, and a "No tradeable"
-            // badge would be noise on the 200-odd mounts that simply cannot be sold.
-            (item.Community?.Tradeable == true ? Loc.T("badge.tradeable") : null, null),
-            (item.Community?.CustomMusic == true ? Loc.T("badge.ownMusic") : null, null),
-            // Barding is a sheet fact, not a dataset one: a chocobo's gear slots are recorded, so a
-            // missing badge here really means "this mount wears nothing".
-            (sheetFacts && item.Barding ? Loc.T("badge.barding") : null, null),
-            // A sheet flag, like Barding: absent really means "cannot fly", which is the useful
-            // fact when a mount is the last thing between you and a hunt mark.
-            (sheetFacts && item.Flies ? Loc.T("badge.flies") : null, null),
-            // The wanted state belongs in the header too: it is the one piece of the mount's state the player
-            // set themselves, and the card marker is easy to miss at a glance.
-            (state.WantedIds.Contains(item.Id) ? Loc.T("badge.wanted") : null, Frame.Look.Accent),
-            (state.RecentIds.Contains(item.Id) ? Loc.T("badge.new") : null, Frame.Look.Accent),
-        ];
+        // A null patch is unrecorded, like every other flag: a "Patch unknown" pill is a placeholder,
+        // and on the locked golden it was the badge that pushed "Flies" onto a line of its own.
+        BadgeBuffer[0] = (sheetFacts && !string.IsNullOrEmpty(item.Patch) ? item.Patch : null, null);
+        BadgeBuffer[1] = (sheetFacts ? SeatsText(item.Seats) : null, null);
+        // "Unowned", not "Not collected": the chip has to read the same as the ownership filter and
+        // the table column, or the same fact looks like two different things in one window.
+        BadgeBuffer[2] = (item.Owned ? Loc.T("badge.collected") : Loc.T("badge.unowned"), null);
+        // Only a recorded "yes" earns a badge: a null flag is unrecorded, and a "No tradeable"
+        // badge would be noise on the 200-odd mounts that simply cannot be sold.
+        BadgeBuffer[3] = (item.Community?.Tradeable == true ? Loc.T("badge.tradeable") : null, null);
+        BadgeBuffer[4] = (item.Community?.CustomMusic == true ? Loc.T("badge.ownMusic") : null, null);
+        // Barding is a sheet fact, not a dataset one: a chocobo's gear slots are recorded, so a
+        // missing badge here really means "this mount wears nothing".
+        BadgeBuffer[5] = (sheetFacts && item.Barding ? Loc.T("badge.barding") : null, null);
+        // A sheet flag, like Barding: absent really means "cannot fly", which is the useful
+        // fact when a mount is the last thing between you and a hunt mark.
+        BadgeBuffer[6] = (sheetFacts && item.Flies ? Loc.T("badge.flies") : null, null);
+        // The wanted state belongs in the header too: it is the one piece of the mount's state the player
+        // set themselves, and the card marker is easy to miss at a glance.
+        BadgeBuffer[7] = (state.WantedIds.Contains(item.Id) ? Loc.T("badge.wanted") : null, Frame.Look.Accent);
+        BadgeBuffer[8] = (state.RecentIds.Contains(item.Id) ? Loc.T("badge.new") : null, Frame.Look.Accent);
+
+        return BadgeBuffer;
     }
+
+    /// <summary>One slot per badge <see cref="DetailBadges"/> writes, refilled in place every frame.</summary>
+    private static readonly (string? Text, Color? Tint)[] BadgeBuffer = new (string? Text, Color? Tint)[9];
+
+    /// <summary>The seat sentence per seat count: four possible values, formatted once instead of every frame.</summary>
+    private static readonly System.Collections.Generic.Dictionary<int, string> SeatsBadges = [];
 
     /// <summary>
     /// The sheet-only facts as one line - patch, seats, barding, can fly - for the two-column header. Cached by
@@ -746,9 +751,12 @@ public sealed partial class MountbookView
                     state.SourceLinkRequested = link;
                 }
 
-                Gw.TooltipFor(
-                    ImGui.IsItemHovered(),
-                    Loc.F("detail.source.tooltip", source.Detail));
+                // Only while hovered: this sentence goes through the string table, and it used to be formatted
+                // for every source row of the selected mount on every frame.
+                if (ImGui.IsItemHovered())
+                {
+                    Gw.TooltipFor(true, Loc.F("detail.source.tooltip", source.Detail));
+                }
             }
 
             // The credit belongs at the end of the list it is about, not only in the settings window:
@@ -759,7 +767,7 @@ public sealed partial class MountbookView
             {
                 Gw.Text(
                     FitRole(
-                        Loc.F("detail.obtain.credit", state.DatasetSource),
+                        CreditLine(state.DatasetSource),
                         ImGui.GetContentRegionAvail().X,
                         Frame.Scale,
                         TextRole.Footnote),
@@ -769,6 +777,27 @@ public sealed partial class MountbookView
 
         Gw.EndSection();
     }
+
+    /// <summary>
+    /// The credit sentence for <paramref name="source"/>, formatted once per dataset rather than once a frame:
+    /// the text is fixed for the session and it is one of the two formatted strings the detail pane used to
+    /// rebuild on every draw.
+    /// </summary>
+    /// <param name="source">The site the snapshot credits, e.g. <c>ffxivcollect.com</c>.</param>
+    private static string CreditLine(string source)
+    {
+        if (Credits.TryGetValue(source, out string? line))
+        {
+            return line;
+        }
+
+        line = Loc.F("detail.obtain.credit", source);
+        Remember(Credits, source, line);
+        return line;
+    }
+
+    /// <summary>The credit line per dataset source; one entry per install in practice.</summary>
+    private static readonly System.Collections.Generic.Dictionary<string, string> Credits = [];
 
     /// <summary>
     /// The tracker: a bar, the count that fills it, the two steppers that move the count, and the player's
@@ -1046,7 +1075,7 @@ public sealed partial class MountbookView
             if (reason is not null)
             {
                 var paneWidth = MathF.Max(ImGui.GetContentRegionAvail().X, 1f);
-                Gw.Text(Fit(reason, paneWidth, Frame.Scale), TextRole.Footnote);
+                Gw.Text(FitRole(reason, paneWidth, Frame.Scale, TextRole.Footnote), TextRole.Footnote);
             }
         }
         finally
@@ -1055,7 +1084,11 @@ public sealed partial class MountbookView
         }
     }
 
-    /// <summary>Fits a caption-role label to the pane, remembering the answer per width.</summary>
+    /// <summary>
+    /// Fits a label in the callout role, remembering the answer per width: the card caption wrap measures at the
+    /// role it draws, which is what keeps a wrapped line from being cut by the tile's clip rect. A caller that
+    /// draws something else passes its own role through <see cref="FitRole"/>.
+    /// </summary>
     private static string Fit(string name, float width, float scale)
         => FitTo(name, width, TextRole.Callout, scale);
 
@@ -1097,7 +1130,8 @@ public sealed partial class MountbookView
 
     /// <summary>
     /// "1 seat" / "4 seats", or null when the sheet records no seat count: an "Unknown seats" pill is a
-    /// placeholder rather than a fact, and it was one of the badges that wrapped the row.
+    /// placeholder rather than a fact, and it was one of the badges that wrapped the row. Formatted once per
+    /// distinct count: the badge row is rebuilt every frame, and the sentence goes through the string table.
     /// </summary>
     private static string? SeatsText(int seats)
     {
@@ -1106,7 +1140,14 @@ public sealed partial class MountbookView
             return null;
         }
 
-        return seats == 1 ? Loc.T("badge.seats.one") : Loc.F("badge.seats.many", FormatInt(seats));
+        if (SeatsBadges.TryGetValue(seats, out string? cached))
+        {
+            return cached;
+        }
+
+        string text = seats == 1 ? Loc.T("badge.seats.one") : Loc.F("badge.seats.many", FormatInt(seats));
+        Remember(SeatsBadges, seats, text);
+        return text;
     }
 
     private static string? Reason(string? reason) =>

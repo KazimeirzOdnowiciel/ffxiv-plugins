@@ -200,20 +200,29 @@ public sealed class Plugin : IDalamudPlugin
 
         WindowSystem.RemoveAllWindows();
 
-        // RemoveAllWindows only drops the references. The windows own the view, its state and the live
-        // texture-handle maps, so they are disposed here, before the host they draw through (N11).
-        mainWindow.Dispose();
-        configWindow.Dispose();
+        try
+        {
+            // RemoveAllWindows only drops the references. MainWindow owns the market client and both windows
+            // own their view state, so they are released before the host they draw through (N11). WantedBoardWindow
+            // holds nothing disposable, so it has none to call.
+            mainWindow.Dispose();
+            configWindow.Dispose();
 
-        // The watch client is the plugin's, not a window's, so it is disposed here: leaving it alive would
-        // keep a socket pool (and a poll) running past the unload.
-        watchMarket.Dispose();
+            // The watch client is the plugin's, not a window's, so it is disposed here: leaving it alive would
+            // keep a socket pool (and a poll) running past the unload.
+            watchMarket.Dispose();
+        }
+        finally
+        {
+            // In the finally, not after it: a throw from a window's Dispose must still unregister the command
+            // and take the glass layer down, or /mountbook stays registered against a dead plugin and the next
+            // draw records a callback into a disposed host.
+            CommandManager.RemoveHandler(CommandName);
 
-        CommandManager.RemoveHandler(CommandName);
-
-        // Last, and only after Draw is unsubscribed: a glass callback recorded after the
-        // layer is gone faults the client.
-        Host.Dispose();
+            // Last, and only after Draw is unsubscribed: a glass callback recorded after the
+            // layer is gone faults the client.
+            Host.Dispose();
+        }
     }
 
     /// <summary>
@@ -238,10 +247,17 @@ public sealed class Plugin : IDalamudPlugin
     /// The player's data center, e.g. <c>Light</c>, or empty before a character is loaded.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A market answer is asked for by data center and never by world: a world-only answer hides every
     /// cheaper listing one hop away, and cross-world travel makes those buyable. <c>ValueNullable</c> on both
     /// hops is deliberate - a <c>RowRef</c> throws before the character loads, and "no price today" must
     /// never arrive as an exception on a draw path.
+    /// </para>
+    /// <para>
+    /// The catch is silent once and logged on the transition, like every other per-frame failure: this runs
+    /// from the draw path, so an Error per frame would flood the log, but a failure nobody can see makes every
+    /// market read vanish with no evidence at all (N4).
+    /// </para>
     /// </remarks>
     internal static string DataCenterName()
     {
@@ -250,11 +266,20 @@ public sealed class Plugin : IDalamudPlugin
             return PlayerState.HomeWorld.ValueNullable?.DataCenter.ValueNullable?.Name.ExtractText()
                 ?? string.Empty;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            if (!loggedDataCenterFailure)
+            {
+                loggedDataCenterFailure = true;
+                Log.Error(ex, "Could not read the player's data center; market reads are unavailable until a reload.");
+            }
+
             return string.Empty;
         }
     }
+
+    /// <summary>Whether the data-center read has already failed once, so the log gets one line and not sixty a second.</summary>
+    private static bool loggedDataCenterFailure;
 
     /// <summary>
     /// Bumped whenever something the wanted board draws changes outside the catalog: a mount starred or

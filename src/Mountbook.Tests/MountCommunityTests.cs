@@ -120,6 +120,33 @@ public sealed class MountCommunityTests
         Assert.Equal(string.Empty, MountRarity.DescribeCompact(null));
     }
 
+    /// <summary>
+    /// The table's Owners column and the header's insight line both print this reading, so it is pinned at the
+    /// four shapes a share has: an ordinary decimal, a rounded zero, the top of the scale, and unrecorded. It had
+    /// no test at all while being the only number the table shows for a mount.
+    /// </summary>
+    [Theory]
+    [InlineData(0.3, "0.3%")]
+    [InlineData(2, "2%")]
+    [InlineData(2.4, "2.4%")]
+    [InlineData(96.4, "96.4%")]
+    [InlineData(0, "<0.1%")]
+    [InlineData(0.04, "<0.1%")]
+    [InlineData(100, "100%")]
+    [InlineData(99.96, "100%")]
+    public void ShareTextPrintsTheTableReading(double percent, string expected)
+    {
+        Assert.Equal(expected, MountRarity.ShareText(percent));
+    }
+
+    [Fact]
+    public void ShareTextDrawsNothingForUnrecordedRarity()
+    {
+        // Empty, not "0%": an unrecorded share is not a share nobody has, and the cell is left blank.
+        Assert.Equal(string.Empty, MountRarity.ShareText(null));
+        Assert.Equal(string.Empty, MountRarity.ShareText(double.NaN));
+    }
+
     [Fact]
     public void RarestFirstPutsTheSmallestShareAtTheTop()
     {

@@ -15,8 +15,11 @@ namespace Mountbook.Tests;
 /// in either cannot silently leak - and <see cref="ConfigViewState"/> is linked into this project for exactly
 /// that reason: its reset was missing a flag and nothing compiled or tested it.
 /// <para>
-/// The pulses whose names do not end in "Requested" (a nullable id or a tri-state) are listed by hand in
-/// <see cref="PulseNames"/>; that list is the one part reflection cannot infer.
+/// Two lists carry the names reflection cannot infer. <see cref="PulseNames"/> holds the pulses whose names do
+/// not end in "Requested" (a nullable id or a tri-state); <see cref="LatchNames"/> holds the plain flags that
+/// are raised during a draw and mean "persist this once" rather than "do this once" - they are reset by
+/// <c>ClearRequests</c> too, and nothing asserted it, so a latch left set would write the settings file every
+/// frame.
 /// </para>
 /// </remarks>
 public sealed class MountViewRequestTests
@@ -73,6 +76,31 @@ public sealed class MountViewRequestTests
         Assert.Equal(42u, state.SelectedId);
     }
 
+    [Theory]
+    [MemberData(nameof(States))]
+    public void ClearRequestsResetsEveryLatch(object state)
+    {
+        Type type = state.GetType();
+        List<PropertyInfo> latches = LatchProperties(type);
+
+        if (latches.Count == 0)
+        {
+            return;
+        }
+
+        foreach (PropertyInfo latch in latches)
+        {
+            latch.SetValue(state, true);
+        }
+
+        ClearRequests(state);
+
+        foreach (PropertyInfo latch in latches)
+        {
+            Assert.False((bool)latch.GetValue(state)!);
+        }
+    }
+
     /// <summary>Every writable property whose name says it is a one-frame request.</summary>
     private static List<PropertyInfo> RequestProperties(Type type)
     {
@@ -111,6 +139,31 @@ public sealed class MountViewRequestTests
         type == typeof(MountViewState)
             ? ["ToggleWantedId", "ApplyViewIndex", "DeleteViewIndex"]
             : ["ThemePickedIndex", "FollowGameThemeSet"];
+
+    /// <summary>
+    /// The plain flags a draw raises and the window persists once - neither a "Requested" nor a pulse. Listed by
+    /// hand for the same reason as <see cref="PulseNames"/>: nothing in the name says the reset owns them.
+    /// </summary>
+    private static string[] LatchNames(Type type) =>
+        type == typeof(MountViewState) ? ["GrindChanged", "WatchChanged"] : [];
+
+    /// <summary>Resolves <see cref="LatchNames"/> to properties, refusing a name that no longer exists.</summary>
+    private static List<PropertyInfo> LatchProperties(Type type)
+    {
+        string[] names = LatchNames(type);
+        var found = new List<PropertyInfo>(names.Length);
+
+        foreach (string name in names)
+        {
+            PropertyInfo property = type.GetProperty(name, BindingFlags.Public | BindingFlags.Instance)
+                ?? throw new InvalidOperationException(
+                    $"The latch '{name}' is listed for {type.Name} but the property does not exist.");
+
+            found.Add(property);
+        }
+
+        return found;
+    }
 
     /// <summary>A value a request can hold: <c>true</c> for a flag, a payload for a request that carries one.</summary>
     private static object RequestValue(Type type) => type == typeof(bool) ? true : "payload";

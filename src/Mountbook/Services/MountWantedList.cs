@@ -145,6 +145,18 @@ public static class MountWantedList
 
             if (root.ValueKind == JsonValueKind.Object)
             {
+                // A document that names its own format is only a wanted list when it says so: without this a
+                // pasted settings block or a saved view, both of which carry a "mounts"-shaped member of their
+                // own, was read as a list of ids. A file with no "format" at all is a hand-written one.
+                if (TryGetMember(root, "format", out JsonElement format)
+                    && (format.ValueKind != JsonValueKind.String
+                        || !string.Equals(format.GetString(), FormatName, StringComparison.Ordinal)))
+                {
+                    error = Loc.T("import.shape");
+
+                    return false;
+                }
+
                 if (TryGetMember(root, "version", out JsonElement version))
                 {
                     if (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out int number))

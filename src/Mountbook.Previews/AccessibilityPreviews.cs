@@ -11,7 +11,7 @@ namespace Mountbook.Previews;
 /// <c>main</c>, so the image differs by theme alone.
 /// </summary>
 /// <remarks>
-/// The other sixteen scenes render <see cref="Look.Eorzea"/> and nothing else, which means a change to the
+/// The other twenty-three scenes render <see cref="Look.Eorzea"/> and nothing else, which means a change to the
 /// Glasswork Look - a lighter label, a card fill that stops separating from the background - can leave every
 /// golden green while the half of the player base running the light theme reads grey on grey. The preview tool
 /// has a <c>--light</c> switch, but it does not apply with <c>--assembly</c> ("a screen brings its own size, Look

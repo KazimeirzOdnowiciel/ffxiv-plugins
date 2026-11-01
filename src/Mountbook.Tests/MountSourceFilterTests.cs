@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Mountbook.Services;
 using Xunit;
@@ -18,7 +18,7 @@ public sealed class MountSourceFilterTests
     private static MountQuery Query(MountSourceKind source) =>
         new(null, MountOwnership.All, MountExpansion.All, MountOrder.Name) { Source = source };
 
-    private static MountQuery Query(string source) => Query(MountSourceKinds.Parse(source));
+    private static MountQuery Query(string? source) => Query(MountSourceKinds.Parse(source));
 
     private static MountShelfItem Item(uint id, string name, bool owned, params string[] categories)
     {
@@ -75,7 +75,7 @@ public sealed class MountSourceFilterTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void AnEmptyFilterKeepsEverything(string source)
+    public void AnEmptyFilterKeepsEverything(string? source)
     {
         Assert.Equal(4, Query(source).Apply(Shelf()).Count);
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Glasswork;
@@ -32,7 +33,8 @@ public sealed partial class MountbookView
         // The table id carries the order, so a different order is a different ImGui table. ImGui remembers
         // a table's sort spec and its column widths by id - across sessions - so a shared id left the caret
         // (and the widths) of whichever order was drawn last. A fresh id per order keeps each order's table
-        // to itself; what the id still restores is repaired below, where the report is read.
+        // to itself; what the id still restores is repaired below, where the report is read. Surprise has no
+        // id of its own on purpose: it draws the name column's caret, so it shares the name order's table.
         ReadOnlySpan<byte> tableId = state.Order switch
         {
             MountOrder.OldestFirst => "##mountsTable1"u8,
@@ -119,10 +121,10 @@ public sealed partial class MountbookView
             Gw.TableText(MountTable.PatchText(item), TextRole.Footnote);
 
             Gw.TableCell();
-            Gw.TableText(MountTable.SeatsText(item), TextRole.Footnote);
+            Gw.TableText(SeatsLabel(item), TextRole.Footnote);
 
             Gw.TableCell();
-            Gw.TableText(UiText.Source(MountTable.SourceText(item)), TextRole.Footnote);
+            Gw.TableText(SourceLabel(item), TextRole.Footnote);
 
             Gw.TableCell();
             DrawOwnedDot(item.Owned, accent);
@@ -134,7 +136,7 @@ public sealed partial class MountbookView
             // order already parks the unpriced mounts at the end when this is the sort column.
             Gw.TableCell();
             Gw.TableText(
-                MountTable.PriceText(state.Prices.TryGetValue(item.Id, out int price) ? price : 0),
+                PriceLabel(state.Prices.TryGetValue(item.Id, out int price) ? price : 0),
                 TextRole.Footnote);
         }
 
@@ -181,7 +183,7 @@ public sealed partial class MountbookView
     /// <param name="look">The Look, for the one colour a badge may use.</param>
     private static void DrawRarity(MountShelfItem item, Look look)
     {
-        string text = MountTable.RarityText(item);
+        string text = RarityLabel(item);
 
         if (text.Length == 0 || !MountRarity.IsRare(item.Community?.OwnedPercent))
         {
@@ -190,7 +192,13 @@ public sealed partial class MountbookView
         }
 
         Gw.Badge(text, look.Warning);
-        Gw.TooltipFor(ImGui.IsItemHovered(), MountRarity.Describe(item.Community?.OwnedPercent));
+
+        // Built only while hovered: the sentence goes through the string table, and it used to be formatted for
+        // every rare row of the list on every frame, hovered or not.
+        if (ImGui.IsItemHovered())
+        {
+            Gw.TooltipFor(true, MountRarity.Describe(item.Community?.OwnedPercent));
+        }
     }
 
     /// <summary>
@@ -229,6 +237,90 @@ public sealed partial class MountbookView
             OwnedDotRadius * scale,
             accent.ToAbgr());
     }
+
+    /// <summary>
+    /// The table's seats cell: formatted once per distinct seat count, because the table has no clipper and
+    /// so formats every row of the filtered list on every frame.
+    /// </summary>
+    /// <param name="item">The mount whose row is being drawn.</param>
+    private static string SeatsLabel(MountShelfItem item)
+    {
+        if (TableSeatsLabels.TryGetValue(item.Seats, out string? label))
+        {
+            return label;
+        }
+
+        label = MountTable.SeatsText(item);
+        Remember(TableSeatsLabels, item.Seats, label);
+        return label;
+    }
+
+    /// <summary>
+    /// The table's category cell, formatted once per distinct dataset category (28 of them) rather than once
+    /// per row: <see cref="UiText.Source(string)"/> folds a spelling through a parsed type, and the fold is the
+    /// expensive half.
+    /// </summary>
+    /// <param name="item">The mount whose row is being drawn.</param>
+    private static string SourceLabel(MountShelfItem item)
+    {
+        string category = MountTable.SourceText(item);
+
+        if (TableSourceLabels.TryGetValue(category, out string? label))
+        {
+            return label;
+        }
+
+        label = UiText.Source(category);
+        Remember(TableSourceLabels, category, label);
+        return label;
+    }
+
+    /// <summary>
+    /// The table's price cell, formatted once per distinct price. Keyed by the price and not by the mount:
+    /// prices are the one cell that moves between frames, and the key is what keeps a stale number off the row.
+    /// </summary>
+    /// <param name="price">The cheapest price in gil, or 0 when there is none.</param>
+    private static string PriceLabel(int price)
+    {
+        if (TablePriceLabels.TryGetValue(price, out string? label))
+        {
+            return label;
+        }
+
+        label = MountTable.PriceText(price);
+        Remember(TablePriceLabels, price, label);
+        return label;
+    }
+
+    /// <summary>
+    /// The table's rarity cell, formatted once per distinct share. <see cref="double.NaN"/> stands for
+    /// "unrecorded" in the key, because a <c>double?</c> cannot be a dictionary key and NaN is the one value the
+    /// dataset never carries.
+    /// </summary>
+    /// <param name="item">The mount whose row is being drawn.</param>
+    private static string RarityLabel(MountShelfItem item)
+    {
+        double key = item.Community?.OwnedPercent ?? double.NaN;
+
+        if (TableRarityLabels.TryGetValue(key, out string? label))
+        {
+            return label;
+        }
+
+        label = MountTable.RarityText(item);
+        Remember(TableRarityLabels, key, label);
+        return label;
+    }
+
+    /// <summary>
+    /// Formatted cells, each keyed by the value it is built from rather than by mount id: a catalog refresh
+    /// that changes a patch, a seat count or a share must not be served the previous string, and keying on the
+    /// value makes that impossible without a revision counter. Bounded by <see cref="MeasureCacheLimit"/>.
+    /// </summary>
+    private static readonly Dictionary<int, string> TableSeatsLabels = [];
+    private static readonly Dictionary<string, string> TableSourceLabels = [];
+    private static readonly Dictionary<int, string> TablePriceLabels = [];
+    private static readonly Dictionary<double, string> TableRarityLabels = [];
 
     /// <summary>The width the dot's cell reserves, logical units: the dot plus the gutter beside it.</summary>
     private const float OwnedDotWidth = 12f;

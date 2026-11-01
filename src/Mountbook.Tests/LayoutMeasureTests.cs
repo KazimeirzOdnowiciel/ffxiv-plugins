@@ -52,16 +52,51 @@ public sealed class LayoutMeasureTests
     [Fact]
     public void BodyPlusFooterNeverExceedsThePane()
     {
-        // The acceptance shape: whatever the body gets, the footer has to fit under it inside the pane.
+        // The acceptance shape: whatever the body gets, the footer has to fit under it inside the pane. Both
+        // halves are the functions the view calls - the footer used to be a hard-coded 44 here and subtracted
+        // from the same constant it was supposed to check, so this test could not fail.
         const float paneTopPx = 150f;
         const float clipBottomPx = 660f;
-        const float footerPx = 44f;
+        const int rows = 2;
 
         float columns = LayoutMeasure.ColumnHeight(clipBottomPx, paneTopPx, 16f, 900f);
-        float body = columns - footerPx;
+        float footer = LayoutMeasure.DetailFooter(
+            rowHeightPx: 44f,
+            rows,
+            itemSpacingPx: 4f,
+            reasonLinePx: 20f);
+        float body = LayoutMeasure.BodyHeight(columns, footer);
 
-        Assert.True(paneTopPx + body + footerPx <= clipBottomPx - 16f);
+        Assert.Equal(columns, body + footer, 3);
+        Assert.True(paneTopPx + body + footer <= clipBottomPx - 16f);
     }
+
+    [Fact]
+    public void TheFooterPaysARowPerLineAndASpacingBetweenThem()
+    {
+        // 44 + 8 with one row, 88 + 12 with two: the spacing is above, between and below, which is the two-pixel
+        // shortfall a control-height-only sum left behind.
+        Assert.Equal(52f, LayoutMeasure.DetailFooter(44f, 1, 4f, 0f), 3);
+        Assert.Equal(100f, LayoutMeasure.DetailFooter(44f, 2, 4f, 0f), 3);
+
+        // The disabled-reason line is only paid for when there is a reason to draw.
+        Assert.Equal(72f, LayoutMeasure.DetailFooter(44f, 1, 4f, 20f), 3);
+    }
+
+    [Fact]
+    public void ABodyShorterThanItsFooterStillDraws()
+    {
+        Assert.Equal(348f, LayoutMeasure.BodyHeight(400f, 52f), 3);
+        Assert.Equal(1f, LayoutMeasure.BodyHeight(40f, 52f), 3);
+    }
+
+    [Theory]
+    [InlineData(329.9f, false)]
+    [InlineData(330f, true)]
+    public void TheWatchRowFollowsThePaneWidth(float paneWidth, bool oneRow) =>
+        // The gate that puts the watch toggle and its stepper on one line, or stacks them: every other
+        // LayoutMeasure gate is pinned, and this one had no test while it decides the detail pane's own row.
+        Assert.Equal(oneRow, LayoutMeasure.WatchRowFits(paneWidth));
 
     /// <summary>
     /// The two-column detail header, at the pane widths the goldens really draw: 211/287 are the two stacked

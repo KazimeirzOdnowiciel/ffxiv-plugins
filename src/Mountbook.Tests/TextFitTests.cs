@@ -16,7 +16,9 @@ public sealed class TextFitTests
     [Fact]
     public void TextThatFitsIsReturnedUnchanged()
     {
-        Assert.Equal("Aithon", TextFit.Fit("Aithon", 60f, Count));
+        // Room to spare, not the exact width: the exactly-fitting case is the test below, and this one used to
+        // repeat it with the same 60, so a rule that trimmed anything at or under the width passed both.
+        Assert.Equal("Aithon", TextFit.Fit("Aithon", 100f, Count));
     }
 
     [Fact]

@@ -7,6 +7,14 @@
     <IsTestProject>true</IsTestProject>
     <RootNamespace>Mountbook.Tests</RootNamespace>
 
+    <!-- StrictConventions above is inert under this SDK: it is Dalamud.NET.Sdk that reads it into
+         nullable + warnings-as-errors, and this project deliberately does not use that SDK (it must not
+         reference Dalamud at all). Without the two lines below the suite compiled with nullable off and
+         12 CS8632 warnings for the `string?` the linked Services/ code is written with - so the "warnings
+         are errors" gate the repo claims covered the plugin and not the tests. -->
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
     <!-- xunit v3 test projects are executables. That also makes `dotnet run` work as a
          fallback anywhere `dotnet test` cannot spawn the VSTest testhost. -->
     <OutputType>Exe</OutputType>

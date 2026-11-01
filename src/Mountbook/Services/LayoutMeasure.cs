@@ -48,12 +48,10 @@ public static class LayoutMeasure
     /// units.
     /// </summary>
     /// <remarks>
-    /// The same number as the two-column header, for the same shape of reason: the stepper is two large
-    /// control heights wide before its label, so at the narrow size (~211 px) the pair leaves the toggle's own
-    /// label clipped, while from 330 the stepper still has over 200 px of label room. A rule rather than a
-    /// measurement of the stepper, whose inside width the facade does not report.
+    /// The two-column header's own number, referenced rather than repeated: the two gates happen to share a
+    /// threshold, and two constants that must agree are two constants that can drift apart.
     /// </remarks>
-    public const float WatchRowMinWidth = 330f;
+    public const float WatchRowMinWidth = DetailTwoColumnMinWidth;
 
     /// <summary>True when the detail pane is wide enough to put the watch toggle and its stepper on one row.</summary>
     /// <param name="paneWidth">The detail pane's width, in logical units.</param>
@@ -140,8 +138,11 @@ public static class LayoutMeasure
     /// <param name="artMax">The largest artwork box, logical units.</param>
     /// <param name="chrome">What the artwork column takes beyond the image: mat on both sides plus the gutter.</param>
     /// <param name="titleMin">The narrowest title column worth drawing the two-column form into.</param>
-    /// <param name="titleWidth">The selected mount's name, measured in the title role; zero when it is not
-    /// known yet.</param>
+    /// <param name="titleWidthLogical">The selected mount's name, measured in the title role, in *logical*
+    /// units - the same units as every other argument; zero when it is not known yet. A caller that measures
+    /// text gets pixels back, so it has to divide by the UI scale first: passing those pixels here made the
+    /// artwork give way to a title twice its real width at 200% scale, which no golden could show because
+    /// every scene renders at scale 1.</param>
     public static DetailHeaderColumns DetailHeader(
         float paneWidth,
         float artShare,
@@ -149,7 +150,7 @@ public static class LayoutMeasure
         float artMax,
         float chrome,
         float titleMin,
-        float titleWidth)
+        float titleWidthLogical)
     {
         float art = Math.Clamp(paneWidth * artShare, artMin, artMax);
 
@@ -157,15 +158,39 @@ public static class LayoutMeasure
         // abbreviated without losing what the player came for, and a portrait at 96 rather than 112 still
         // reads as a portrait: so the column shrinks to its floor before the title ellipsises. One pixel of
         // slack, because the fit test is a <= against the same measured width.
-        if (titleWidth > 0f)
+        if (titleWidthLogical > 0f)
         {
-            art = MathF.Min(art, MathF.Max(paneWidth - chrome - titleWidth - 1f, artMin));
+            art = MathF.Min(art, MathF.Max(paneWidth - chrome - titleWidthLogical - 1f, artMin));
         }
 
         float text = MathF.Max(paneWidth - art - chrome, 1f);
 
         return new DetailHeaderColumns(art, text, paneWidth >= DetailTwoColumnMinWidth && text >= titleMin);
     }
+
+    /// <summary>
+    /// The height the detail pane's fixed footer reserves: one row per action line, the item spacing above,
+    /// between and below them, and the disabled-reason line when there is one.
+    /// </summary>
+    /// <remarks>
+    /// Extracted from the view so the arithmetic that once left the footer two pixels short can be pinned:
+    /// <paramref name="rowHeightPx"/> has to be <c>Max(Look.ControlHeight, Look.MinHit)</c> at the UI scale,
+    /// because <c>Gw.Button</c> reserves its item that way and a control-height-only sum under-reserved the row.
+    /// </remarks>
+    /// <param name="rowHeightPx">One action row's height, in screen pixels, already scaled.</param>
+    /// <param name="rows">How many action lines the footer holds.</param>
+    /// <param name="itemSpacingPx">ImGui's item spacing, the gap above, between and under the rows.</param>
+    /// <param name="reasonLinePx">The disabled-reason line's height, or zero when no reason is drawn.</param>
+    public static float DetailFooter(float rowHeightPx, int rows, float itemSpacingPx, float reasonLinePx)
+        => (rowHeightPx * rows) + (itemSpacingPx * (rows + 1)) + reasonLinePx;
+
+    /// <summary>
+    /// What the scrolling body gets under that footer, clamped at 1 so a pane shorter than its own footer
+    /// still draws something rather than a zero-height child that silently skips its content.
+    /// </summary>
+    /// <param name="availablePx">The pane's height, in screen pixels.</param>
+    /// <param name="footerPx">What <see cref="DetailFooter"/> reserves.</param>
+    public static float BodyHeight(float availablePx, float footerPx) => MathF.Max(availablePx - footerPx, 1f);
 
     /// <summary>
     /// The bottom inset to reserve under the columns: the value measured from the card's own geometry when

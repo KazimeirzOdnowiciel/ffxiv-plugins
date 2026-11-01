@@ -168,6 +168,25 @@ public sealed class MountWantedListTests
     }
 
     [Fact]
+    public void ParseRefusesADocumentThatNamesAnotherFormat()
+    {
+        // The format member exists so a pasted theme or diagnostics block is refused as a whole file, and it was
+        // written but never checked: any object carrying a "mounts" array was read as a list of ids. This one
+        // carries the array, so only the format can turn it away.
+        Assert.False(MountWantedList.TryParse(
+            "{\"format\":\"mountbook.diagnostics\",\"mounts\":[26]}",
+            Known,
+            out _,
+            out string error));
+
+        Assert.NotEqual(string.Empty, error);
+
+        // A file with no format at all is still the hand-written shape, and the string member must be a string.
+        Assert.True(MountWantedList.TryParse("{\"mounts\":[26]}", Known, out _, out _));
+        Assert.False(MountWantedList.TryParse("{\"format\":7,\"mounts\":[26]}", Known, out _, out _));
+    }
+
+    [Fact]
     public void ParseAcceptsAListWithNothingInIt()
     {
         Assert.True(MountWantedList.TryParse("{\"mounts\":[]}", Known, out MountWantedImport result, out _));

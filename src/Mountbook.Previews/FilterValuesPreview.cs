@@ -84,7 +84,7 @@ public sealed class FilterValuesPreview : IPreviewScreen
 }
 
 /// <summary>
-/// CONTROL TEST: the Cards/Table switch now shares its row with the search field, so a press on its "Table"
+/// A control scene: the Cards/Table switch now shares its row with the search field, so a press on its "Table"
 /// cell has to reach the switch and not the field underneath the pointer.
 /// </summary>
 /// <remarks>

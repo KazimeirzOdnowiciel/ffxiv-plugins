@@ -115,7 +115,13 @@ public sealed class WantedBoardView
         if (row.Want > 0)
         {
             Gw.ProgressBar(row.Fraction, 0f, Frame.Look.Accent);
-            Gw.TooltipFor(ImGui.IsItemHovered(), MountGrind.Label(row.Have, row.Want));
+
+            // Only while hovered: the label goes through the string table, and it was built for every row of
+            // the board on every frame whether the pointer was anywhere near it or not.
+            if (ImGui.IsItemHovered())
+            {
+                Gw.TooltipFor(true, MountGrind.Label(row.Have, row.Want));
+            }
         }
 
         Gw.Text(Facts(row, now), TextRole.Caption);
@@ -134,27 +140,22 @@ public sealed class WantedBoardView
     /// Trims <paramref name="text"/> with an ellipsis so it fits <paramref name="width"/>, measured with
     /// Glasswork's own text paint (ImGui's measurement is narrower and cut text just before the glyph).
     /// </summary>
+    /// <remarks>
+    /// The rule is <see cref="TextFit.Fit"/>, not a copy: this file and <see cref="ConfigView"/> held two
+    /// byte-identical versions of it. ASCII dots are passed in because the headless preview's atlas has no
+    /// U+2026, so the golden would show a "?" where the game shows an ellipsis.
+    /// </remarks>
+    /// <param name="text">The string to fit.</param>
+    /// <param name="width">The pixel width it has to fit in.</param>
+    /// <param name="role">The role it draws in, which is also the role it is measured in.</param>
     private static string Fit(string text, float width, TextRole role)
     {
         Look look = Frame.Look;
         var scale = Frame.Scale;
 
-        if (TextPaint.Measure(text, role, in look, scale).X <= width)
-        {
-            return text;
-        }
-
-        // ASCII dots on purpose: the headless preview's atlas has no U+2026, so the golden would show a
-        // "?" where the game shows an ellipsis.
-        const string Ellipsis = "...";
-        var length = text.Length;
-
-        while (length > 1
-            && TextPaint.Measure(string.Concat(text.AsSpan(0, length), Ellipsis), role, in look, scale).X > width)
-        {
-            length--;
-        }
-
-        return string.Concat(text.AsSpan(0, length).TrimEnd(), Ellipsis);
+        return TextFit.Fit(text, width, candidate => TextPaint.Measure(candidate, role, in look, scale).X, EllipsisDots);
     }
+
+    /// <summary>What a trimmed line ends in here: ASCII, because the headless preview's atlas has no U+2026.</summary>
+    private const string EllipsisDots = "...";
 }

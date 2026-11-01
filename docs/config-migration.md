@@ -95,7 +95,10 @@ Two rules that decide whether a step is allowed to do this:
 - **The null and enum guards run on every load, not only on a step.** A hand edit does not bump `Version`, so
   the file most likely to be broken claims to be current. This also makes `Migrate` safe to call on a shape
   this build does not know: a `Version` above `CurrentVersion` is left alone (forwards compatible), while the
-  guards still repair what they know.
+  guards still repair what they know. The saved-view list is one of those guards and not only a step: the row
+  and its dialog read `views[index].Name` with no null check, so a single null entry in a file claiming the
+  current version threw on every frame and left the main window blank. `SavedViewRules.Normalise` is idempotent,
+  so running it on every load costs one pass over at most eight entries.
 
 A step must also never throw: `Migrate` runs from the plugin constructor, so an exception here is a plugin
 that does not load. The sweep checks `IsTracked`/`IsWatching` *before* touching a record's members - a null

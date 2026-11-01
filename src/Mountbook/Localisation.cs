@@ -33,7 +33,7 @@ internal static class Localisation
         ArgumentNullException.ThrowIfNull(pluginInterface);
         ArgumentNullException.ThrowIfNull(log);
 
-        Loc.Scan();
+        Loc.Scan((name, ex) => log.Warning(ex, "Skipped the string table '{Name}': it did not parse.", name));
 
         InterfaceLanguage language = InterfaceLanguageRules.FromUiLanguage(pluginInterface.UiLanguage);
 

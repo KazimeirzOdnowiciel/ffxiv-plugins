@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Mountbook.Services;
@@ -182,7 +182,7 @@ public sealed class MountSourceKindsTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    public void NothingReadsAsAny(string spelling)
+    public void NothingReadsAsAny(string? spelling)
     {
         Assert.True(MountSourceKinds.Parse(spelling).IsAny);
         Assert.False(MountSourceKinds.Parse(spelling).IsKnown);
@@ -208,7 +208,7 @@ public sealed class MountSourceKindsTests
     [InlineData("brandnew")]
     [InlineData("")]
     [InlineData(null)]
-    public void TheOperatorRefusesWhatNamesNoSingleType(string text)
+    public void TheOperatorRefusesWhatNamesNoSingleType(string? text)
     {
         // "p" is Premium, Purchase and PvP; a guess would filter to a type nobody asked for, so the term stays
         // free text instead - the same way an unreadable value of any other operator does.

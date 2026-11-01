@@ -32,29 +32,25 @@ public sealed class ConfigView
     /// Trims <paramref name="text"/> with an ellipsis so it fits <paramref name="width"/>, measured with
     /// Glasswork's own text paint (ImGui's measurement is narrower and cut text just before the glyph).
     /// </summary>
+    /// <remarks>
+    /// The rule is <see cref="TextFit.Fit"/>, not a copy: this file and <see cref="WantedBoardView"/> held two
+    /// byte-identical versions of it, including the ASCII-dots rationale, and a third already lived in
+    /// Services/ for exactly this reason. ASCII dots are passed in because the headless preview's atlas has no
+    /// U+2026, so the golden would show a "?" where the game shows an ellipsis.
+    /// </remarks>
+    /// <param name="text">The string to fit.</param>
+    /// <param name="width">The pixel width it has to fit in.</param>
+    /// <param name="role">The role it draws in, which is also the role it is measured in.</param>
     private static string Fit(string text, float width, TextRole role)
     {
-        var look = Frame.Look;
+        Look look = Frame.Look;
         var scale = Frame.Scale;
 
-        if (TextPaint.Measure(text, role, in look, scale).X <= width)
-        {
-            return text;
-        }
-
-        // ASCII dots on purpose: the headless preview's atlas has no U+2026, so the golden would show a
-        // "?" where the game shows an ellipsis. The path is a diagnostic line; three dots read fine.
-        const string Ellipsis = "...";
-        var length = text.Length;
-
-        while (length > 1
-            && TextPaint.Measure(string.Concat(text.AsSpan(0, length), Ellipsis), role, in look, scale).X > width)
-        {
-            length--;
-        }
-
-        return string.Concat(text.AsSpan(0, length).TrimEnd(), Ellipsis);
+        return TextFit.Fit(text, width, candidate => TextPaint.Measure(candidate, role, in look, scale).X, EllipsisDots);
     }
+
+    /// <summary>What a trimmed line ends in here: ASCII, because the headless preview's atlas has no U+2026.</summary>
+    private const string EllipsisDots = "...";
 
     /// <summary>How wide a footnote line draws, for <see cref="PathLabel"/>.</summary>
     private static float MeasurePath(string text)

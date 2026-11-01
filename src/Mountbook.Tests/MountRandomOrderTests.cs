@@ -78,10 +78,15 @@ public sealed class MountRandomOrderTests
     }
 
     [Fact]
-    public void ARankIsStablePerIdAndSeed() =>
-        // The comparator is built on this: an unstable rank would make Sort produce a different list on
-        // every frame with the same seed.
+    public void ARankIsStablePerIdAndSeed()
+    {
+        // The comparator is built on this: an unstable rank would make Sort produce a different list on every
+        // frame with the same seed. The old body compared the call to itself, which cannot fail - so it also
+        // pins that two different mounts do not collide into one rank, which is what a stable-but-flat rank
+        // would look like.
         Assert.Equal(MountQuery.RankOf(42u, 5), MountQuery.RankOf(42u, 5));
+        Assert.NotEqual(MountQuery.RankOf(42u, 5), MountQuery.RankOf(43u, 5));
+    }
 
     private static IReadOnlyList<MountShelfItem> Apply(IReadOnlyList<MountShelfItem> items, int seed) =>
         new MountQuery(string.Empty, MountOwnership.All, MountExpansion.All, MountOrder.Random)

@@ -205,6 +205,16 @@ public static class WantedBoard
         return byPrice != 0 ? byPrice : CompareByName(left, right);
     }
 
-    private static int CompareByName(BoardRow left, BoardRow right) =>
-        string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+    /// <summary>
+    /// The last word in both orders: name, then id. The id is what makes it a total order - two mounts whose
+    /// names differ only by case compare equal under an ignore-case compare, and <c>List.Sort</c> is unstable, so
+    /// equal rows could swap between frames. <see cref="MountQuery"/> settled on the same three-step rule for the
+    /// same reason.
+    /// </summary>
+    private static int CompareByName(BoardRow left, BoardRow right)
+    {
+        int byName = string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+
+        return byName != 0 ? byName : left.Id.CompareTo(right.Id);
+    }
 }

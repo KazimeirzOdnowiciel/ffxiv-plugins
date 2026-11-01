@@ -49,12 +49,11 @@ public sealed class PathLabelTests
     [Fact]
     public void ASingleOverlongSegmentIsTrimmedFromTheEndInstead()
     {
-        // When even "...\name" does not fit there is no tail worth keeping: the name is trimmed with ASCII
-        // dots, which is the same glyph a preview can draw.
+        // When even "...\name" does not fit, the segment itself is trimmed with ASCII dots rather than the whole
+        // path being cut: the folder's start is still worth reading, and the prefix says it is a tail.
         string label = PathLabel.Shorten(@"C:\averylongfoldername", 100f, Count);
 
-        Assert.EndsWith("...", label);
-        Assert.False(label.StartsWith(PathLabel.Prefix, StringComparison.Ordinal));
+        Assert.Equal(@"...\ave...", label);
         Assert.True(Count(label) <= 100f);
     }
 

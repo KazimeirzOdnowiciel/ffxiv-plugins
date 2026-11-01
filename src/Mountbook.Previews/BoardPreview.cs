@@ -62,7 +62,7 @@ public sealed class BoardPreview : IPreviewScreen
     /// <summary>Also the golden's file name: <c>goldens/board.png</c>.</summary>
     public string Name => "board";
 
-    /// <summary>CONTROL TEST: a press on the "Cheapest" cell must move the pill and re-sort the rows.</summary>
+    /// <summary>A control scene: a press on the "Cheapest" cell must move the pill and re-sort the rows.</summary>
     private static readonly PreviewInput[] ScriptInputs =
     [
         new(3, PreviewInputKind.Press, new Vector2(400f, 74f)),

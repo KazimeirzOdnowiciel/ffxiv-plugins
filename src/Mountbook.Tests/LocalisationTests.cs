@@ -286,6 +286,29 @@ public sealed class LocalisationTests
     public void SourceKeysArePredictable(string category, string expected) =>
         Assert.Equal(expected, UiText.SourceKey(category));
 
+    /// <summary>
+    /// The grid's section headings: the two sentinels <see cref="MountGroups"/> emits for an unrecorded patch or
+    /// no obtain data, and the expansion names it sorts by. The mapping had no test at all while the sentinels
+    /// are what a reader actually sees at the bottom of a grouped list, and they are the two headings a
+    /// translation can drop without any count changing.
+    /// </summary>
+    [Theory]
+    [InlineData(MountGroups.NoPatch, MountGrouping.Patch, "No patch recorded")]
+    [InlineData(MountGroups.NoSource, MountGrouping.Source, "No source recorded")]
+    [InlineData("Shadowbringers", MountGrouping.Expansion, "Shadowbringers")]
+    [InlineData("Expansion unknown", MountGrouping.Expansion, "Expansion unknown")]
+    [InlineData("V&C Dungeon", MountGrouping.Source, "V&C Dungeon")]
+    public void GroupTitlesMapTheSentinelsAndTheExpansionNames(string title, MountGrouping grouping, string expected) =>
+        Assert.Equal(expected, UiText.GroupTitle(title, grouping));
+
+    [Fact]
+    public void AHeadingNoEnumKnowsIsDrawnAsIs()
+    {
+        // The fallback matters: a dataset that gains an expansion must draw its name rather than an empty heading.
+        Assert.Equal("Solution Nine", UiText.Expansion("Solution Nine"));
+        Assert.Equal("Patch 9.0", UiText.GroupTitle("Patch 9.0", MountGrouping.None));
+    }
+
     [Theory]
     [InlineData("ja", InterfaceLanguage.Japanese)]
     [InlineData("JA", InterfaceLanguage.Japanese)]

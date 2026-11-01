@@ -186,6 +186,12 @@ public sealed partial class Configuration
         Watches ??= new Dictionary<uint, MountWatchRecord>();
         SavedViews ??= new List<SavedView>();
 
+        // Every load, not only step 5 of the ladder: a file can claim the current version and still hold a
+        // damaged list - a hand edit does not bump Version, and a null entry in it throws on the row's first
+        // member read, which blanks the whole main window. The sweep is idempotent, so running it on a healthy
+        // file costs one pass over at most eight entries.
+        SavedViewRules.Normalise(SavedViews);
+
         if (string.IsNullOrWhiteSpace(LookName))
         {
             LookName = "eorzea";

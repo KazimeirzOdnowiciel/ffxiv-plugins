@@ -119,10 +119,10 @@ public sealed partial class MountbookView
     /// <summary>Cached chip labels with their counts; rebuilt only when the counts change.</summary>
     private readonly string[] ownershipLabels = (string[])OwnershipNames.Clone();
 
-    /// <summary>Cached strip labels, one per expansion, rebuilt when a count moves.</summary>
     /// <summary>How many <see cref="PushControlRoom"/> clips are open, so a pop never underflows.</summary>
     private static int roomPushes;
 
+    /// <summary>Cached strip labels, one per expansion, rebuilt when <see cref="expansionCounts"/> moves.</summary>
     private string[] expansionLabels = [];
 
     /// <summary>The owned/total pair each cached strip label was built from.</summary>
@@ -225,6 +225,12 @@ public sealed partial class MountbookView
         // The card's inset belongs to the same generation: a Look can bring its own spacing.
         cardBottomInsetPx = -1f;
         cardBottomInsetScale = -1f;
+
+        // The four action labels are measured under the Look's type face too, so their widths are as stale as
+        // everything above after a theme change at the same UI scale - and ActionRowCount decides from them
+        // whether the actions fit on one line.
+        detailActionWidths = null;
+        detailActionWidthsScale = -1f;
     }
 
     private int filteredOwned = -1;
@@ -246,15 +252,6 @@ public sealed partial class MountbookView
     private string wantedText = string.Empty;
     private string watchingText = string.Empty;
 
-    /// <summary>
-    /// Draws the whole body from <paramref name="state"/>, and reports clicks back into it.
-    /// </summary>
-    /// <remarks>
-    /// <see cref="MountViewState.RideRequested"/>, <see cref="MountViewState.LinkRequested"/>,
-    /// <see cref="MountViewState.GuideRequested"/> and <see cref="MountViewState.ToggleWantedId"/>
-    /// are cleared at the start of every draw, so they are true (or set) for exactly one frame after
-    /// a click. The caller must read them after this call, never cache them.
-    /// </remarks>
     /// <summary>
     /// Grants a hover's worth of room around the current window's clip rectangle.
     /// </summary>
@@ -293,6 +290,15 @@ public sealed partial class MountbookView
         ImGui.GetWindowDrawList().PopClipRect();
     }
 
+    /// <summary>
+    /// Draws the whole body from <paramref name="state"/>, and reports clicks back into it.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="MountViewState.RideRequested"/>, <see cref="MountViewState.LinkRequested"/>,
+    /// <see cref="MountViewState.GuideRequested"/> and <see cref="MountViewState.ToggleWantedId"/>
+    /// are cleared at the start of every draw, so they are true (or set) for exactly one frame after
+    /// a click. The caller must read them after this call, never cache them.
+    /// </remarks>
     public void Draw(MountViewState state)
     {
         // Every cached measurement below is taken with the Look's type face (T6/T7), and a theme switch
@@ -456,20 +462,15 @@ public sealed partial class MountbookView
     private readonly record struct Caption(string First, string Second, float FirstWidth, float SecondWidth);
 
     /// <summary>
-    /// How many rows the four action buttons need at this width: one when all four fit, two when
-    /// the original three fit but the wanted button has to move to its own line, four when even the
-    /// three have to stack.
+    /// The four action labels' widths under the current Look, cached per UI scale. Measured, not budgeted:
+    /// the row was laid out against two hand-recorded constants (360 for the three original actions, 470 with
+    /// the wanted toggle) that were taken at a Look's Default button size, and they kept the row on two lines
+    /// after the secondaries shrank. <see cref="InvalidateMeasurements"/> drops this with every other
+    /// measurement, because the widths belong to the Look's type face.
     /// </summary>
-    /// <remarks>
-    /// The budgets are deliberate constants, not label arithmetic: a <c>Gw.Button</c> is wider than
-    /// its label (Look.SpaceLarge padding on each side plus the gutter), so a measured sum came out
-    /// too optimistic. 360 logical px is what Ride / Link whistle / Mount Guide need together; the
-    /// shorter Want/Unwant button adds its own width and gutter, taking the single-row budget to 470.
-    /// The two-row band between them keeps the actions in the fixed footer - only the real
-    /// one-per-row fallback below 360 has to move them into the scrolling body.
-    /// </remarks>
     private static float[]? detailActionWidths;
 
+    /// <summary>The UI scale <see cref="detailActionWidths"/> was measured at.</summary>
     private static float detailActionWidthsScale;
 
     /// <summary>

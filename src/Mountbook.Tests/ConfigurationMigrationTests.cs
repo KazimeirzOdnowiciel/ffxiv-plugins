@@ -445,6 +445,33 @@ public sealed class ConfigurationMigrationTests
     }
 
     [Fact]
+    public void ANullSavedViewIsDroppedEvenWhenTheFileClaimsTheCurrentVersion()
+    {
+        // The list is swept on every load, not only by step 5, because the view reads views[index].Name with no
+        // null guard: one null entry in a file claiming the current version threw on every frame, and the main
+        // window's catch then drew nothing at all. SavedViewRules.Normalise's own remarks promise this case.
+        Configuration config = JsonConvert.DeserializeObject<Configuration>(
+            """
+            {
+              "Version": 5,
+              "SavedViews": [
+                null,
+                { "Name": "  PvP   only ", "Query": "source:pvp", "Ownership": 99, "Expansion": -3, "Order": 77, "GroupBy": -1 }
+              ]
+            }
+            """)!;
+
+        config.Migrate();
+
+        Assert.Single(config.SavedViews);
+        Assert.Equal("PvP only", config.SavedViews[0].Name);
+        Assert.Equal(MountOwnership.All, config.SavedViews[0].Ownership);
+        Assert.Equal(MountExpansion.All, config.SavedViews[0].Expansion);
+        Assert.Equal(MountOrder.Name, config.SavedViews[0].Order);
+        Assert.Equal(MountGrouping.None, config.SavedViews[0].GroupBy);
+    }
+
+    [Fact]
     public void ResetToDefaultsPutsEveryMemberBack()
     {
         Configuration config = Load("config-v1-watch.json");

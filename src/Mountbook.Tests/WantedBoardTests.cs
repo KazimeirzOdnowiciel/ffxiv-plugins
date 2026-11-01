@@ -156,6 +156,27 @@ public sealed class WantedBoardTests
         IReadOnlyDictionary<uint, MountGrindRecord>? grinds = null) =>
         WantedBoard.Build(items, new HashSet<uint>(wanted), grinds, prices ?? (_ => 0), sort);
 
+    /// <summary>
+    /// The row's progress line, which the board draws for every row on every frame and which had no test: the
+    /// count with what is left, and the honest alternative for a mount the dataset records no token price for -
+    /// "0 / 0 tokens" would read as a target nobody set.
+    /// </summary>
+    [Fact]
+    public void ProgressTextNamesTheCountAndWhatIsLeft()
+    {
+        var row = new BoardRow(1, "Petalodus", "Island Sanctuary", "7.2", Have: 3, Want: 12, Price: 0, UpdatedAt: 0);
+
+        Assert.Equal("3 / 12 tokens - 9 to go", WantedBoard.ProgressText(row));
+    }
+
+    [Fact]
+    public void ProgressTextSaysSoWhenThereIsNoTokenPrice()
+    {
+        var row = new BoardRow(2, "Petalodus", "Island Sanctuary", "7.2", Have: 0, Want: 0, Price: 0, UpdatedAt: 0);
+
+        Assert.Equal("No token price recorded", WantedBoard.ProgressText(row));
+    }
+
     private static uint[] Ids(IReadOnlyList<BoardRow> rows)
     {
         var ids = new uint[rows.Count];

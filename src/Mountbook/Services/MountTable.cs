@@ -165,6 +165,7 @@ public static class MountTable
     /// The order a sort report asks for, or null when the report is not a header click.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Glasswork reports a sort change for a click and for the sort spec ImGui restores from its own saved
     /// settings as well - the settings are kept per table id, across sessions, and ImGui ignores the column
     /// the table declares as its default once it has any. Since the id is the order, the restored spec is
@@ -172,11 +173,12 @@ public static class MountTable
     /// saved Owned under that order's id, and the next session opened the list on Owned first instead. A
     /// report is therefore only believed on a frame the header was actually pressed - a click is what the
     /// report is for, and a restored spec is not a click.
-    /// </remarks>
-    /// <remarks>
+    /// </para>
+    /// <para>
     /// The direction is <paramref name="descending"/> because that is the one <c>Gw.TableSortChanged</c>
     /// reports: reading it as ascending inverted both directions of the two columns that have two, so the
     /// Patch and Owners carets pointed one way and the rows went the other.
+    /// </para>
     /// </remarks>
     /// <param name="column">The column the table reports as sorted.</param>
     /// <param name="descending">Whether the table reports it descending.</param>

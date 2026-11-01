@@ -53,12 +53,6 @@ public static class Loc
     /// <summary>The language the interface is drawn in.</summary>
     public static InterfaceLanguage Language { get; private set; } = InterfaceLanguageRules.Fallback;
 
-    /// <summary>
-    /// Bumped whenever the installed table changes, so a caller can drop text it measured or formatted with
-    /// the previous one. Nothing changes it in play: a language is chosen once, at load.
-    /// </summary>
-    public static int Generation { get; private set; }
-
     /// <summary>How many strings the active language defines; a translation's progress reads from this.</summary>
     public static int Count
     {
@@ -119,7 +113,6 @@ public static class Loc
 
         Language = language;
         Rebuild();
-        Generation++;
     }
 
     /// <summary>
@@ -127,17 +120,21 @@ public static class Loc
     /// and installs it. Runs once; a table that does not parse is skipped rather than thrown, because this is
     /// also the path a draw call takes.
     /// </summary>
+    /// <param name="onTableFailure">Where a skipped table is reported, with the resource name. Without it a
+    /// broken translation disappears with no evidence at all (N4), which is what the plugin's load path passes
+    /// a logger for; the headless previews and the tests pass nothing.</param>
     /// <returns>How many tables were installed.</returns>
-    public static int Scan()
+    public static int Scan(Action<string, Exception>? onTableFailure = null)
     {
         lock (Gate)
         {
-            return ScanOnce();
+            return ScanOnce(onTableFailure);
         }
     }
 
     /// <summary>The body of <see cref="Scan"/>, called with <see cref="Gate"/> held.</summary>
-    private static int ScanOnce()
+    /// <param name="onTableFailure">Where a skipped table is reported; may be null.</param>
+    private static int ScanOnce(Action<string, Exception>? onTableFailure)
     {
         if (scanned)
         {
@@ -166,9 +163,11 @@ public static class Loc
                 (InterfaceLanguage language, IReadOnlyDictionary<string, string> strings) = StringTable.Read(stream, name);
                 Installed[language] = strings;
             }
-            catch (FormatException)
+            catch (FormatException ex)
             {
-                // A broken table must not take the window down; the tests assert the shipped ones parse.
+                // A broken table must not take the window down, and it must not vanish either: the caller gets
+                // the resource name so the log can say which translation was skipped (N4).
+                onTableFailure?.Invoke(name, ex);
             }
         }
 
@@ -236,7 +235,6 @@ public static class Loc
         Language = InterfaceLanguageRules.Fallback;
         scanned = false;
         lookup = StringLookup.Empty;
-        Generation++;
     }
 
     /// <summary>

@@ -58,8 +58,10 @@ public static class PathLabel
         }
 
         // Even the last segment is too wide: trim it from the end, which is the one case where losing the
-        // tail beats losing the head. Same prefix, so nothing in a preview shows a missing glyph.
-        return TextFit.Fit(path, availableWidth, measure, Prefix);
+        // tail beats losing the head. Same prefix, so nothing in a preview shows a missing glyph. The tail
+        // (not the whole path) is what gets fitted: handing the full path to TextFit kept the drive letter
+        // and cut the folder name, which is exactly the part this class exists to keep.
+        return TextFit.Fit(shortest, availableWidth, measure, Prefix);
     }
 
     /// <summary>The last <paramref name="count"/> segments of <paramref name="segments"/>.</summary>
