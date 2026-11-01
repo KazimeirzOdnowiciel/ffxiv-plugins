@@ -246,6 +246,12 @@ public static class MountSourcesValidator
     /// <summary>A row carries the API's own description copy, which the game's sheets already provide.</summary>
     public const string DescriptionCopyCode = "description-copy";
 
+    /// <summary>A mount carries no obtain type at all, so no source filter and no source heading can place it.</summary>
+    public const string SourceTypeMissingCode = "source-type-missing";
+
+    /// <summary>An obtain line carries a type this build has never been taught.</summary>
+    public const string SourceTypeUnknownCode = "source-type-unknown";
+
     /// <summary>The snapshot was built offline, so nothing in it was refreshed from the site.</summary>
     public const string SheetOnlyCode = "enrichment-sheet-only";
 
@@ -296,6 +302,7 @@ public static class MountSourcesValidator
         CheckSheet(candidate, sheet, issues, options);
         CheckDisappeared(candidate, baseline, issues, options);
         CheckSources(candidate, baseline, issues, options);
+        CheckSourceTypes(candidate, issues, options);
         CheckPatches(candidate, baseline, issues, options);
         CheckCommunity(candidate, baseline, issues);
 
@@ -701,6 +708,82 @@ public static class MountSourcesValidator
                 MountSourcesIssueSeverity.Error,
                 SourcesLostCode,
                 $"{lost.Count} mount(s) lost every source line they had: {ListIds(lost, options)}. An empty \"How to obtain\" list is worse than a stale one, so check the site's records for these before shipping."));
+        }
+    }
+
+    /// <summary>
+    /// Checks the taxonomy side of the obtain data: every mount that has obtain lines has to carry at least one
+    /// type, and every type has to be one this build knows.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The filter, the grouping and the counts are all keyed by the type, so a row whose lines carry none is
+    /// invisible to each of them at once - which reads as a broken filter rather than as a gap in the data. An
+    /// unknown type is refused rather than accepted quietly for the same reason the patch map is: a new type is a
+    /// decision (its own label, its own rank, its own section in the grid), and a snapshot must not ship one that
+    /// nobody has made. Both are warnings for a sheet-only snapshot, which by construction has no refreshed types.
+    /// </para>
+    /// <para>
+    /// A mount with no obtain lines at all is not this check's business: the site not listing a mount yet is a
+    /// fact about the site, and <see cref="CheckSources"/> is what fails a mount that *lost* the lines it had.
+    /// </para>
+    /// </remarks>
+    private static void CheckSourceTypes(
+        MountShelf candidate,
+        List<MountSourcesIssue> issues,
+        MountSourcesValidationOptions options)
+    {
+        var typeless = new List<uint>();
+        var unknown = new List<string>();
+        var seenUnknown = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (uint id in SortedIds(candidate))
+        {
+            candidate.TryGet(id, out MountSources sources);
+            var typed = false;
+
+            foreach (MountSourceLine line in sources.Lines)
+            {
+                if (line.Kind.IsAny)
+                {
+                    continue;
+                }
+
+                typed = true;
+
+                if (!line.Kind.IsKnown && seenUnknown.Add(line.Kind.Name))
+                {
+                    unknown.Add($"{line.Kind.Name} (mount {id})");
+                }
+            }
+
+            if (sources.Lines.Count > 0 && !typed)
+            {
+                typeless.Add(id);
+            }
+        }
+
+        if (typeless.Count > 0)
+        {
+            string message =
+                $"{typeless.Count} mount(s) have obtain lines but no type on any of them, so the source filter, its "
+                + $"counts and the source grouping cannot place them: {ListIds(typeless, options)}. The source data "
+                + "classifies every obtain line it writes; a line without a type is a broken fetch, not a patch.";
+
+            issues.Add(candidate.IsSheetOnly
+                ? new MountSourcesIssue(MountSourcesIssueSeverity.Warning, SourceTypeMissingCode, message)
+                : new MountSourcesIssue(MountSourcesIssueSeverity.Error, SourceTypeMissingCode, message));
+        }
+
+        if (unknown.Count > 0)
+        {
+            unknown.Sort(StringComparer.Ordinal);
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Error,
+                SourceTypeUnknownCode,
+                $"{unknown.Count} obtain type(s) are not in the taxonomy this build knows: {ListText(unknown, options)}. "
+                + "Add each one to MountSourceKinds.Names (its rank decides where it sorts) and its label to the strings "
+                + "table, deliberately - until then those mounts would land in an unlabelled section."));
         }
     }
 

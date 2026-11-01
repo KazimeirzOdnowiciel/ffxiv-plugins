@@ -105,12 +105,14 @@ public sealed partial class MountbookView
             _ = Gw.ComboBox(ref expansion, ExpansionLabels, label: Loc.T("filter.expansion"));
             state.Expansion = (MountExpansion)expansion;
 
-            // The acquire-method filter: "what do I still need from PvP" without a search that also matches lore.
+            // The obtain-type filter: "what do I still need from PvP" without a search that also matches lore.
+            // Every entry carries the dataset's own count, so the combo answers "how much is left there" before
+            // the player commits to a click.
             var source = SourceIndex(state);
             _ = Gw.ComboBox(ref source, SourceLabelsFor(state), label: Loc.T("filter.source"));
-            state.SourceFilter = source <= 0 || source >= state.SourceLabels.Length
-                ? string.Empty
-                : state.SourceLabels[source];
+            state.SourceFilter = source >= 0 && source < state.SourceOptions.Count
+                ? state.SourceOptions[source].Kind
+                : MountSourceKinds.Any;
 
             var order = (int)state.Order;
             _ = Gw.ComboBox(ref order, OrderLabels, label: Loc.T("filter.order"));
@@ -140,17 +142,17 @@ public sealed partial class MountbookView
         }
     }
 
-    /// <summary>The combo index of the active source filter: 0 ("Any") when it is empty or unknown.</summary>
+    /// <summary>
+    /// The combo index of the active source filter: 0 (the "any" entry) when the filter is not one of the
+    /// options - a type the shelf no longer carries, which happens when the dataset moves under a saved filter.
+    /// </summary>
     private static int SourceIndex(MountViewState state)
     {
-        if (string.IsNullOrEmpty(state.SourceFilter))
-        {
-            return 0;
-        }
+        IReadOnlyList<MountSourceCount> options = state.SourceOptions;
 
-        for (var index = 1; index < state.SourceLabels.Length; index++)
+        for (var index = 0; index < options.Count; index++)
         {
-            if (string.Equals(state.SourceLabels[index], state.SourceFilter, StringComparison.OrdinalIgnoreCase))
+            if (options[index].Kind == state.SourceFilter)
             {
                 return index;
             }
@@ -159,34 +161,43 @@ public sealed partial class MountbookView
         return 0;
     }
 
-    /// <summary>The source combo's labels: the dataset's categories, translated for display.</summary>
+    /// <summary>The source combo's labels, built from the entries' types and counts.</summary>
     private string[] sourceLabelText = [];
 
-    /// <summary>The label array <see cref="sourceLabelText"/> was built from, compared by reference.</summary>
-    private string[]? sourceLabelSource;
+    /// <summary>The options <see cref="sourceLabelText"/> was built from, compared by reference.</summary>
+    private IReadOnlyList<MountSourceCount>? sourceLabelSource;
 
     /// <summary>
-    /// The labels the source combo draws. The window builds <see cref="MountViewState.SourceLabels"/> from
-    /// the dataset and the view stores a category as the filter, so the array is both the identity of a
-    /// filter and what the player reads; this is the one place the two are allowed to differ.
+    /// The labels the source combo draws. The entries are types, so the identity of a filter and the text the
+    /// player reads are different things: the label is the type's table entry plus its count, rebuilt only when
+    /// the window built a new set of entries.
     /// </summary>
-    /// <param name="state">The state whose source labels to translate.</param>
-    /// <returns>The display labels, rebuilt only when the window built a new array.</returns>
+    /// <param name="state">The state whose source options to label.</param>
+    /// <returns>The display labels, in entry order.</returns>
     private string[] SourceLabelsFor(MountViewState state)
     {
-        if (!ReferenceEquals(sourceLabelSource, state.SourceLabels))
+        if (!ReferenceEquals(sourceLabelSource, state.SourceOptions))
         {
-            sourceLabelSource = state.SourceLabels;
-            sourceLabelText = new string[state.SourceLabels.Length];
+            sourceLabelSource = state.SourceOptions;
+            sourceLabelText = new string[state.SourceOptions.Count];
 
             for (var index = 0; index < sourceLabelText.Length; index++)
             {
-                sourceLabelText[index] = UiText.Source(state.SourceLabels[index]);
+                sourceLabelText[index] = FormatSourceLabel(state.SourceOptions[index]);
             }
         }
 
         return sourceLabelText;
     }
+
+    /// <summary>
+    /// One combo entry: the type's translated label and how many mounts it would show. The count belongs in the
+    /// label rather than in a column of its own because the combo is a single control - and it is the number
+    /// that answers "what is left in Cosmic Exploration" without filtering to find out.
+    /// </summary>
+    /// <param name="option">The entry to label.</param>
+    private static string FormatSourceLabel(MountSourceCount option) =>
+        Loc.F("filter.source.option", UiText.Source(option.Kind), option.Mounts);
 
     /// <summary>
     /// The no-results state: a heading, one line that says what to do, and a button that does it.

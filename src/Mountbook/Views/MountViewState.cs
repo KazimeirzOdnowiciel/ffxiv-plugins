@@ -255,15 +255,21 @@ public sealed class MountViewState
     /// </summary>
     public bool BoardRequested { get; set; }
 
-    /// <summary>The acquire-method filter ("Trial", "PvP", ...), or empty for any.</summary>
-    public string SourceFilter { get; set; } = string.Empty;
+    /// <summary>
+    /// The obtain type the shelf keeps ("Trial", "PvP", ...), or <see cref="MountSourceKinds.Any"/> for every
+    /// mount. The combo stores the type rather than the label it draws, so a translated interface cannot change
+    /// what the filter selects and a renamed label cannot break a saved filter.
+    /// </summary>
+    public MountSourceKind SourceFilter { get; set; } = MountSourceKinds.Any;
 
     /// <summary>
-    /// The labels for the source combo: the "any" entry followed by every category on the shelf. The
-    /// entries are the dataset's own category strings (data, not interface text); the view translates them
-    /// for display, because the same value is also what a chosen filter is stored as.
+    /// The source combo's entries: the "any" entry first, then every type the shelf carries with how many
+    /// mounts it would show, in taxonomy order. The counts describe the whole shelf - a count that moved with
+    /// the filter would be counting itself - which is why the window builds this from the catalogue and not
+    /// from <see cref="Items"/>.
     /// </summary>
-    public string[] SourceLabels { get; set; } = [UiText.AnySource];
+    public IReadOnlyList<MountSourceCount> SourceOptions { get; set; } =
+        [new MountSourceCount(MountSourceKinds.Any, 0)];
 
     /// <summary>
     /// The site the shipped snapshot credits ("ffxivcollect.com"), or empty when the file does not say.

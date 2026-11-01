@@ -9,10 +9,12 @@ namespace Mountbook.Services;
 /// <remarks>
 /// <para>
 /// These are not table lookups by key, because the code that carries them around compares and sorts by the
-/// same string: <see cref="MountGroups"/> buckets its sections by title, <see cref="MountBreakdown.FilterOf"/>
-/// finds a filter by an expansion's name, and the source filter's stored value is the dataset's own
-/// category. Translating the value itself would translate the identity with it. So the value stays the
-/// key, and this is the one place it becomes text.
+/// same string: <see cref="MountGroups"/> buckets its sections by title and <see cref="MountBreakdown.FilterOf"/>
+/// finds a filter by an expansion's name. Translating the value itself would translate the identity with it.
+/// So the value stays the key, and this is the one place it becomes text. A source category is the exception
+/// that proves the rule: it is carried as a <see cref="MountSourceKind"/>, whose <see cref="MountSourceKind.Key"/>
+/// is exactly the suffix looked up below, so the filter stores a type while the heading and the combo draw a
+/// translated label.
 /// </para>
 /// <para>
 /// A category the table has not been translated for reads as itself, which is right for a dataset value and
@@ -101,7 +103,7 @@ public static class UiText
     }
 
     /// <summary>
-    /// The label for a source category from the obtain dataset.
+    /// The label for a source category as the obtain dataset spells it.
     /// </summary>
     /// <param name="category">The dataset's category, e.g. <c>V&amp;C Dungeon</c>.</param>
     /// <returns>The localised label, or the category itself when the table has no label for it.</returns>
@@ -109,9 +111,27 @@ public static class UiText
     {
         ArgumentNullException.ThrowIfNull(category);
 
-        return category.Length == 0 || string.Equals(category, AnySource, StringComparison.Ordinal)
-            ? Loc.TOr("source.any", category)
-            : Loc.TOr("source." + SourceKey(category), category);
+        return Source(string.Equals(category, AnySource, StringComparison.Ordinal)
+            ? MountSourceKinds.Any
+            : MountSourceKinds.Parse(category));
+    }
+
+    /// <summary>
+    /// The label for one obtain type.
+    /// </summary>
+    /// <remarks>
+    /// The type carries its own key, so this is the only place a filter value becomes text: the combo stores
+    /// the type, the table decides what it reads like, and a translator cannot change what the filter selects.
+    /// A type the table has not been translated for reads as its own spelling, which is right for a dataset
+    /// value and is what keeps a type added upstream from drawing a raw key.
+    /// </remarks>
+    /// <param name="kind">The type, or <see cref="MountSourceKinds.Any"/> for the no-filter entry.</param>
+    /// <returns>The localised label, or the type's own spelling when the table has no label for it.</returns>
+    public static string Source(MountSourceKind kind)
+    {
+        ArgumentNullException.ThrowIfNull(kind);
+
+        return kind.IsAny ? Loc.TOr("source.any", AnySource) : Loc.TOr("source." + kind.Key, kind.Name);
     }
 
     /// <summary>
@@ -119,34 +139,11 @@ public static class UiText
     /// letter or a digit folded to one hyphen. <c>V&amp;C Dungeon</c> becomes <c>v-c-dungeon</c>, so a key
     /// never carries JSON-hostile punctuation and a category added to the dataset gets a predictable one.
     /// </summary>
+    /// <remarks>
+    /// The fold itself lives on <see cref="MountSourceKinds.Key"/>, because it is the type's identity rather
+    /// than a display detail; this is the same function, named for what it produces here.
+    /// </remarks>
     /// <param name="category">The dataset's category.</param>
     /// <returns>The key suffix, without the <c>source.</c> prefix.</returns>
-    public static string SourceKey(string category)
-    {
-        ArgumentNullException.ThrowIfNull(category);
-
-        var slug = new char[category.Length];
-        var length = 0;
-        var gap = false;
-
-        foreach (char character in category)
-        {
-            if (char.IsLetterOrDigit(character))
-            {
-                if (gap && length > 0)
-                {
-                    slug[length++] = '-';
-                }
-
-                slug[length++] = char.ToLowerInvariant(character);
-                gap = false;
-            }
-            else
-            {
-                gap = true;
-            }
-        }
-
-        return new string(slug, 0, length);
-    }
+    public static string SourceKey(string category) => MountSourceKinds.Key(category);
 }

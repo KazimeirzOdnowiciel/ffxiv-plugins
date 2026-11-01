@@ -360,7 +360,9 @@ public sealed class MountShelf
             }
 
             lines.Add(new MountSourceLine(
-                ReadString(source, "type"),
+                // Folded here, once per line: the filter and the grouping read the type, and folding it per
+                // frame would allocate a key for every line on every frame.
+                MountSourceKinds.Parse(ReadString(source, "type")),
                 detail,
                 ReadString(source, "relatedType"),
                 ReadUInt32(source, "relatedId")));

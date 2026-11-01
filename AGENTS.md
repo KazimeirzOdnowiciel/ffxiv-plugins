@@ -28,13 +28,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 
 Mountbook is the one plugin kept in the full multi-project shape it was built in: `src/Mountbook`,
 `src/Mountbook.Tests`, `src/Mountbook.Previews` and `src/Mountbook.Tools` sit side by side, and its
-fifteen goldens live in `src/Mountbook.Previews/goldens`. Its gate (the last line is the only one that proves the layout: it
+sixteen goldens live in `src/Mountbook.Previews/goldens`. Its gate (the last line is the only one that proves the layout: it
 exits 1 on any mismatch, and `--out` is **not** optional - without it the tool prints its help and exits
 0, which reads exactly like a pass):
 
 ```powershell
 dotnet build src/Mountbook/Mountbook.csproj -c Release
-dotnet run --project src/Mountbook.Tests/Mountbook.Tests.csproj -c Release   # 415 tests committed
+dotnet run --project src/Mountbook.Tests/Mountbook.Tests.csproj -c Release   # 604 tests committed
 dotnet build src/Mountbook.Previews/Mountbook.Previews.csproj -c Release
 ~/.dotnet/tools/glasswork-preview.exe --assembly src/Mountbook.Previews/bin/Release/Mountbook.Previews.dll --compare src/Mountbook.Previews/goldens --out artifacts/previews/Mountbook
 ```
@@ -88,6 +88,12 @@ One command regenerates it into a scratch file and validates it against the comm
 game's `Mount` sheet (row band, unknown ids, vanished mounts, lost sources, patch values the expansion
 map cannot read); the committed file is replaced only when nothing is an error. `docs/patch-day.md` is
 the runbook - the flags, what every finding code means, and the rest of the release path.
+
+Two of that snapshot's fields are contracts, not data: `sources[].type` must be one of the 28 types in
+`src/Mountbook/Services/MountSourceKinds.cs` (the filter, its counts, the grid's source headings and the
+`source:` search term all read that table, and an unlisted type fails the run), and the per-type counts are
+pinned in `MountSourcesDataTests`. Adopting a type upstream added is an edit to that table, its strings key and
+that test - see `docs/data-provenance.md` §9.
 
 ## Release
 

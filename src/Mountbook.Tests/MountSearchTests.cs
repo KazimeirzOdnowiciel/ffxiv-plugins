@@ -151,6 +151,76 @@ public sealed class MountSearchTests
         Assert.Empty(Names("owned:lots chocobo"));
     }
 
+    [Theory]
+    [InlineData("source:trial")]
+    [InlineData("SOURCE:TRIAL")]
+    [InlineData("source:Trial")]
+    public void TheSourceOperatorSelectsThatType(string search)
+    {
+        MountShelfItem item = Item("Kamuy", sources: [new MountSourceLine("Trial", "Byakko Unchained", string.Empty, 0u)]);
+
+        Assert.Single(Apply(search, item));
+    }
+
+    [Fact]
+    public void TheSourceOperatorFindsAMountUnderEitherOfItsTypes()
+    {
+        MountShelfItem item = Item(
+            "Kamuy",
+            sources:
+            [
+                new MountSourceLine("Trial", "Byakko Unchained", string.Empty, 0u),
+                new MountSourceLine("Achievement", "Goodly Sea-Snake", string.Empty, 0u),
+            ]);
+
+        Assert.Single(Apply("source:trial", item));
+        Assert.Single(Apply("source:achievement", item));
+        Assert.Empty(Apply("source:quest", item));
+    }
+
+    [Theory]
+    [InlineData("source:cosmic")]
+    [InlineData("source:cosmic-exploration")]
+    [InlineData("source:COSMIC")]
+    public void TheSourceOperatorAcceptsABeginningOfATypeName(string search)
+    {
+        // A type whose name carries a space stays reachable from a box that splits on spaces: the beginning of the
+        // folded key names it, because the value of a term is one token. The detail deliberately shares no word
+        // with the type, so nothing but the operator can be what matched.
+        var sources = new List<MountSourceLine> { new("Cosmic Exploration", "the sixth zone", string.Empty, 0u) };
+
+        Assert.Single(Apply(search, Item("Kamuy", sources: sources)));
+    }
+
+    [Fact]
+    public void TheSourceOperatorCombinesWithFreeText()
+    {
+        IReadOnlyList<MountShelfItem> shelf =
+        [
+            Item("Kamuy", id: 1u, sources: [new MountSourceLine("Trial", "Byakko Unchained", string.Empty, 0u)]),
+            Item("Chocobo", id: 2u, sources: [new MountSourceLine("Quest", "The Ultimate Weapon", string.Empty, 0u)]),
+        ];
+
+        Assert.Equal(["Kamuy"], [.. Apply("kamuy source:trial", shelf).Select(item => item.Name)]);
+        Assert.Empty(Apply("chocobo source:trial", shelf));
+    }
+
+    [Fact]
+    public void TheSourceOperatorNeverMatchesAMountWithNoObtainData()
+    {
+        // "no type recorded" is not "any type": the mount has no obtain lines at all.
+        Assert.Empty(Apply("source:trial", Item("Rock")));
+    }
+
+    [Fact]
+    public void ASourceValueThatNamesNoSingleTypeStaysFreeText()
+    {
+        // "p" is Premium, Purchase and PvP, and "brandnew" is no type at all: a guess would filter to a type
+        // nobody asked for, so the term is searched for as text - which matches nothing here.
+        Assert.Empty(Names("source:p"));
+        Assert.Empty(Names("source:brandnew"));
+    }
+
     private static string[] Names(string search) => [.. Apply(search, Shelf()).Select(item => item.Name)];
 
     /// <summary>

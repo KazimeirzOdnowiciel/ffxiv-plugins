@@ -16,7 +16,7 @@ budget and the schema version. `docs/patch-day.md` is the runbook that uses them
 | `owned` | FFXIV Collect `owned` | Community ownership percentage. An *aggregate statistic*, not per-player data (see §3) |
 | `tradeable` | FFXIV Collect `tradeable` | Gates the price-watch UI |
 | `customMusic` | FFXIV Collect `custom_music` | Whether the mount overrides the BGM |
-| `sources[]` | FFXIV Collect `sources[]` (`type`, `text`, `related_type`, `related_id`) | The "How to obtain" list. `type` is the site's own 28-value taxonomy, adopted rather than invented |
+| `sources[]` | FFXIV Collect `sources[]` (`type`, `text`, `related_type`, `related_id`) | The "How to obtain" list. `type` is the site's own 28-value taxonomy, adopted rather than invented and pinned by the plugin's filter, its counts and its grouping (§9) |
 | mount name, description, tooltip, icon, artwork, seats, movement | **The game's own sheets** (`Mount`, `MountTransient`, `Item`) | Read at runtime through Lumina. None of it is taken from the site — and the two fields the site also publishes (seats, movement) are cross-checked against the sheet at build time instead (§7) |
 
 Two fields the site also publishes are deliberately **not** shipped: the mount's `description` /
@@ -234,7 +234,55 @@ The site is one volunteer's project, so "it is down" is a normal condition, not 
 - **What is never acceptable** is an empty or silently partial file: the row floor throws, the row band
   fails, and both paths still write a file that parses and that the plugin can read.
 
-## 9. What this document does not settle
+## 9. The source taxonomy (28 types, measured 2026-11-01)
+
+`src/Mountbook/Services/MountSourceKinds.cs` is the plugin's copy of the site's own classification of the
+same 356 mounts into 28 types. It is adopted, not invented: the names and their order (largest group first)
+are the site's, and the plugin's filter, its counts, the card grid's "group by source" headings and the
+`source:` search operator all read that one table.
+
+**The counts are two different numbers, and the difference matters.** The site publishes a count of source
+*lines*; a filter selects *mounts*. Twenty-five mounts carry two types, so the per-type line counts add up to
+423 while the mounts add up to 381 over 356 rows. The combo shows the mount count, because that is what
+choosing the entry lists.
+
+| Type | Mounts | Source lines | | Type | Mounts | Source lines |
+| --- | --- | --- | --- | --- | --- | --- |
+| Premium | 67 | 73 | | V&C Dungeon | 5 | 9 |
+| Achievement | 50 | 50 | | FATE | 6 | 6 |
+| Trial | 44 | 48 | | Treasure Hunt | 5 | 5 |
+| Quest | 23 | 25 | | Hunts | 5 | 5 |
+| PvP | 21 | 24 | | Purchase | 5 | 5 |
+| Cosmic Exploration | 19 | 23 | | Chaotic Raid | 2 | 4 |
+| Event | 22 | 22 | | Bozja | 4 | 4 |
+| Wondrous Tails | 12 | 21 | | Eureka | 3 | 3 |
+| Tribal | 21 | 21 | | Gathering | 2 | 2 |
+| Raid | 14 | 14 | | Crafting | 2 | 2 |
+| Occult Crescent | 9 | 13 | | Other | 2 | 2 |
+| Island Sanctuary | 12 | 13 | | Dungeon | 1 | 1 |
+| Gold Saucer | 9 | 9 | | Voyages | 1 | 1 |
+| Deep Dungeon | 7 | 9 | | | | |
+| Skybuilders | 8 | 9 | | | | |
+
+`src/Mountbook.Tests/MountSourcesDataTests.cs` pins both columns against the committed snapshot, and asserts
+that the number the combo shows for a type is exactly how many mounts choosing it lists - so a regenerated
+snapshot whose types moved fails the suite instead of quietly changing a count a player reads.
+
+**The identity is the type, never the label.** Each type's key is its name folded to lower case with every
+run of punctuation collapsed to one hyphen (`V&C Dungeon` -> `v-c-dungeon`), and that key is also the
+localisation table's key suffix. The filter compares types, so translating a label cannot change what a
+filter selects; the `source:` operator accepts the key, any spelling of the name and any unambiguous
+beginning of it (`source:cosmic`, `source:v-c-dungeon`).
+
+**A type this build does not know still works, and still fails the build.** A snapshot written for a newer
+patch may carry a 29th type: the reader keeps its own spelling, the filter and the grouping use it, and it
+sorts after every ranked type - but the patch-day validator reports `source-type-unknown` as an **error**, so
+adopting it (its rank, its label) is a deliberate edit to `MountSourceKinds.cs` and the strings table, not
+something a regeneration does on its own. A mount whose obtain lines carry no type at all is
+`source-type-missing`, also an error: it would be invisible to the filter and to the counts while the detail
+pane still drew the text.
+
+## 10. What this document does not settle
 
 - It is an honest reading of a published paragraph, **not legal advice**.
 - The terms are a paragraph on a documentation page, not a versioned licence: the site can change them,

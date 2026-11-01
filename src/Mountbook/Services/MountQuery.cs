@@ -10,37 +10,12 @@ namespace Mountbook.Services;
 public sealed record MountQuery(string? Search, MountOwnership Ownership, MountExpansion Expansion, MountOrder Order)
 {
     /// <summary>
-    /// The source category to keep (<c>Trial</c>, <c>PvP</c>, <c>Event</c>, ...), or null/empty for any.
-    /// Matched against every source line's category, case-insensitively.
+    /// The obtain type to keep (<c>Trial</c>, <c>PvP</c>, <c>Event</c>, ...), or
+    /// <see cref="MountSourceKinds.Any"/> for every mount. Matched against every source line's type - the
+    /// folded identity, never a label, so a translation cannot change what this selects and a mount carrying
+    /// two types is found under both.
     /// </summary>
-    public string? Source { get; init; }
-
-    /// <summary>
-    /// Every source category on the shelf, distinct and sorted, for the filter's labels. The order is
-    /// ordinal-ignore-case so the combo reads alphabetically regardless of dataset order.
-    /// </summary>
-    /// <exception cref="ArgumentNullException"><paramref name="items"/> is null.</exception>
-    public static string[] SourceTypes(IReadOnlyList<MountShelfItem> items)
-    {
-        ArgumentNullException.ThrowIfNull(items);
-
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (MountShelfItem item in items)
-        {
-            foreach (MountSourceLine source in item.Sources)
-            {
-                if (!string.IsNullOrWhiteSpace(source.Category))
-                {
-                    seen.Add(source.Category);
-                }
-            }
-        }
-
-        var types = new List<string>(seen);
-        types.Sort(StringComparer.OrdinalIgnoreCase);
-        return [.. types];
-    }
+    public MountSourceKind Source { get; init; } = MountSourceKinds.Any;
 
     /// <summary>
     /// How many mounts each ownership filter would show, in <see cref="MountOwnership"/> order
@@ -171,14 +146,14 @@ public sealed record MountQuery(string? Search, MountOwnership Ownership, MountE
 
     private bool MatchesSource(MountShelfItem item)
     {
-        if (string.IsNullOrWhiteSpace(Source))
+        if (Source.IsAny)
         {
             return true;
         }
 
         foreach (MountSourceLine source in item.Sources)
         {
-            if (string.Equals(source.Category, Source, StringComparison.OrdinalIgnoreCase))
+            if (source.Kind == Source)
             {
                 return true;
             }

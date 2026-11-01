@@ -43,7 +43,13 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public HashSet<uint> WantedMounts { get; set; } = [];
 
-    /// <summary>The saved acquire-method filter ("Trial", "PvP", ...), or empty for any.</summary>
+    /// <summary>
+    /// The saved obtain-type filter as the taxonomy spells it ("Trial", "PvP", ...), or empty for any. The
+    /// spelling rather than the folded key: the file is something a human may read, and a value an older build
+    /// wrote for one of its six labels is the same string the type's own name gives. Its reader folds it and only
+    /// adopts a type the taxonomy knows, so a hand-edited "pvp" still selects PvP and a value naming no type reads
+    /// as "any" instead of emptying the shelf.
+    /// </summary>
     public string SavedSource { get; set; } = string.Empty;
 
     /// <summary>

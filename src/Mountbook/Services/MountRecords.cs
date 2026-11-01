@@ -3,10 +3,36 @@ using System.Collections.Generic;
 namespace Mountbook.Services;
 
 /// <summary>
-/// One "how to obtain" line for a mount: the category the game files it under, the human
+/// One "how to obtain" line for a mount: the type the game files it under, the human
 /// readable detail, and the related record the source points at when it has one.
 /// </summary>
-public sealed record MountSourceLine(string Category, string Detail, string RelatedKind, uint RelatedId);
+/// <param name="Kind">The obtain type this line belongs to, read once from the dataset's <c>type</c>.</param>
+/// <param name="Detail">The line's own text, e.g. the quest or achievement it names.</param>
+/// <param name="RelatedKind">The record kind the line points at, or empty.</param>
+/// <param name="RelatedId">The record id the line points at, or zero.</param>
+public sealed record MountSourceLine(MountSourceKind Kind, string Detail, string RelatedKind, uint RelatedId)
+{
+    /// <summary>
+    /// Builds a line from the dataset's own spelling, folding it to the type. For callers that hold the text
+    /// rather than the type - the shelf's reader parses the type itself, and a test or a preview writes the
+    /// spelling it means.
+    /// </summary>
+    /// <param name="category">The dataset's <c>type</c>, e.g. <c>V&amp;C Dungeon</c>.</param>
+    /// <param name="detail">The line's own text.</param>
+    /// <param name="relatedKind">The record kind the line points at, or empty.</param>
+    /// <param name="relatedId">The record id the line points at, or zero.</param>
+    public MountSourceLine(string category, string detail, string relatedKind, uint relatedId)
+        : this(MountSourceKinds.Parse(category), detail, relatedKind, relatedId)
+    {
+    }
+
+    /// <summary>
+    /// The type's own spelling, e.g. <c>V&amp;C Dungeon</c>: what the obtain rows and the table's Source
+    /// column draw. The filter and the grouping read <see cref="Kind"/>, never this, so a display string
+    /// cannot decide what a filter selects.
+    /// </summary>
+    public string Category => Kind.Name;
+}
 
 /// <summary>
 /// What the wider player base reports about one mount, from the embedded dataset: the share of

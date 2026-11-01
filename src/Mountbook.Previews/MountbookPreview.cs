@@ -63,12 +63,21 @@ public sealed class MountbookPreview : IPreviewScreen
             Total = items.Count,
             SelectedId = SelectedMountId,
             ItemName = "Aithon Whistle",
-            SourceLabels = ["Any", "Achievement", "Event", "FATE", "Grand Company", "Mog Station", "Quest", "Trial", "V&C Dungeon"],
+            SourceOptions = SourceOptions(items),
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,
         };
     }
+
+    /// <summary>
+    /// The source combo's entries for a scene's sample: "any" with how many mounts the sample has, then one entry
+    /// per type it carries with its count, in taxonomy order - the same shape the window builds from the catalogue,
+    /// so a golden shows the real labels rather than a hand-written pair.
+    /// </summary>
+    /// <param name="items">The whole sample, not a filtered subset.</param>
+    internal static IReadOnlyList<MountSourceCount> SourceOptions(IReadOnlyList<MountShelfItem> items) =>
+        [new MountSourceCount(MountSourceKinds.Any, items.Count), .. MountSourceKinds.Tally(items)];
 
     /// <summary>Also the golden's file name: <c>goldens/main.png</c>.</summary>
     public string Name => "main";
@@ -128,7 +137,7 @@ public sealed class MountbookPreview : IPreviewScreen
             string.Empty,
             Community(96.4, false, false),
             Source("Quest", "The Ultimate Weapon"),
-            Source("Grand Company", "1,200 company seals")),
+            Source("Purchase", "1,200 company seals")),
         Item(
             412, "Genie of the Lamp", 78, 1, "7.45", false,
             "A wish given a pair of arms and a stretch of open sky.",
@@ -143,7 +152,7 @@ public sealed class MountbookPreview : IPreviewScreen
             "The Garlond Ironworks insists the GL-IS is a transport and not a racing machine. The passenger seat has a handle, which says more about the brochure than the brochure does.",
             "Garlond Ironworks' newest civilian chassis: quiet, quick, and entirely unsuitable for the battlefield.",
             Community(5.2, false, true),
-            Source("Mog Station", "Mounts & Miscellany")),
+            Source("Premium", "Mounts & Miscellany")),
         Item(
             244, "Juedi", 60, 1, "4.4", true,
             "A gentle beast with a stubborn streak.",

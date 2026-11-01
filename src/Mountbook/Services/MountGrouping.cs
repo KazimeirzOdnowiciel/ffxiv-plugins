@@ -47,9 +47,9 @@ public sealed record MountGroup(string Title, IReadOnlyList<MountShelfItem> Item
 /// <para>
 /// The section order is fixed per grouping rather than "first appearance", because the list order is the
 /// player's choice (newest, cheapest, rarest...) and sections that reorder themselves when the sort changes
-/// are unreadable. Expansion follows release order, patch follows newest first, and source follows the
-/// alphabet - each with the unrecorded case last, the way every other order in this plugin treats a
-/// missing value.
+/// are unreadable. Expansion follows release order, patch follows newest first, and source follows the obtain
+/// taxonomy - the largest group first, the same order the filter's own list uses - each with the unrecorded
+/// case last, the way every other order in this plugin treats a missing value.
 /// </para>
 /// </remarks>
 public static class MountGroups
@@ -120,10 +120,17 @@ public static class MountGroups
             _ => "Expansion unknown",
         },
         MountGrouping.Patch => string.IsNullOrWhiteSpace(item.Patch) ? NoPatch : item.Patch.Trim(),
-        _ => item.Sources.Count > 0 && !string.IsNullOrWhiteSpace(item.Sources[0].Category)
-            ? item.Sources[0].Category
-            : NoSource,
+        _ => PrimarySource(item),
     };
+
+    /// <summary>
+    /// The heading a mount goes under when the list is grouped by source: the type of its first obtain line.
+    /// The site lists a mount's primary source first, so one earned by a quest that also grants an achievement
+    /// is filed under the quest - a heading per type would draw the same card in two sections, and it is a
+    /// partition that makes the headings' counts add up to the list.
+    /// </summary>
+    private static string PrimarySource(MountShelfItem item) =>
+        item.Sources.Count > 0 && !item.Sources[0].Kind.IsAny ? item.Sources[0].Kind.Name : NoSource;
 
     private static int CompareTitles(string left, string right, MountGrouping grouping) => grouping switch
     {
@@ -170,17 +177,42 @@ public static class MountGroups
         return StringComparer.Ordinal.Compare(left, right);
     }
 
+    /// <summary>
+    /// Taxonomy order, not the alphabet: the headings of a source-grouped grid read like the filter's own list,
+    /// so the biggest bucket - Premium, in the game's own classification - is where a player looks first
+    /// instead of buried between "PvP" and "Quest". A type this build does not know ranks after every type it
+    /// does, and "No source recorded" last of all: a mount with no obtain data belongs to no section.
+    /// </summary>
     private static int CompareSourceTitles(string left, string right)
     {
-        bool hasLeft = !string.Equals(left, NoSource, StringComparison.Ordinal);
-        bool hasRight = !string.Equals(right, NoSource, StringComparison.Ordinal);
+        (bool leftNoSource, int leftRank, string leftName) = SourceOrder(left);
+        (bool rightNoSource, int rightRank, string rightName) = SourceOrder(right);
 
-        if (hasLeft != hasRight)
+        if (leftNoSource != rightNoSource)
         {
-            return hasLeft ? -1 : 1;
+            return leftNoSource ? 1 : -1;
         }
 
-        int byName = StringComparer.OrdinalIgnoreCase.Compare(left, right);
-        return byName != 0 ? byName : StringComparer.Ordinal.Compare(left, right);
+        int byRank = leftRank.CompareTo(rightRank);
+
+        if (byRank != 0)
+        {
+            return byRank;
+        }
+
+        int byName = StringComparer.OrdinalIgnoreCase.Compare(leftName, rightName);
+        return byName != 0 ? byName : StringComparer.Ordinal.Compare(leftName, rightName);
+    }
+
+    /// <summary>Where one source heading belongs: the missing-data heading last, then the type's own rank.</summary>
+    private static (bool NoSource, int Rank, string Name) SourceOrder(string title)
+    {
+        if (string.Equals(title, NoSource, StringComparison.Ordinal))
+        {
+            return (true, MountSourceKinds.Unranked, title);
+        }
+
+        MountSourceKind kind = MountSourceKinds.Parse(title);
+        return (false, kind.Rank, kind.Name);
     }
 }

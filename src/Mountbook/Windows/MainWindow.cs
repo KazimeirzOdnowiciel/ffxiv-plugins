@@ -98,13 +98,13 @@ public sealed class MainWindow : GlassWindow, IDisposable
 
     private bool itemsBuilt;
 
-    /// <summary>The source combo's cached labels and the revision they were built at.</summary>
-    private string[] sourceLabels = [UiText.AnySource];
+    /// <summary>The source combo's cached entries and the revision they were built at.</summary>
+    private MountSourceCount[] sourceOptions = [new MountSourceCount(MountSourceKinds.Any, 0)];
 
-    private int sourceLabelsRevision = -1;
+    private int sourceOptionsRevision = int.MinValue;
 
     /// <summary>The source filter the current list was built with, so a change rebuilds it.</summary>
-    private string lastSource = string.Empty;
+    private MountSourceKind lastSource = MountSourceKinds.Any;
 
     /// <summary>The cached recently-collected set the view reads, and the revision it was built at.</summary>
     private HashSet<uint> recentIds = [];
@@ -258,7 +258,11 @@ public sealed class MainWindow : GlassWindow, IDisposable
         state.Order = config.Order;
         state.ViewMode = config.ViewMode;
         state.GroupBy = config.GroupBy;
-        state.SourceFilter = config.SavedSource ?? string.Empty;
+        // A saved filter is the type's own spelling, so an older config's "Trial" reads as the Trial type. Only a
+        // type the taxonomy knows is adopted: a hand-edited or newer value reads as "any" (and is rewritten as
+        // empty after the draw) rather than filtering the whole shelf away for a frame.
+        MountSourceKind savedSource = MountSourceKinds.Parse(config.SavedSource);
+        state.SourceFilter = savedSource.IsKnown ? savedSource : MountSourceKinds.Any;
         state.SelectedId = config.SelectedMountId == 0 ? null : config.SelectedMountId;
         // The breakdown is of the whole collection, not of the filtered list: it is a progress strip,
         // and a filter must not make it look like the player owns more of an expansion. Cached by the
@@ -287,6 +291,16 @@ public sealed class MainWindow : GlassWindow, IDisposable
 
 
 
+        // The source combo's counts describe the whole shelf, so they are rebuilt with the catalogue rather than
+        // with the filtered list - and not per frame: the tally walks every mount and allocates per type.
+        if (sourceOptionsRevision != plugin.Catalog.Revision)
+        {
+            sourceOptions = BuildSourceOptions();
+            sourceOptionsRevision = plugin.Catalog.Revision;
+        }
+
+        state.SourceOptions = sourceOptions;
+
         state.WantedIds = config.WantedMounts;
 
         var refreshNow = refreshOnOpen;
@@ -305,7 +319,6 @@ public sealed class MainWindow : GlassWindow, IDisposable
         if (recentIdsRevision != lastRevision)
         {
             state.RecentIds = recentIds = BuildRecentIds(config);
-            state.SourceLabels = BuildSourceLabels();
             recentIdsRevision = lastRevision;
         }
         else
@@ -464,7 +477,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
             // The source filter is a filter like the other three: without this line the empty state's
             // only button could not clear the very filter that emptied the list, and the reset was
             // then persisted straight back into the config.
-            state.SourceFilter = string.Empty;
+            state.SourceFilter = MountSourceKinds.Any;
         }
 
         // The header's chrome flags are read after the draw, like every other view request.
@@ -594,7 +607,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
             && lastExpansion == state.Expansion
             && lastOrder == state.Order
             && string.Equals(lastSearch, state.Search, StringComparison.Ordinal)
-            && string.Equals(lastSource, state.SourceFilter, StringComparison.Ordinal))
+            && lastSource == state.SourceFilter)
         {
             return false;
         }
@@ -953,19 +966,25 @@ public sealed class MainWindow : GlassWindow, IDisposable
     internal int PriceVersion => market.PriceVersion;
 
 
-    /// <summary>The source combo's labels: "Any" plus every category on the shelf, cached by revision.</summary>
-    private string[] BuildSourceLabels()
+    /// <summary>
+    /// The source combo's entries: "any" with how many mounts the shelf carries, then one entry per type with
+    /// its own count, in taxonomy order. Built from the catalogue, never from the filtered list: a count that
+    /// moved with the filter would be counting itself.
+    /// </summary>
+    private MountSourceCount[] BuildSourceOptions()
     {
-        if (sourceLabelsRevision == lastRevision && sourceLabels.Length > 0)
-        {
-            return sourceLabels;
-        }
+        IReadOnlyList<MountShelfItem> items = plugin.Catalog.Items;
 
-        string[] types = MountQuery.SourceTypes(plugin.Catalog.Items);
-        sourceLabels = [UiText.AnySource, .. types];
-        sourceLabelsRevision = lastRevision;
-        return sourceLabels;
+        return [new MountSourceCount(MountSourceKinds.Any, items.Count), .. MountSourceKinds.Tally(items)];
     }
+
+    /// <summary>
+    /// What the config stores for a source filter: the type's own spelling, or empty for "any". The spelling
+    /// rather than the folded key, because the file is something a human may read, and the value an older build
+    /// wrote for the same type (<c>Trial</c>, <c>PvP</c>) is exactly this string.
+    /// </summary>
+    /// <param name="kind">The type the combo holds.</param>
+    private static string SourceFilterValue(MountSourceKind kind) => kind.IsAny ? string.Empty : kind.Name;
 
     /// <summary>The recently collected ids that are still owned, for the view's New markers.</summary>
     private HashSet<uint> BuildRecentIds(Configuration config)
@@ -1149,7 +1168,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
             changed = true;
         }
 
-        var sourceFilter = state.SourceFilter ?? string.Empty;
+        string sourceFilter = SourceFilterValue(state.SourceFilter);
         if (!string.Equals(config.SavedSource, sourceFilter, StringComparison.Ordinal))
         {
             config.SavedSource = sourceFilter;

@@ -541,6 +541,51 @@ public sealed class MountSourcesValidationTests
         throw new InvalidOperationException($"No \"{code}\" finding in:\n{report.ToText()}");
     }
 
+    [Fact]
+    public void AnObtainTypeOutsideTheTaxonomyFails()
+    {
+        // The filter, the grouping and the counts are keyed by the type: a type nobody has taught the plugin
+        // would land in an unlabelled section, so it is refused rather than accepted quietly.
+        string candidate = Snapshot((1, "7.0", 1)).Replace("\"type\": \"Quest\"", "\"type\": \"Brand New Type\"");
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.False(report.IsValid, report.ToText());
+        Assert.Contains(MountSourcesValidator.SourceTypeUnknownCode, Codes(report));
+        Assert.Contains("Brand New Type", report.ToText(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnObtainLineWithoutATypeFails()
+    {
+        // A line the filter cannot place is invisible to the source filter and to its counts, while the pane
+        // still draws the text - the one state a player cannot reason about.
+        string candidate = Snapshot((1, "7.0", 1)).Replace("\"type\": \"Quest\"", "\"type\": \"\"");
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.False(report.IsValid, report.ToText());
+        Assert.Contains(MountSourcesValidator.SourceTypeMissingCode, Codes(report));
+    }
+
+    [Fact]
+    public void ATypedSnapshotPassesTheTypeChecks()
+    {
+        string candidate = Snapshot((1, "7.0", 2), (2, "7.0", 1));
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.True(report.IsValid, report.ToText());
+        Assert.DoesNotContain(MountSourcesValidator.SourceTypeMissingCode, Codes(report));
+        Assert.DoesNotContain(MountSourcesValidator.SourceTypeUnknownCode, Codes(report));
+    }
+
     private static IReadOnlyList<string> Codes(MountSourcesValidationReport report)
     {
         var codes = new List<string>(report.Issues.Count);

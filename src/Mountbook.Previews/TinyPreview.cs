@@ -42,6 +42,7 @@ public sealed class MinimumPreview : IPreviewScreen
             Owned = owned,
             Total = items.Count,
             SelectedId = items[0].Id,
+            SourceOptions = MountbookPreview.SourceOptions(items),
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,

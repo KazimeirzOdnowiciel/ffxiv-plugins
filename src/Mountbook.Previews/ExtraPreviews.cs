@@ -51,7 +51,7 @@ public sealed class EmptyStatePreview : IPreviewScreen
                 .OwnershipCounts(all, null),
             Owned = owned,
             Total = all.Count,
-            SourceLabels = ["Any", "Achievement", "Event", "PvP", "Quest", "Trial"],
+            SourceOptions = MountbookPreview.SourceOptions(all),
             Ownership = ownership,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,
@@ -153,6 +153,7 @@ public sealed class WantedPreview : IPreviewScreen
             OwnershipCounts = new MountQuery(string.Empty, MountOwnership.All, MountExpansion.All, MountOrder.Name).OwnershipCounts(all, ids),
             Owned = ownedAll,
             Total = all.Count,
+            SourceOptions = MountbookPreview.SourceOptions(all),
             // The recent mount is the selected one, so the golden covers the New badge as well as the
             // New square on its card.
             SelectedId = wanted[1].Id,
@@ -219,6 +220,7 @@ public sealed class NarrowPreview : IPreviewScreen
             MarketCanCheck = true,
             MarketPriceText = "2,999,999 gil | 12 listings | Shiva (Light)",
             ItemName = null,
+            SourceOptions = MountbookPreview.SourceOptions(items),
             RideDisabledReason = "Not collected.",
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
@@ -292,6 +294,7 @@ public sealed class PricePreview : IPreviewScreen
                 new MountWatchRecord { Threshold = 3_000_000, CheckedAt = 1_000_000, LastSeen = 2_999_999 },
                 1_000_720),
             WatchingCount = 1,
+            SourceOptions = MountbookPreview.SourceOptions(items),
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,
@@ -352,6 +355,7 @@ public sealed class TablePreview : IPreviewScreen
             // the accent would hide the selection bar.
             SelectedId = items[1].Id,
             ViewMode = MountViewMode.Table,
+            SourceOptions = MountbookPreview.SourceOptions(items),
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,

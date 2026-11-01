@@ -68,6 +68,7 @@ public sealed class SourceRowsPreview : IPreviewScreen
             // The credit the shipped dataset carries, so the golden proves it draws under the list (and
             // proves the pane still fits with one more footnote in it).
             DatasetSource = "ffxivcollect.com",
+            SourceOptions = MountbookPreview.SourceOptions(items),
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,

@@ -70,18 +70,63 @@ public sealed class MountGroupsTests
     }
 
     [Fact]
-    public void SourceSectionsAreAlphabeticalAndTheSourcelessOneLast()
+    public void SourceSectionsFollowTheTaxonomyOrderAndTheSourcelessOneLast()
     {
+        // Not the alphabet: the sections read like the filter's own list, the largest group first, so Premium
+        // leads even though "Achievement" sorts before it.
         MountShelfItem[] items =
         [
             Item(1, "Alpha", "7.0", "Trial"),
             Item(2, "Beta", "7.0", string.Empty),
             Item(3, "Gamma", "7.0", "achievement"),
+            Item(4, "Delta", "7.0", "Premium"),
         ];
 
         IReadOnlyList<MountGroup> groups = MountGroups.Build(items, MountGrouping.Source);
 
-        Assert.Equal(new[] { "achievement", "Trial", MountGroups.NoSource }, Titles(groups));
+        Assert.Equal(new[] { "Premium", "Achievement", "Trial", MountGroups.NoSource }, Titles(groups));
+    }
+
+    [Fact]
+    public void OneTypesSpellingsMakeOneSourceSection()
+    {
+        // "v&c dungeon" and "V&C Dungeon" are one type, so they are one heading under the dataset's own spelling
+        // rather than two sections that look like a duplicate.
+        MountShelfItem[] items = [Item(1, "Alpha", "7.0", "v&c dungeon"), Item(2, "Beta", "7.0", "V&C Dungeon")];
+
+        MountGroup group = Assert.Single(MountGroups.Build(items, MountGrouping.Source));
+
+        Assert.Equal("V&C Dungeon", group.Title);
+        Assert.Equal(2, group.Items.Count);
+    }
+
+    [Fact]
+    public void ASourceTypeThisBuildDoesNotKnowSortsAfterTheKnownOnes()
+    {
+        // A type a newer snapshot carries still gets its own section - filtered and grouped by its own key - but
+        // it sorts after every type the taxonomy ranks, because this build cannot say where it belongs.
+        MountShelfItem[] items =
+        [
+            Item(1, "Alpha", "7.0", "Brand New Type"),
+            Item(2, "Beta", "7.0", "Voyages"),
+            Item(3, "Gamma", "7.0", string.Empty),
+        ];
+
+        IReadOnlyList<MountGroup> groups = MountGroups.Build(items, MountGrouping.Source);
+
+        Assert.Equal(new[] { "Voyages", "Brand New Type", MountGroups.NoSource }, Titles(groups));
+    }
+
+    [Fact]
+    public void AMountCarryingTwoTypesIsFiledUnderItsFirst()
+    {
+        // A section per type would draw this card twice and make the headings' counts exceed the list; the site
+        // lists the primary source first, so the first line decides.
+        MountShelfItem[] items = [Item(1, "Alpha", "7.0", "Achievement", "Premium")];
+
+        MountGroup group = Assert.Single(MountGroups.Build(items, MountGrouping.Source));
+
+        Assert.Equal("Achievement", group.Title);
     }
 
     [Fact]
@@ -159,11 +204,16 @@ public sealed class MountGroupsTests
         return names;
     }
 
-    private static MountShelfItem Item(uint id, string name, string patch, string category = "")
+    private static MountShelfItem Item(uint id, string name, string patch, params string[] categories)
     {
-        IReadOnlyList<MountSourceLine> sources = category.Length == 0
-            ? []
-            : [new MountSourceLine(category, "some detail", string.Empty, 0)];
+        var lines = new List<MountSourceLine>(categories.Length);
+
+        foreach (string category in categories)
+        {
+            lines.Add(new MountSourceLine(category, "some detail", string.Empty, 0));
+        }
+
+        IReadOnlyList<MountSourceLine> sources = lines;
 
         return new MountShelfItem(id, name, 0u, 0u, 1, patch, false, string.Empty, string.Empty, string.Empty, sources);
     }

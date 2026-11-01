@@ -8,7 +8,7 @@ namespace Mountbook.Services;
 /// The search box's grammar. Plain words still match name, lore, tooltip, patch, expansion and source,
 /// and a term written <c>key:value</c> narrows the list by a fact instead: <c>tradeable:y</c>,
 /// <c>music:n</c>, <c>barding:y</c>, <c>flying:y</c>, <c>seats:&gt;=2</c>, <c>patch:&gt;=6.1</c>,
-/// <c>owned:&lt;1</c>.
+/// <c>owned:&lt;1</c>, <c>source:trial</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -19,7 +19,10 @@ namespace Mountbook.Services;
 /// </para>
 /// <para>
 /// <c>owned:</c> compares the share of collectors who own the mount, so <c>owned:&lt;1</c> reads "rarer
-/// than 1% of collectors" - the same number the detail pane shows.
+/// than 1% of collectors" - the same number the detail pane shows. <c>source:</c> takes one of the obtain
+/// taxonomy's types and accepts either its folded name (<c>v-c-dungeon</c>) or the beginning of one
+/// (<c>cosmic</c>), which is how a type whose name carries a space stays reachable from a box that splits on
+/// spaces.
 /// </para>
 /// </remarks>
 public sealed class MountSearchQuery
@@ -128,6 +131,10 @@ public sealed class MountSearchQuery
                 return TryParseComparison(value.TrimEnd('%'), out Comparison ownedOp, out double owned)
                     && Set(out constraint, Fact.Owned, ownedOp, owned);
 
+            case "source":
+                return MountSourceKinds.TryParseOperator(value, out MountSourceKind source)
+                    && Set(out constraint, Fact.Source, source);
+
             default:
                 // An unknown key is free text: "Trial: Byakko" must keep working as a source search.
                 return false;
@@ -137,6 +144,12 @@ public sealed class MountSearchQuery
     private static bool Set(out Constraint constraint, Fact fact, Comparison comparison, double value)
     {
         constraint = new Constraint(fact, comparison, value);
+        return true;
+    }
+
+    private static bool Set(out Constraint constraint, Fact fact, MountSourceKind source)
+    {
+        constraint = new Constraint(fact, Comparison.Equal, 0d, source);
         return true;
     }
 
@@ -249,6 +262,13 @@ public sealed class MountSearchQuery
         Owned,
         Barding,
         Flying,
+
+        /// <summary>
+        /// The obtain type. The only fact that is not a number: a constraint carrying it is matched as set
+        /// membership (<see cref="Constraint.Matches"/>), not through <see cref="Constraint.FactOf"/>, which has no
+        /// arm for it on purpose - a type is not "unrecorded", a mount either carries it or does not.
+        /// </summary>
+        Source,
     }
 
     private enum Comparison
@@ -260,13 +280,37 @@ public sealed class MountSearchQuery
         LessThan,
     }
 
-    /// <summary>One parsed <c>key:value</c> term.</summary>
-    private readonly record struct Constraint(Fact Fact, Comparison Comparison, double Value)
+    /// <summary>One parsed <c>key:value</c> term. <paramref name="Source"/> is set only for the type term.</summary>
+    private readonly record struct Constraint(
+        Fact Fact,
+        Comparison Comparison,
+        double Value,
+        MountSourceKind? Source = null)
     {
         /// <summary>False when the mount does not carry the fact at all, whatever the comparison.</summary>
         public bool Matches(MountShelfItem item)
         {
-            return FactOf(item, Fact) is { } actual && Holds(actual);
+            return Source is { } kind
+                ? MatchesSource(item, kind)
+                : FactOf(item, Fact) is { } actual && Holds(actual);
+        }
+
+        /// <summary>
+        /// A type is a membership test, not a number: the mount matches when any of its source lines carries
+        /// the type. A mount with no obtain data carries no type at all, so it matches no <c>source:</c> term -
+        /// "no type recorded" is not "any type".
+        /// </summary>
+        private static bool MatchesSource(MountShelfItem item, MountSourceKind kind)
+        {
+            foreach (MountSourceLine line in item.Sources)
+            {
+                if (line.Kind == kind)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool Holds(double actual) => Comparison switch

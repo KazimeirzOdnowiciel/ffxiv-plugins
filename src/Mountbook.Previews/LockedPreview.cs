@@ -45,7 +45,7 @@ public sealed class LockedPreview : IPreviewScreen
             Owned = owned,
             Total = items.Count,
             SelectedId = LockedId,
-            SourceLabels = ["Any", "Achievement", "Event", "PvP", "Quest", "Trial"],
+            SourceOptions = MountbookPreview.SourceOptions(items),
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,
