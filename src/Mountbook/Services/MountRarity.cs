@@ -34,17 +34,17 @@ public static class MountRarity
 
         if (rounded <= 0d)
         {
-            return string.Concat("Fewer than ", Format(RoundingStep), "% of collectors own this");
+            return Loc.F("rarity.fewer", Format(RoundingStep));
         }
 
         // 99.96 and up rounds to 100, and "owned by 100% of collectors" would be a claim the site
         // never made; the honest reading of a number that rounds to the top is the top.
         if (rounded >= 100d)
         {
-            return "Every collector owns this";
+            return Loc.T("rarity.every");
         }
 
-        return string.Concat("Owned by ", Format(rounded), "% of collectors");
+        return Loc.F("rarity.owned", Format(rounded));
     }
 
     /// <summary>The percentage the way the site writes it: one decimal at most, no trailing ".0".</summary>
@@ -68,14 +68,14 @@ public static class MountRarity
 
         if (rounded <= 0d)
         {
-            return string.Concat("under ", Format(RoundingStep), "% of collectors");
+            return Loc.F("rarity.compact.fewer", Format(RoundingStep));
         }
 
         if (rounded >= 100d)
         {
-            return "every collector";
+            return Loc.T("rarity.compact.every");
         }
 
-        return string.Concat(Format(rounded), "% of collectors");
+        return Loc.F("rarity.compact", Format(rounded));
     }
 }

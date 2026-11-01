@@ -121,10 +121,35 @@ jobs:
             throw "a golden moved (exit $LASTEXITCODE): inspect artifacts/previews/Mountbook"
           }
 
+      - name: Build the CJK golden renderer
+        shell: pwsh
+        run: |
+          # The localisation golden cannot go through the pinned renderer: its UI font's
+          # glyph range is pinned to U+0020..U+00FF, so CJK comes out as question marks
+          # whatever face is loaded (docs/localisation.md has the probe). This one is a
+          # CPU rasteriser over ImGui's own font engine, with the face committed.
+          dotnet build src/Mountbook.Previews.Cjk/Mountbook.Previews.Cjk.csproj -c Release
+          if ($LASTEXITCODE -ne 0) {
+            throw "CJK golden build failed (exit $LASTEXITCODE)"
+          }
+
+      - name: Compare the CJK golden
+        shell: pwsh
+        run: |
+          # Same contract as the goldens above: the render is a byte comparison, and a
+          # change to a translation is a re-baseline decision. --out keeps the actual
+          # image for the failure artifact.
+          dotnet run --project src/Mountbook.Previews.Cjk/Mountbook.Previews.Cjk.csproj -c Release --no-build -- --compare src/Mountbook.Previews.Cjk/goldens --out artifacts/previews/Cjk
+          if ($LASTEXITCODE -ne 0) {
+            throw "the CJK golden moved (exit $LASTEXITCODE): inspect artifacts/previews/Cjk"
+          }
+
       - name: Keep the actuals and diffs
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: previews
-          path: artifacts/previews/Mountbook
+          path: |
+            artifacts/previews/Mountbook
+            artifacts/previews/Cjk
           if-no-files-found: ignore

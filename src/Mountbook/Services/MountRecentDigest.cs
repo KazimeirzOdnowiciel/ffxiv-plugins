@@ -71,10 +71,8 @@ public static class MountRecentDigest
     /// <param name="count">How many mounts the digest carries.</param>
     public static string Summary(int count) =>
         count == 1
-            ? "1 mount collected in the last two weeks"
-            : string.Concat(
-                count.ToString(CultureInfo.InvariantCulture),
-                " mounts collected in the last two weeks");
+            ? Loc.T("digest.summary.one")
+            : Loc.F("digest.summary.many", count.ToString(CultureInfo.InvariantCulture));
 
     /// <summary>How the age is printed. A stamp in the future reads as today rather than as a negative.</summary>
     /// <param name="nowUnixSeconds">The current time, in unix seconds.</param>
@@ -85,13 +83,13 @@ public static class MountRecentDigest
 
         if (elapsed < SecondsPerDay)
         {
-            return "today";
+            return Loc.T("digest.today");
         }
 
         long days = elapsed / SecondsPerDay;
 
         return days == 1
-            ? "yesterday"
-            : string.Concat(days.ToString(CultureInfo.InvariantCulture), " days ago");
+            ? Loc.T("digest.yesterday")
+            : Loc.F("digest.daysAgo", days.ToString(CultureInfo.InvariantCulture));
     }
 }

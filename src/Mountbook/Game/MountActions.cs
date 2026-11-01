@@ -80,19 +80,19 @@ internal sealed class MountActions
 
         if (!clientState.IsLoggedIn)
         {
-            return "Log in to ride a mount.";
+            return Loc.T("reason.ride.login");
         }
 
         try
         {
             if (condition[ConditionFlag.InCombat])
             {
-                return "You cannot mount in combat.";
+                return Loc.T("reason.ride.combat");
             }
 
             if (condition[ConditionFlag.Casting])
             {
-                return "Finish casting first.";
+                return Loc.T("reason.ride.casting");
             }
 
             if (condition[ConditionFlag.OccupiedInEvent]
@@ -101,22 +101,22 @@ internal sealed class MountActions
                 || condition[ConditionFlag.WatchingCutscene]
                 || condition[ConditionFlag.WatchingCutscene78])
             {
-                return "Not during a cutscene or event.";
+                return Loc.T("reason.ride.cutscene");
             }
 
             if (condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51])
             {
-                return "Wait for the area to load.";
+                return Loc.T("reason.area.loading");
             }
 
             if (condition[ConditionFlag.Unconscious])
             {
-                return "You cannot mount while unconscious.";
+                return Loc.T("reason.ride.unconscious");
             }
 
             if (ActionManager.Instance() == null)
             {
-                return "The action system is not ready.";
+                return Loc.T("reason.ride.notReady");
             }
 
             // Ask the game the same question about the action we are about to use. The roulette
@@ -124,7 +124,7 @@ internal sealed class MountActions
             // where mounting a specific mount works, so the per-mount status is the honest test.
             if (ActionManager.Instance()->GetActionStatus(ActionType.Mount, item.Id) != 0)
             {
-                return "The game will not let you mount here right now.";
+                return Loc.T("reason.ride.refused");
             }
 
             // No NoteSuccess() here: this is a question asked every frame by the window, so clearing
@@ -135,7 +135,7 @@ internal sealed class MountActions
         catch (Exception ex)
         {
             LogFailure(ex);
-            return "The game state is unavailable right now.";
+            return Loc.T("reason.unavailable");
         }
     }
 
@@ -147,12 +147,12 @@ internal sealed class MountActions
     {
         if (itemId == 0)
         {
-            return "This mount has no whistle item.";
+            return Loc.T("reason.link.noWhistle");
         }
 
         if (!clientState.IsLoggedIn)
         {
-            return "Log in to link an item.";
+            return Loc.T("reason.link.login");
         }
 
         return null;
@@ -275,14 +275,14 @@ internal sealed class MountActions
     {
         if (!clientState.IsLoggedIn)
         {
-            return "Log in to open the Mount Guide.";
+            return Loc.T("reason.guide.login");
         }
 
         try
         {
             if (condition[ConditionFlag.BetweenAreas] || condition[ConditionFlag.BetweenAreas51])
             {
-                return "Wait for the area to load.";
+                return Loc.T("reason.area.loading");
             }
 
             // Per-frame question, like DescribeRide: the failure flag belongs to the real actions.
@@ -291,7 +291,7 @@ internal sealed class MountActions
         catch (Exception ex)
         {
             LogFailure(ex);
-            return "The game state is unavailable right now.";
+            return Loc.T("reason.unavailable");
         }
     }
 

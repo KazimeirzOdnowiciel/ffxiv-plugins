@@ -102,18 +102,18 @@ public static class MountCosts
 
         if (held is not { } have)
         {
-            return string.Concat(wanted, " ", cost.Currency);
+            return Loc.F("cost.price", wanted, cost.Currency);
         }
 
         var mine = have.ToString("N0", CultureInfo.InvariantCulture);
 
         if (have >= cost.Amount)
         {
-            return string.Concat(wanted, " ", cost.Currency, " - you have ", mine, ", enough to buy it");
+            return Loc.F("cost.enough", wanted, cost.Currency, mine);
         }
 
         var missing = (cost.Amount - have).ToString("N0", CultureInfo.InvariantCulture);
 
-        return string.Concat(wanted, " ", cost.Currency, " - you have ", mine, ", ", missing, " to go");
+        return Loc.F("cost.partial", wanted, cost.Currency, mine, missing);
     }
 }

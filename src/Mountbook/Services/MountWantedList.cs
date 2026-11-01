@@ -107,7 +107,7 @@ public static class MountWantedList
 
         if (string.IsNullOrWhiteSpace(json))
         {
-            error = "The clipboard is empty.";
+            error = Loc.T("import.empty");
 
             return false;
         }
@@ -124,7 +124,7 @@ public static class MountWantedList
         }
         catch (JsonException)
         {
-            error = "That is not JSON.";
+            error = Loc.T("import.notJson");
 
             return false;
         }
@@ -135,7 +135,7 @@ public static class MountWantedList
 
             if (root.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
             {
-                error = "A wanted list is a JSON object with a \"mounts\" array, or an array of mount ids.";
+                error = Loc.T("import.shape");
 
                 return false;
             }
@@ -149,17 +149,14 @@ public static class MountWantedList
                 {
                     if (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out int number))
                     {
-                        error = "\"version\" must be a number.";
+                        error = Loc.T("import.versionNumber");
 
                         return false;
                     }
 
                     if (number > CurrentVersion)
                     {
-                        error = string.Concat(
-                            "This list was written by a newer Mountbook (version ",
-                            number.ToString(CultureInfo.InvariantCulture),
-                            ").");
+                        error = Loc.F("import.newer", number.ToString(CultureInfo.InvariantCulture));
 
                         return false;
                     }
@@ -167,7 +164,7 @@ public static class MountWantedList
 
                 if (!TryGetMember(root, "mounts", out mounts))
                 {
-                    error = "A wanted list is a JSON object with a \"mounts\" array.";
+                    error = Loc.T("import.noMounts");
 
                     return false;
                 }
@@ -175,7 +172,7 @@ public static class MountWantedList
 
             if (mounts.ValueKind != JsonValueKind.Array)
             {
-                error = "\"mounts\" must be an array.";
+                error = Loc.T("import.mountsArray");
 
                 return false;
             }
@@ -229,45 +226,39 @@ public static class MountWantedList
     /// <param name="invalid">How many entries carried no usable id.</param>
     public static string ImportSummary(int imported, int already, int unknown, int invalid)
     {
-        var builder = new StringBuilder();
-
-        builder.Append(imported == 0
-            ? "Nothing new to import"
-            : string.Concat("Imported ", Count(imported, "mount", "mounts")));
+        var head = imported == 0
+            ? Loc.T("import.nothingNew")
+            : Loc.F(
+                imported == 1 ? "import.imported.one" : "import.imported.many",
+                imported.ToString(CultureInfo.InvariantCulture));
 
         var notes = new List<string>(3);
 
         if (already > 0)
         {
-            notes.Add(string.Concat(Count(already, "was", "were"), " already wanted"));
+            notes.Add(Loc.F(
+                already == 1 ? "import.already.one" : "import.already.many",
+                already.ToString(CultureInfo.InvariantCulture)));
         }
 
         if (unknown > 0)
         {
-            notes.Add(string.Concat(Count(unknown, "is not", "are not"), " in your book"));
+            notes.Add(Loc.F(
+                unknown == 1 ? "import.unknown.one" : "import.unknown.many",
+                unknown.ToString(CultureInfo.InvariantCulture)));
         }
 
         if (invalid > 0)
         {
-            notes.Add(string.Concat(Count(invalid, "entry", "entries"), " had no mount id"));
+            notes.Add(Loc.F(
+                invalid == 1 ? "import.invalid.one" : "import.invalid.many",
+                invalid.ToString(CultureInfo.InvariantCulture)));
         }
 
-        if (notes.Count > 0)
-        {
-            builder.Append(" (").Append(string.Join(", ", notes)).Append(')');
-        }
-
-        builder.Append('.');
-
-        return builder.ToString();
+        return notes.Count == 0
+            ? Loc.F("import.summary", head)
+            : Loc.F("import.summary.notes", head, string.Join(", ", notes));
     }
-
-    /// <summary>"1 mount" / "12 mounts", for the counts a summary prints.</summary>
-    private static string Count(int number, string singular, string plural) =>
-        string.Concat(
-            number.ToString(CultureInfo.InvariantCulture),
-            " ",
-            number == 1 ? singular : plural);
 
     /// <summary>
     /// The id one entry stands for: a number on its own, or an object's <c>id</c> member. A zero id is

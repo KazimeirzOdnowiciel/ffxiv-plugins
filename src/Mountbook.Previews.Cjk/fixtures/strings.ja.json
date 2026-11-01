@@ -1,0 +1,29 @@
+{
+  "language": "ja",
+  "strings": {
+    "badge.collected": "収集済み",
+    "badge.flies": "飛行可",
+    "badge.seats.many": "座席 {0}",
+    "detail.linkWhistle": "ひびきを送る",
+    "detail.mountGuide": "図鑑を開く",
+    "detail.obtain.section": "入手方法",
+    "detail.ride": "騎乗",
+    "detail.unwant": "解除",
+    "detail.want": "ほしい",
+    "filter.search.hint": "マウントと入手方法を検索",
+    "header.collected": "{1} 匹中 {0} 匹を収集",
+    "header.remaining.some": "残り {0} 匹",
+    "ownership.all": "すべて",
+    "ownership.owned": "収集済み",
+    "ownership.unowned": "未収集",
+    "ownership.wanted": "ほしい",
+    "table.name": "名前",
+    "table.owned": "収集",
+    "table.owners": "所持率",
+    "table.patch": "パッチ",
+    "table.price": "価格",
+    "table.seats": "座席",
+    "table.source": "入手",
+    "window.main": "マウント図鑑"
+  }
+}

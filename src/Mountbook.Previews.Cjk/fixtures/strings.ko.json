@@ -1,0 +1,29 @@
+{
+  "language": "ko",
+  "strings": {
+    "badge.collected": "수집함",
+    "badge.flies": "비행 가능",
+    "badge.seats.many": "좌석 {0}",
+    "detail.linkWhistle": "휘파람 보내기",
+    "detail.mountGuide": "도감 열기",
+    "detail.obtain.section": "획득 방법",
+    "detail.ride": "탑승",
+    "detail.unwant": "해제",
+    "detail.want": "원함",
+    "filter.search.hint": "탈것과 획득 방법 검색",
+    "header.collected": "{1} 마리 중 {0} 마리 수집",
+    "header.remaining.some": "{0} 마리 남음",
+    "ownership.all": "전체",
+    "ownership.owned": "수집함",
+    "ownership.unowned": "미수집",
+    "ownership.wanted": "원함",
+    "table.name": "이름",
+    "table.owned": "수집",
+    "table.owners": "보유율",
+    "table.patch": "패치",
+    "table.price": "가격",
+    "table.seats": "좌석",
+    "table.source": "출처",
+    "window.main": "탈것 도감"
+  }
+}

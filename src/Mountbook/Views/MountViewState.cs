@@ -182,8 +182,12 @@ public sealed class MountViewState
     /// <summary>The acquire-method filter ("Trial", "PvP", ...), or empty for any.</summary>
     public string SourceFilter { get; set; } = string.Empty;
 
-    /// <summary>The labels for the source combo: "Any" followed by every category on the shelf.</summary>
-    public string[] SourceLabels { get; set; } = ["Any"];
+    /// <summary>
+    /// The labels for the source combo: the "any" entry followed by every category on the shelf. The
+    /// entries are the dataset's own category strings (data, not interface text); the view translates them
+    /// for display, because the same value is also what a chosen filter is stored as.
+    /// </summary>
+    public string[] SourceLabels { get; set; } = [UiText.AnySource];
 
     /// <summary>The whistle item's name for the selected mount, or null when it has none.</summary>
     public string? ItemName { get; set; }

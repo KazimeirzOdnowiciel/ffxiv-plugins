@@ -29,11 +29,9 @@ public static class MountProgress
     /// </remarks>
     public static string RefreshToast(int owned, int total)
     {
-        return string.Concat(
-            "Refreshed: ",
+        return Loc.F(
+            "progress.toast",
             owned.ToString(CultureInfo.InvariantCulture),
-            " of ",
-            total.ToString(CultureInfo.InvariantCulture),
-            " collected");
+            total.ToString(CultureInfo.InvariantCulture));
     }
 }

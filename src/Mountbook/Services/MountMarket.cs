@@ -250,13 +250,13 @@ public static class MountMarket
     {
         if (quote is null)
         {
-            return string.Concat("Nobody is selling this on ", location, ".");
+            return Loc.F("market.none", location);
         }
 
         var gil = quote.MinPrice.ToString("N0", CultureInfo.InvariantCulture);
         var listings = quote.ListingsCount == 1
-            ? "1 listing"
-            : string.Concat(quote.ListingsCount.ToString("N0", CultureInfo.InvariantCulture), " listings");
+            ? Loc.T("market.listings.one")
+            : Loc.F("market.listings.many", quote.ListingsCount.ToString("N0", CultureInfo.InvariantCulture));
         var named = quote.Location.Length > 0 ? quote.Location : location;
         var where = quote.CheapestWorld.Length > 0
             ? string.Concat(quote.CheapestWorld, " (", named, ")")
@@ -264,7 +264,7 @@ public static class MountMarket
 
         // " | " and not a middle dot: the headless preview atlas has no U+00B7, and a golden would show
         // "?" where the game shows the separator.
-        return string.Concat(gil, " gil | ", listings, " | ", where);
+        return Loc.F("market.line", gil, listings, where);
     }
 
     private static string ReadString(System.Text.Json.JsonElement element, string name) =>
@@ -280,7 +280,7 @@ public static class MountMarket
     /// </summary>
     /// <param name="price">The cheapest price in gil.</param>
     public static string DescribeFrom(int price) =>
-        price > 0 ? string.Concat("From ", price.ToString("N0", CultureInfo.InvariantCulture), " gil") : string.Empty;
+        price > 0 ? Loc.F("market.from", price.ToString("N0", CultureInfo.InvariantCulture)) : string.Empty;
 
     private static bool TryGetInt(JsonElement root, string name, out int value)
     {

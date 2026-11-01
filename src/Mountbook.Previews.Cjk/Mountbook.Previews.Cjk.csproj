@@ -1,0 +1,24 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <!-- Not a plugin: this is the golden renderer for the CJK sample (see docs/localisation.md). -->
+    <Use_DalamudPackager>false</Use_DalamudPackager>
+    <RootNamespace>Mountbook.Previews.Cjk</RootNamespace>
+    <StrictConventions>true</StrictConventions>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mountbook\Mountbook.csproj" />
+    <Reference Include="TerraFX.Interop.Windows">
+      <HintPath>$(DalamudLibPath)TerraFX.Interop.Windows.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- The sample tables are fixtures, not shipped data: read from files beside the binary. -->
+  <ItemGroup>
+    <None Include="fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="fonts\*.otf" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

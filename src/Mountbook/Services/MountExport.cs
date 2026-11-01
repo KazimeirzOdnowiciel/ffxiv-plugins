@@ -67,12 +67,9 @@ public static class MountExport
 
         return missing switch
         {
-            0 => "Nothing missing here.",
-            1 => "Copied 1 missing mount.",
-            _ => string.Concat(
-                "Copied ",
-                missing.ToString(CultureInfo.InvariantCulture),
-                " missing mounts."),
+            0 => Loc.T("export.nothing"),
+            1 => Loc.T("export.copied.one"),
+            _ => Loc.F("export.copied.many", missing.ToString(CultureInfo.InvariantCulture)),
         };
     }
 }

@@ -46,4 +46,27 @@
           Link="mount-sources.json"
           CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <!-- The interface strings are shipped data too, and Loc reads them from the assembly it is compiled
+       into. Embedding the same files here means the English the assertions pin is the English that ships:
+       a translation that moves a word breaks a test, which is the point of pinning it. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\Mountbook\Data\Strings\*.json"
+                      LogicalName="Mountbook.Data.Strings.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- The "no user-facing literal" guard reads these sources as text, so they are embedded rather than
+       copied: what it checks is the source in this checkout, at this commit, with no extra build step. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\Mountbook\Views\**\*.cs"
+                      LogicalName="Mountbook.Tests.Sources.Views.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\Mountbook\Windows\**\*.cs"
+                      LogicalName="Mountbook.Tests.Sources.Windows.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\Mountbook\Services\**\*.cs"
+                      LogicalName="Mountbook.Tests.Sources.Services.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\Mountbook\Game\**\*.cs"
+                      LogicalName="Mountbook.Tests.Sources.Game.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\Mountbook\Plugin.cs" LogicalName="Mountbook.Tests.Sources.Plugin.cs" />
+    <EmbeddedResource Include="..\Mountbook\Localisation.cs" LogicalName="Mountbook.Tests.Sources.Localisation.cs" />
+  </ItemGroup>
 </Project>

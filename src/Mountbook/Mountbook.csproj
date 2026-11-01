@@ -32,6 +32,15 @@ The plugin reads the Mount, MountTransient and Item sheets and your own unlocked
     -->
     <EmbeddedResource Include="Data/mount-sources.json"
                       LogicalName="Mountbook.Data.mount-sources.json" />
+
+    <!--
+      One file per interface language, all embedded under one pinned name family. Loc.Scan finds them by
+      the ".Strings.<code>.json" suffix, so adding a language is adding a file here - no code change, which
+      is the whole point of the exercise. The LogicalName family is pinned for the same reason
+      mount-sources.json's is: a folder rename must not become a runtime "no strings" bug.
+    -->
+    <EmbeddedResource Include="Data/Strings/*.json"
+                      LogicalName="Mountbook.Data.Strings.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <!--

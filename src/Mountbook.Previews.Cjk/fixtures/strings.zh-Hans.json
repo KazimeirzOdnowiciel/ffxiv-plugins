@@ -1,0 +1,29 @@
+{
+  "language": "zh-Hans",
+  "strings": {
+    "badge.collected": "已收集",
+    "badge.flies": "可飞行",
+    "badge.seats.many": "{0} 座",
+    "detail.linkWhistle": "发送笛声",
+    "detail.mountGuide": "打开图鉴",
+    "detail.obtain.section": "获取方式",
+    "detail.ride": "骑乘",
+    "detail.unwant": "取消",
+    "detail.want": "想要",
+    "filter.search.hint": "搜索坐骑和获取方式",
+    "header.collected": "{1} 个中已收集 {0} 个",
+    "header.remaining.some": "还差 {0} 个",
+    "ownership.all": "全部",
+    "ownership.owned": "已收集",
+    "ownership.unowned": "未收集",
+    "ownership.wanted": "想要",
+    "table.name": "名称",
+    "table.owned": "收集",
+    "table.owners": "持有率",
+    "table.patch": "版本",
+    "table.price": "价格",
+    "table.seats": "座位",
+    "table.source": "来源",
+    "window.main": "坐骑图鉴"
+  }
+}
