@@ -1,5 +1,6 @@
 namespace Mountbook.Tests;
 
+using System;
 using Mountbook.Services;
 using Xunit;
 
@@ -252,5 +253,121 @@ public sealed class LayoutMeasureTests
         Assert.False(LayoutMeasure.FilterPairFits(LayoutMeasure.FilterPairMinWidth - 0.1f));
         Assert.True(LayoutMeasure.FilterPairFits(LayoutMeasure.FilterPairMinWidth));
         Assert.InRange(LayoutMeasure.FilterPairMinWidth, 328f, 438f);
+    }
+
+    /// <summary>
+    /// The four ownership chips, at the label widths the render really measured on the real count tuple
+    /// (300 mounts, 233 unowned): "All 300" 31.79, "Owned 67" 47.43, "Unowned 233" 64.53 and "Wanted 12" 50.17 px
+    /// at subheadline/semibold, plus the Look's 2 px knob inset and a small space of slack. The twelve-mount
+    /// sample the other goldens draw has a widest label of 53.18 px, so those scenes ask for a narrower row.
+    /// </summary>
+    private static readonly float[] ChipLabelsPx = [31.79f, 47.43f, 64.53f, 50.17f];
+
+    /// <summary>The widest chip label with the twelve-mount sample's counts, in pixels.</summary>
+    private const float SampleWidestChipPx = 53.18f;
+
+    /// <summary>The knob inset <c>Gw.Segmented</c> gives a cell's ink on both sides, in pixels.</summary>
+    private const float ChipInsetPx = 2f;
+
+    /// <summary>The rounding and hinting slack the row reserves, in pixels.</summary>
+    private const float ChipSlackPx = 8f;
+
+    /// <summary>The chip row's requirement for a label set, at the measured constants above.</summary>
+    /// <param name="widestLabelPx">The widest label's advance width, in pixels.</param>
+    private static float ChipsRow(float widestLabelPx) =>
+        LayoutMeasure.ChipsWidth(ChipLabelsPx.Length, widestLabelPx, ChipInsetPx, ChipSlackPx);
+
+    [Fact]
+    public void TheChipRowIsTheWidestLabelInFourEqualCells()
+    {
+        // 4 x ceil(64.53 + 2 x 2) + 8. The ceiling makes every cell a whole pixel wide, and the slot after it is
+        // the fraction a semibold face adds over the advance that was measured.
+        Assert.Equal(284f, ChipsRow(64.53f), 3);
+
+        // The sample's own labels: four cells of 58 plus the slack.
+        Assert.Equal(240f, ChipsRow(SampleWidestChipPx), 3);
+    }
+
+    [Fact]
+    public void TheChipRowFitsEveryColumnTheGoldensDrawInto()
+    {
+        // The columns the scenes really have: 328 is the 620-wide narrow squeeze, 452 the 820x520 minimum, 589
+        // the default window and 1134 the 1920-wide one. The real labels fit all four, so the row keeps its
+        // shape as the window is dragged wider - it is not one size that happens to fit.
+        Assert.True(LayoutMeasure.ChipsFit(328f, 4, 64.53f, ChipInsetPx, ChipSlackPx));
+        Assert.True(LayoutMeasure.ChipsFit(452f, 4, 64.53f, ChipInsetPx, ChipSlackPx));
+        Assert.True(LayoutMeasure.ChipsFit(589f, 4, 64.53f, ChipInsetPx, ChipSlackPx));
+        Assert.True(LayoutMeasure.ChipsFit(1134f, 4, 64.53f, ChipInsetPx, ChipSlackPx));
+
+        // Below the requirement the picker draws: 283.9 is one pixel under it, 266 is the chipcombo scene's own
+        // column, and neither may draw a chip.
+        Assert.False(LayoutMeasure.ChipsFit(283.9f, 4, 64.53f, ChipInsetPx, ChipSlackPx));
+        Assert.False(LayoutMeasure.ChipsFit(266f, 4, 64.53f, ChipInsetPx, ChipSlackPx));
+    }
+
+    [Fact]
+    public void EveryColumnTheChipsDrawIntoHoldsEveryLabelWhole()
+    {
+        // The acceptance, swept: for every column width from 100 to 1400 px, either the row is measured as not
+        // fitting (so the picker draws) or the row is drawn no wider than the column and every one of the four
+        // labels has ink left over in its cell. A gate that passed one pixel early shows up here as a negative
+        // margin.
+        for (var column = 100f; column <= 1400f; column += 1f)
+        {
+            if (!LayoutMeasure.ChipsFit(column, ChipLabelsPx.Length, 64.53f, ChipInsetPx, ChipSlackPx))
+            {
+                continue;
+            }
+
+            float row = ChipsRow(64.53f);
+            float cell = row / ChipLabelsPx.Length;
+
+            Assert.True(column >= row, $"chips drawn into {column} px for a {row} px row");
+
+            foreach (float label in ChipLabelsPx)
+            {
+                float ink = cell - (ChipInsetPx * 2f);
+
+                Assert.True(ink >= label, $"{label} px label had {ink} px of ink at a {column} px column");
+            }
+        }
+    }
+
+    [Fact]
+    public void ALongerTranslationFallsBackToThePicker()
+    {
+        // The row is measured, so a translation is not a special case: a language whose widest chip is 100 px
+        // wide needs 424 and no longer fits the 328 px column of the narrow scene, where the English labels need
+        // 284 and do. That is the difference between a measurement and the fixed 380 the row used to switch on -
+        // a constant with no relation to the room the control actually had.
+        Assert.Equal(424f, ChipsRow(100f), 3);
+        Assert.False(LayoutMeasure.ChipsFit(328f, 4, 100f, ChipInsetPx, ChipSlackPx));
+        Assert.True(LayoutMeasure.ChipsFit(328f, 4, 64.53f, ChipInsetPx, ChipSlackPx));
+    }
+
+    [Fact]
+    public void TheChipRowFollowsTheUiScale()
+    {
+        // Everything here is pixels, so a 150% scale multiplies the labels and the inset together and the
+        // comparison stays in one unit. The shape of bug a "380 * scale" gate invites - a scaled constant against
+        // a column that was not - cannot be expressed at all.
+        const float Scale = 1.5f;
+        float widest = 64.53f * Scale;
+
+        Assert.Equal(
+            4f * MathF.Ceiling(widest + (ChipInsetPx * Scale * 2f)) + (ChipSlackPx * Scale),
+            LayoutMeasure.ChipsWidth(ChipLabelsPx.Length, widest, ChipInsetPx * Scale, ChipSlackPx * Scale),
+            3);
+        Assert.True(LayoutMeasure.ChipsFit(328f * Scale, 4, widest, ChipInsetPx * Scale, ChipSlackPx * Scale));
+        Assert.False(LayoutMeasure.ChipsFit(280f * Scale, 4, widest, ChipInsetPx * Scale, ChipSlackPx * Scale));
+    }
+
+    [Fact]
+    public void AChipRowOfNoCellsAsksForNothing()
+    {
+        // The gate is also the guard: a control with no cells cannot clip a label, and ChipsFit must not read a
+        // zero-width row as "fits anything".
+        Assert.Equal(0f, LayoutMeasure.ChipsWidth(0, 64.53f, ChipInsetPx, ChipSlackPx), 3);
+        Assert.False(LayoutMeasure.ChipsFit(1000f, 0, 64.53f, ChipInsetPx, ChipSlackPx));
     }
 }

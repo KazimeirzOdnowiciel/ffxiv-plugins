@@ -119,6 +119,19 @@ public sealed partial class MountbookView
     /// <summary>Cached chip labels with their counts; rebuilt only when the counts change.</summary>
     private readonly string[] ownershipLabels = (string[])OwnershipNames.Clone();
 
+    /// <summary>
+    /// The widest chip label in pixels, and the UI scale it was measured at. It is what sizes one of the four
+    /// equal cells of the chip row and therefore what decides whether the row is chips or a combo, so it is
+    /// remeasured whenever the counts (hence the labels) move - the labels grow with the counts, and
+    /// "Unowned 233" is 26 px wider than "Unowned 3".
+    /// </summary>
+    private float widestChipLabel;
+
+    /// <summary>The style <c>Gw.Segmented</c> draws a chip label in: subheadline, semibold while selected.</summary>
+    private static readonly TextStyle ChipLabelStyle = new(TextRole.Subheadline, FontWeight.Semibold);
+
+    private float widestChipScale = -1f;
+
     /// <summary>How many <see cref="PushControlRoom"/> clips are open, so a pop never underflows.</summary>
     private static int roomPushes;
 
@@ -214,6 +227,11 @@ public sealed partial class MountbookView
         expansionCounts = new int[0, 2];
 
         Array.Fill(ownershipCounts, -1);
+
+        // The chip row's cell width belongs to the Look's type face too: the next RefreshOwnershipLabels
+        // remeasures it because the cached scale is dropped here.
+        widestChipLabel = 0f;
+        widestChipScale = -1f;
 
         // Static: the caption cache is shared by every view instance (and by the previews).
         Captions.Clear();

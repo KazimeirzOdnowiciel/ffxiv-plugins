@@ -79,6 +79,54 @@ public static class LayoutMeasure
     public static bool FilterPairFits(float columnWidth) => columnWidth >= FilterPairMinWidth;
 
     /// <summary>
+    /// The width a row of equal-width chips needs to draw every label whole: each cell gives its ink the
+    /// control's inset on both sides, and the widest label sets every cell because the cells are equal.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>Gw.Segmented</c> divides its item width into <paramref name="cells"/> equal cells and draws each label
+    /// in a box inset by <c>Look.SwitchKnobInset</c> from that cell, truncating what does not fit. So the row's
+    /// requirement is a measurement, not a column width: cells x (widest + 2 x inset).
+    /// </para>
+    /// <para>
+    /// The row used to switch shape on a fixed 380 px column, a number unrelated to the room the control
+    /// actually had, and the labels grow with the counts the player sees: "Unowned 233" is 26 px wider than
+    /// "Unowned 3". A book large enough to widen the label was drawn into cells the gate had called wide enough
+    /// and clipped to "Unown?" - the defect the 380 was introduced to fix, only moved out of reach of the
+    /// goldens' twelve-mount sample.
+    /// </para>
+    /// </remarks>
+    /// <param name="cells">How many cells the control draws; zero draws nothing.</param>
+    /// <param name="widestLabelPx">The widest label's advance width, in pixels, in the weight the control draws
+    /// (the selected cell is semibold, so that is the weight to measure).</param>
+    /// <param name="insetPx">The control's inset from a cell's edge to its ink, in pixels.</param>
+    /// <param name="slackPx">Slack for rounding and hinting, in pixels.</param>
+    public static float ChipsWidth(int cells, float widestLabelPx, float insetPx, float slackPx)
+    {
+        if (cells <= 0)
+        {
+            return 0f;
+        }
+
+        float ink = MathF.Max(widestLabelPx, 0f);
+
+        return (cells * MathF.Ceiling(ink + (insetPx * 2f))) + MathF.Max(slackPx, 0f);
+    }
+
+    /// <summary>
+    /// True when a <paramref name="columnWidthPx"/>-wide column can hold the chip row whole; below it the
+    /// control has to change shape (a combo), because a chip that does not fit truncates rather than wraps.
+    /// </summary>
+    /// <param name="columnWidthPx">The width the control may draw into, in pixels.</param>
+    /// <param name="cells">How many cells the control draws.</param>
+    /// <param name="widestLabelPx">The widest label's advance width, in pixels, in the weight the control draws.</param>
+    /// <param name="insetPx">The control's inset from a cell's edge to its ink, in pixels.</param>
+    /// <param name="slackPx">Slack for rounding and hinting, in pixels.</param>
+    public static bool ChipsFit(float columnWidthPx, int cells, float widestLabelPx, float insetPx, float slackPx)
+        => cells > 0
+            && columnWidthPx >= ChipsWidth(cells, widestLabelPx, insetPx, slackPx);
+
+    /// <summary>
     /// How many of the saved-view chips fit across the filter column, leaving the trailing button that opens the
     /// dialog its corner.
     /// </summary>

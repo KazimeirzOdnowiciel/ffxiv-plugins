@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
@@ -582,39 +583,54 @@ public sealed partial class MountbookView
     }
 
     /// <summary>
-    /// The four chip labels with their counts, e.g. `All 12`. Rebuilt only when a count changes: the
-    /// draw path runs every frame and must not allocate four strings per frame.
+    /// The four chip labels with their counts, e.g. `All 12`, and the widest of them in pixels. Rebuilt only
+    /// when a count changes: the draw path runs every frame and must not allocate four strings per frame.
     /// </summary>
+    /// <remarks>
+    /// The width is measured here because it shares the labels' lifetime: <c>Gw.Segmented</c> gives its cells
+    /// equal widths, so the widest label is the width of all four, and a count that widens a label ("Unowned 3"
+    /// to "Unowned 233", 26 px) has to remeasure on the frame it changes. Measuring the weight the cell is
+    /// drawn in matters: the selected chip is semibold, which is a fraction wider than the plain face on any
+    /// Look whose type carries a real bold.
+    /// </remarks>
+    /// <param name="state">The state whose ownership counts to label.</param>
     private string[] RefreshOwnershipLabels(MountViewState state)
     {
-        if (state.OwnershipCounts.Count != OwnershipNames.Length)
+        var scale = Frame.Scale;
+        IReadOnlyList<int> counts = state.OwnershipCounts;
+        var labelled = counts.Count == OwnershipNames.Length;
+        var changed = widestChipScale != scale || widestChipLabel <= 0f;
+
+        for (var index = 0; labelled && !changed && index < OwnershipNames.Length; index++)
+        {
+            changed = ownershipCounts[index] != counts[index];
+        }
+
+        if (!changed)
         {
             return ownershipLabels;
         }
 
-        var changed = false;
-
-        for (var index = 0; index < OwnershipNames.Length; index++)
+        if (labelled)
         {
-            if (ownershipCounts[index] != state.OwnershipCounts[index])
+            for (var index = 0; index < OwnershipNames.Length; index++)
             {
-                changed = true;
-                break;
+                ownershipCounts[index] = counts[index];
+                ownershipLabels[index] = Loc.F(
+                    "chip.count",
+                    OwnershipNames[index],
+                    ownershipCounts[index].ToString(CultureInfo.InvariantCulture));
             }
         }
 
-        if (!changed && ownershipCounts[0] >= 0)
-        {
-            return ownershipLabels;
-        }
+        widestChipLabel = 0f;
+        widestChipScale = scale;
 
-        for (var index = 0; index < OwnershipNames.Length; index++)
+        for (var index = 0; index < ownershipLabels.Length; index++)
         {
-            ownershipCounts[index] = state.OwnershipCounts[index];
-            ownershipLabels[index] = Loc.F(
-                "chip.count",
-                OwnershipNames[index],
-                ownershipCounts[index].ToString(CultureInfo.InvariantCulture));
+            widestChipLabel = MathF.Max(
+                widestChipLabel,
+                TextWidth(ownershipLabels[index], ChipLabelStyle, scale));
         }
 
         return ownershipLabels;

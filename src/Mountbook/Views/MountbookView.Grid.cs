@@ -188,17 +188,29 @@ public sealed partial class MountbookView
             }
 
             var ownership = (int)state.Ownership;
+            var chipLabels = RefreshOwnershipLabels(state);
 
-            // Four chips do not fit the narrow window (the last label clipped to "Unown?"), so the control
-            // changes shape rather than truncating: chips when there is room, a combo when not.
-            if (width >= (380f * scale))
+            // Chips across the filter column, or one picker when the column cannot hold them. What the row needs
+            // is measured, never budgeted: Gw.Segmented gives its cells equal widths, so the widest label sets
+            // all four, and the labels grow with the counts the player sees - "Unowned 233" is 26 px wider than
+            // "Unowned 3". The row used to change shape at a fixed 380 px column, a number unrelated to the label
+            // and to the room the control actually had (it took ImGui's default item width, a fraction of the
+            // column), so a bigger book drew cells too narrow and the label clipped to "Unown?".
+            var chipInset = Frame.Look.SwitchKnobInset * scale;
+            var chipSlack = Frame.Look.SpaceSmall * scale;
+
+            // Both shapes take the whole column, so the row lines up with the ones above and below it.
+            ImGui.SetNextItemWidth(width);
+
+            // A chip that does not fit truncates rather than wraps, so below the measured width the control
+            // changes shape: the picker is worse to use and better than "Unown?".
+            if (LayoutMeasure.ChipsFit(width, chipLabels.Length, widestChipLabel, chipInset, chipSlack))
             {
-                _ = Gw.Segmented(ref ownership, RefreshOwnershipLabels(state));
+                _ = Gw.Segmented(ref ownership, chipLabels);
             }
             else
             {
-                ImGui.SetNextItemWidth(width);
-                _ = Gw.ComboBox(ref ownership, RefreshOwnershipLabels(state), label: Loc.T("filter.show"));
+                _ = Gw.ComboBox(ref ownership, chipLabels, label: Loc.T("filter.show"));
             }
 
             state.Ownership = (MountOwnership)ownership;
