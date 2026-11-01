@@ -1185,10 +1185,6 @@ public sealed class MainWindow : GlassWindow, IDisposable
         if (config.ViewMode != state.ViewMode)
         {
             config.ViewMode = state.ViewMode;
-
-            // The table is re-created on the next draw, and with it the sort spec ImGui kept for its id:
-            // the first frame it draws must not be read as a header click.
-            state.TableSortReady = false;
             changed = true;
         }
 

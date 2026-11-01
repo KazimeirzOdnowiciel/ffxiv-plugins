@@ -55,16 +55,6 @@ public sealed class MountViewState
     public MountGrouping GroupBy { get; set; }
 
     /// <summary>
-    /// True once the table has drawn a frame since it was opened. Glasswork's table restores the sort
-    /// spec it last had - ImGui keeps it per table id, across sessions - so the first frame after the
-    /// table appears reports a sort change that nobody clicked, and honouring it silently replaced the
-    /// player's order (choosing "Cheapest" and opening the table reverted the list to "Newest first").
-    /// The caller clears this whenever the view mode changes, because that is exactly when the table is
-    /// re-created and the stale spec comes back.
-    /// </summary>
-    public bool TableSortReady { get; set; }
-
-    /// <summary>
     /// Cheapest known market price per mount id, keyed by mount (not item) id because the list it
     /// orders is a list of mounts. Empty until the prices have been read; a missing id is "unknown",
     /// which sorts last and draws no price.

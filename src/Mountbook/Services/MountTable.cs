@@ -100,8 +100,7 @@ public static class MountTable
 
     /// <summary>
     /// The column that shows <paramref name="order"/>, or the name column for an order no column
-    /// carries. The table declares the current order as its default sort so that opening the table
-    /// does not fire a sort change that would overwrite the player's choice.
+    /// carries: the column the table declares as its default sort, and the one the caret has to point at.
     /// </summary>
     /// <param name="order">The order the list is currently in.</param>
     public static int ColumnFor(MountOrder order) =>
@@ -114,6 +113,25 @@ public static class MountTable
             MountOrder.Cheapest => PriceColumn,
             _ => NameColumn,
         };
+
+    /// <summary>
+    /// Whether <paramref name="order"/> is the descending half of its column's pair, which is also the way
+    /// its caret has to point: the column is declared as the table's default sort, and a declared default
+    /// carries no direction, so a descending order is drawn ascending until something says otherwise.
+    /// </summary>
+    /// <param name="order">The order the rows are in.</param>
+    public static bool Descends(MountOrder order) =>
+        order is MountOrder.NewestFirst or MountOrder.CommonestFirst;
+
+    /// <summary>
+    /// True when a report of <paramref name="column"/> sorted <paramref name="descending"/> is what
+    /// <paramref name="order"/> already looks like in the table, so the caret is telling the truth.
+    /// </summary>
+    /// <param name="order">The order the rows are in.</param>
+    /// <param name="column">The column the table reports as sorted.</param>
+    /// <param name="descending">Whether the table reports it descending, as <c>Gw.TableSortChanged</c> does.</param>
+    public static bool DescribedBy(MountOrder order, int column, bool descending) =>
+        ColumnFor(order) == column && Descends(order) == descending;
 
     /// <summary>
     /// The order a header click asks for, or null for a column that has no order of its own (the
@@ -142,4 +160,27 @@ public static class MountTable
             PriceColumn => MountOrder.Cheapest,
             _ => null,
         };
+
+    /// <summary>
+    /// The order a sort report asks for, or null when the report is not a header click.
+    /// </summary>
+    /// <remarks>
+    /// Glasswork reports a sort change for a click and for the sort spec ImGui restores from its own saved
+    /// settings as well - the settings are kept per table id, across sessions, and ImGui ignores the column
+    /// the table declares as its default once it has any. Since the id is the order, the restored spec is
+    /// whatever column that order was last left on: clicking "Owned" while the list was on "Newest first"
+    /// saved Owned under that order's id, and the next session opened the list on Owned first instead. A
+    /// report is therefore only believed on a frame the header was actually pressed - a click is what the
+    /// report is for, and a restored spec is not a click.
+    /// </remarks>
+    /// <remarks>
+    /// The direction is <paramref name="descending"/> because that is the one <c>Gw.TableSortChanged</c>
+    /// reports: reading it as ascending inverted both directions of the two columns that have two, so the
+    /// Patch and Owners carets pointed one way and the rows went the other.
+    /// </remarks>
+    /// <param name="column">The column the table reports as sorted.</param>
+    /// <param name="descending">Whether the table reports it descending.</param>
+    /// <param name="pressed">Whether the header was pressed this frame.</param>
+    public static MountOrder? ClickedOrder(int column, bool descending, bool pressed) =>
+        pressed ? OrderFor(column, !descending) : null;
 }
