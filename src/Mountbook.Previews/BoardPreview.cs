@@ -5,6 +5,7 @@ using Glasswork;
 using Glasswork.Backend.Preview;
 using Mountbook.Services;
 using Mountbook.Views;
+using Mountbook.Windows;
 
 namespace Mountbook.Previews;
 
@@ -17,7 +18,7 @@ namespace Mountbook.Previews;
 /// mounts as the shelf goldens, with three of them starred and one already collected, so the golden also
 /// proves that an owned wanted mount is not on the board.
 /// </remarks>
-public sealed class BoardPreview : IPreviewScreen
+public sealed class BoardPreview : PreviewScene
 {
     private readonly WantedBoardView view = new();
 
@@ -60,7 +61,7 @@ public sealed class BoardPreview : IPreviewScreen
     private const long FixedNow = 1_800_000_000;
 
     /// <summary>Also the golden's file name: <c>goldens/board.png</c>.</summary>
-    public string Name => "board";
+    public override string Name => "board";
 
     /// <summary>A control scene: a press on the "Cheapest" cell must move the pill and re-sort the rows.</summary>
     private static readonly PreviewInput[] ScriptInputs =
@@ -69,13 +70,16 @@ public sealed class BoardPreview : IPreviewScreen
         new(20, PreviewInputKind.Move, new Vector2(20f, 300f)),
     ];
 
-    public ReadOnlySpan<PreviewInput> Script => ScriptInputs;
+    public override ReadOnlySpan<PreviewInput> Script => ScriptInputs;
 
-    public Vector2 WindowSize => new(560f, 620f);
+    public override Vector2 WindowSize => new(560f, 620f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public void Draw() => view.Draw(state);
+    /// <summary>The board is <c>WantedBoardWindow</c>, whose glass rounds to 20 rather than the browse 22.</summary>
+    protected override float SurfaceRadius => WantedBoardWindow.SurfaceRadius;
+
+    protected override void DrawScene() => view.Draw(state);
 }
 
 /// <summary>
@@ -87,7 +91,7 @@ public sealed class BoardPreview : IPreviewScreen
 /// selected mount is the sample with a token price in its sources, so the row is in exactly the place the
 /// live window puts it: under the price line, above the source rows.
 /// </remarks>
-public sealed class GrindPreview : IPreviewScreen
+public sealed class GrindPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
@@ -129,13 +133,13 @@ public sealed class GrindPreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/grind.png</c>.</summary>
-    public string Name => "grind";
+    public override string Name => "grind";
 
-    public Vector2 WindowSize => new(1040f, 660f);
+    public override Vector2 WindowSize => new(1040f, 660f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }

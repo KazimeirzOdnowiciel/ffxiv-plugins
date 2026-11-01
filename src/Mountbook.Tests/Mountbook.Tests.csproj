@@ -92,5 +92,13 @@
                       LogicalName="Mountbook.Tests.Sources.Game.%(Filename)%(Extension)" />
     <EmbeddedResource Include="..\Mountbook\Plugin.cs" LogicalName="Mountbook.Tests.Sources.Plugin.cs" />
     <EmbeddedResource Include="..\Mountbook\Localisation.cs" LogicalName="Mountbook.Tests.Sources.Localisation.cs" />
+
+    <!-- The preview scenes as text, for the same reason: the previews assembly needs Dalamud and this
+         project must not, so the one rule every scene shares - paint the window's own panel before the
+         body, which PreviewScene.Draw enforces - is checked against the sources, not by reflection.
+         The prefix is deliberately not Sources.*: that is the localisation guard's namespace, and a scene's
+         sample text ("2,999,999 gil | 12 listings") is fixed art for an image, not a key anyone translates. -->
+    <EmbeddedResource Include="..\Mountbook.Previews\*.cs"
+                      LogicalName="Mountbook.Tests.Previews.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

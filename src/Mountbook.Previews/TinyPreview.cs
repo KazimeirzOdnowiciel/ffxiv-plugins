@@ -13,7 +13,7 @@ namespace Mountbook.Previews;
 /// the window down stops here, so this - not an arbitrary small size - is the state that has to look
 /// right; it is also the only screen where the horizontal and vertical squeezes happen together.
 /// </summary>
-public sealed class MinimumPreview : IPreviewScreen
+public sealed class MinimumPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
@@ -50,14 +50,14 @@ public sealed class MinimumPreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/minimum.png</c>.</summary>
-    public string Name => "minimum";
+    public override string Name => "minimum";
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
     /// <summary>Exactly the window's enforced minimum.</summary>
-    public Vector2 WindowSize => new(820f, 520f);
+    public override Vector2 WindowSize => new(820f, 520f);
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }

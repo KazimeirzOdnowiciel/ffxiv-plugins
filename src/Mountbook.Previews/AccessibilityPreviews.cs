@@ -18,23 +18,23 @@ namespace Mountbook.Previews;
 /// and script"), so the variant is a scene: <see cref="Look.EorzeaLight"/>, the light face of the same family
 /// the plugin actually sets, not a Look assembled by hand.
 /// </remarks>
-public sealed class LightPreview : IPreviewScreen
+public sealed class LightPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
     private readonly MountViewState state = MountbookPreview.CreateState();
 
     /// <summary>Also the golden's file name: <c>goldens/light.png</c>.</summary>
-    public string Name => "light";
+    public override string Name => "light";
 
     /// <summary>The flagship window size, so a diff against <c>main</c> can only be the Look.</summary>
-    public Vector2 WindowSize => new(1040f, 660f);
+    public override Vector2 WindowSize => new(1040f, 660f);
 
-    public Look Look { get; } = MountLook.Dense(Look.EorzeaLight());
+    public override Look Look { get; } = MountLook.Dense(Look.EorzeaLight());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }
 
 /// <summary>
@@ -50,23 +50,23 @@ public sealed class LightPreview : IPreviewScreen
 /// (N9). The plugin has no contrast toggle of its own; a theme JSON can set both switches, and a Look change
 /// that broke legibility under them would otherwise reach only the players already struggling.
 /// </remarks>
-public sealed class ContrastPreview : IPreviewScreen
+public sealed class ContrastPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
     private readonly MountViewState state = MountbookPreview.CreateState();
 
     /// <summary>Also the golden's file name: <c>goldens/contrast.png</c>.</summary>
-    public string Name => "contrast";
+    public override string Name => "contrast";
 
     /// <summary>The flagship window size, so a diff against <c>main</c> can only be the Look.</summary>
-    public Vector2 WindowSize => new(1040f, 660f);
+    public override Vector2 WindowSize => new(1040f, 660f);
 
-    public Look Look { get; } = Accessible(MountLook.Dense(Look.Eorzea()));
+    public override Look Look { get; } = Accessible(MountLook.Dense(Look.Eorzea()));
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 
     /// <summary>
     /// The same Look with the accessibility switches on. Both are flags the components read while drawing, so

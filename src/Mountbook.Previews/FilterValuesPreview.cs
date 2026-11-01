@@ -30,7 +30,7 @@ namespace Mountbook.Previews;
 /// own text at its tightest width, and a preview never runs the query.
 /// </para>
 /// </remarks>
-public sealed class FilterValuesPreview : IPreviewScreen
+public sealed class FilterValuesPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
@@ -71,16 +71,16 @@ public sealed class FilterValuesPreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/filters.png</c>.</summary>
-    public string Name => "filters";
+    public override string Name => "filters";
 
     /// <summary>The window's enforced minimum: the narrowest column that still pairs the combos.</summary>
-    public Vector2 WindowSize => new(820f, 520f);
+    public override Vector2 WindowSize => new(820f, 520f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }
 
 /// <summary>
@@ -104,7 +104,7 @@ public sealed class FilterValuesPreview : IPreviewScreen
 /// 621,215 is inside both, which is what makes the one script work in either mode. Press alone was not enough:
 /// the segmented control commits on the release.
 /// </remarks>
-public sealed class SwitchPressPreview : IPreviewScreen
+public sealed class SwitchPressPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
@@ -140,12 +140,12 @@ public sealed class SwitchPressPreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/switchtap.png</c>.</summary>
-    public string Name => "switchtap";
+    public override string Name => "switchtap";
 
     /// <summary>The default window, where the switch sits beside the search field.</summary>
-    public Vector2 WindowSize => new(1040f, 660f);
+    public override Vector2 WindowSize => new(1040f, 660f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
     /// <summary>A press on the "Table" cell, then a move away so the hover ease is not in the image.</summary>
     private static readonly PreviewInput[] ScriptInputs =
@@ -156,7 +156,7 @@ public sealed class SwitchPressPreview : IPreviewScreen
         new(20, PreviewInputKind.Move, new Vector2(20f, 600f)),
     ];
 
-    public ReadOnlySpan<PreviewInput> Script => ScriptInputs;
+    public override ReadOnlySpan<PreviewInput> Script => ScriptInputs;
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }

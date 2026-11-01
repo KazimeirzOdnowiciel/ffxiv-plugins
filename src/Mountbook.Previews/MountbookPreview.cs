@@ -25,7 +25,7 @@ namespace Mountbook.Previews;
 /// one (<c>Ronkan Emerald</c>) has no community data at all so the line must be absent entirely.
 /// </para>
 /// </remarks>
-public sealed class MountbookPreview : IPreviewScreen
+public sealed class MountbookPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
@@ -80,17 +80,17 @@ public sealed class MountbookPreview : IPreviewScreen
         [new MountSourceCount(MountSourceKinds.Any, items.Count), .. MountSourceKinds.Tally(items)];
 
     /// <summary>Also the golden's file name: <c>goldens/main.png</c>.</summary>
-    public string Name => "main";
+    public override string Name => "main";
 
     /// <summary>The window size the plugin gives its main window.</summary>
-    public Vector2 WindowSize => new(1040f, 660f);
+    public override Vector2 WindowSize => new(1040f, 660f);
 
     /// <summary>The Look the plugin sets on its host, so the golden shows what users see.</summary>
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 
     /// <summary>The mount the golden opens on: owned, with two sources and long flavour text.</summary>
     private const uint SelectedMountId = 420u;

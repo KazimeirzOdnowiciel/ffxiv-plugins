@@ -14,8 +14,15 @@ namespace Mountbook.Windows;
 
 public sealed class MainWindow : GlassWindow, IDisposable
 {
+    /// <summary>
+    /// The rounding of the glass pane, in logical units. Public because the previews paint the same panel
+    /// (<c>PreviewSurface</c>): the radius a golden shows has to be the radius the window gives its glass,
+    /// and a copy of the number on the preview side is a number that drifts.
+    /// </summary>
+    public const float SurfaceRadius = 22f;
+
     /// <summary>The rounding of the glass pane; the pushed style var uses the same value.</summary>
-    protected override float Radius => 22f;
+    protected override float Radius => SurfaceRadius;
 
     /// <summary>The design layout's window size in logical units (SPEC).</summary>
     private const float DefaultWidth = 1040f;

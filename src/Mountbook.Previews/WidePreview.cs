@@ -22,21 +22,21 @@ namespace Mountbook.Previews;
 /// in window size - a diff between <c>main</c> and <c>wide</c> is a diff caused by width alone.
 /// </para>
 /// </remarks>
-public sealed class WidePreview : IPreviewScreen
+public sealed class WidePreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
     private readonly MountViewState state = MountbookPreview.CreateState();
 
     /// <summary>Also the golden's file name: <c>goldens/wide.png</c>.</summary>
-    public string Name => "wide";
+    public override string Name => "wide";
 
     /// <summary>The client's own window size on a 3440x1440 display (see <c>STATE.md</c>).</summary>
-    public Vector2 WindowSize => new(1920f, 1080f);
+    public override Vector2 WindowSize => new(1920f, 1080f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }

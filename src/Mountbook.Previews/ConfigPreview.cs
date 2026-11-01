@@ -1,11 +1,10 @@
 using System;
 using System.Numerics;
-using Dalamud.Bindings.ImGui;
 using Glasswork;
-using Glasswork.Backend;
 using Glasswork.Backend.Preview;
 using Mountbook.Services;
 using Mountbook.Views;
+using Mountbook.Windows;
 
 namespace Mountbook.Previews;
 
@@ -13,7 +12,7 @@ namespace Mountbook.Previews;
 /// The settings window. Until this existed the config UI was the only surface with no golden, so a
 /// padding or wording regression in it was invisible to the gate.
 /// </summary>
-public sealed class ConfigPreview : IPreviewScreen
+public sealed class ConfigPreview : PreviewScene
 {
     private readonly ConfigView view = new();
 
@@ -37,45 +36,27 @@ public sealed class ConfigPreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/config.png</c>.</summary>
-    public string Name => name;
+    public override string Name => name;
 
     /// <summary>
     /// The window's default size, so the golden matches what a first-time user sees - grown once the
     /// reset-to-defaults row landed, because at 900 the About section's last button fell below the frame and a
     /// golden that clips the block it draws is not evidence that the block works.
     /// </summary>
-    public Vector2 WindowSize => new(560f, 1060f);
+    public override Vector2 WindowSize => new(560f, 1060f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw()
-    {
-        // The window paints its own glass before drawing the body (GlassWindow.DrawGlass). The preview
-        // has to do the same, otherwise the golden shows the sections floating on transparency.
-        var drawList = ImGui.GetWindowDrawList();
-        var min = ImGui.GetWindowPos();
-        var max = min + ImGui.GetWindowSize();
-        var look = Look;
-        var glass = Frame.Glass;
+    /// <summary>The settings window rounds its glass to 20, not the browse window's 22.</summary>
+    protected override float SurfaceRadius => ConfigWindow.SurfaceRadius;
 
-        drawList.PushClipRect(min, max, false);
+    /// <summary>Draws the body into the panel <see cref="PreviewScene.Draw"/> painted.</summary>
+    protected override void DrawScene() => DrawBody();
 
-        Paint.Material(
-            drawList,
-            Rect.FromSize(min, max - min),
-            Corners.All(20f * Frame.Scale),
-            Look.CornerStyle,
-            in look.PanelMaterial,
-            in look,
-            glass,
-            Frame.Scale);
-
-        drawList.PopClipRect();
-
-        view.Draw(state);
-    }
+    /// <summary>The settings sections themselves, without the panel behind them.</summary>
+    internal void DrawBody() => view.Draw(state);
 
     /// <summary>The sample settings window every config scene starts from.</summary>
     internal static ConfigViewState CreateState() => new()
@@ -100,7 +81,7 @@ public sealed class ConfigPreview : IPreviewScreen
 /// they fit need an image of their own - the default <c>config</c> scene shows the button that opens it and
 /// nothing else about it.
 /// </summary>
-public sealed class ConfigResetPreview : IPreviewScreen
+public sealed class ConfigResetPreview : PreviewScene
 {
     private readonly ConfigPreview scene;
 
@@ -115,13 +96,16 @@ public sealed class ConfigResetPreview : IPreviewScreen
     }
 
     /// <summary>The golden's file name: <c>goldens/config-reset.png</c>.</summary>
-    public string Name => scene.Name;
+    public override string Name => scene.Name;
 
-    public Vector2 WindowSize => scene.WindowSize;
+    public override Vector2 WindowSize => scene.WindowSize;
 
-    public Look Look => scene.Look;
+    public override Look Look => scene.Look;
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => scene.Draw();
+    /// <summary>The confirmation is the settings window's own, so it rounds and paints like one.</summary>
+    protected override float SurfaceRadius => ConfigWindow.SurfaceRadius;
+
+    protected override void DrawScene() => scene.DrawBody();
 }

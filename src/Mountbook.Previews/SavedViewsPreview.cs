@@ -25,7 +25,7 @@ namespace Mountbook.Previews;
 /// a preview never runs the query.
 /// </para>
 /// </remarks>
-public sealed class SavedViewsPreview : IPreviewScreen
+public sealed class SavedViewsPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
@@ -38,16 +38,16 @@ public sealed class SavedViewsPreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/views.png</c>.</summary>
-    public string Name => "views";
+    public override string Name => "views";
 
     /// <summary>The window size the plugin gives its main window, where the filter column pairs its combos.</summary>
-    public Vector2 WindowSize => new(1040f, 660f);
+    public override Vector2 WindowSize => new(1040f, 660f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 
     /// <summary>
     /// Four presets over the same untouched filter the other scenes draw with, so the first one is applied: the
@@ -73,7 +73,7 @@ public sealed class SavedViewsPreview : IPreviewScreen
 /// script's last input only holds the run open long enough for Glasswork's spring to finish and to keep the
 /// pointer off every control, so no hover or tooltip is baked in.
 /// </remarks>
-public sealed class SavedViewsDialogPreview : IPreviewScreen
+public sealed class SavedViewsDialogPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
@@ -87,12 +87,12 @@ public sealed class SavedViewsDialogPreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/viewsdialog.png</c>.</summary>
-    public string Name => "viewsdialog";
+    public override string Name => "viewsdialog";
 
     /// <summary>The default window, behind the scrim: the same size the row's golden uses.</summary>
-    public Vector2 WindowSize => new(1040f, 660f);
+    public override Vector2 WindowSize => new(1040f, 660f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
     /// <summary>One move, away from every control, at a late frame: the run has to outlast the dialog's spring.</summary>
     private static readonly PreviewInput[] ScriptInputs =
@@ -100,7 +100,7 @@ public sealed class SavedViewsDialogPreview : IPreviewScreen
         new(20, PreviewInputKind.Move, new Vector2(12f, 640f)),
     ];
 
-    public ReadOnlySpan<PreviewInput> Script => ScriptInputs;
+    public override ReadOnlySpan<PreviewInput> Script => ScriptInputs;
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }

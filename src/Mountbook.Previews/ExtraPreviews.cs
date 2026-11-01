@@ -15,7 +15,7 @@ namespace Mountbook.Previews;
 /// The main golden always has twelve mounts on screen; without this screen a regression in the empty
 /// state - a missing hint, a stray grid row, a header that divides by zero - would ship unseen.
 /// </remarks>
-public sealed class EmptyStatePreview : IPreviewScreen
+public sealed class EmptyStatePreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
@@ -60,20 +60,20 @@ public sealed class EmptyStatePreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/empty.png</c>.</summary>
-    public string Name => "empty";
+    public override string Name => "empty";
 
     /// <summary>
     /// Tall enough to contain the block it is testing. At 560 the filter column left the list about
     /// forty pixels, so only the heading was in the image and the hint and its button were clipped - the
     /// golden proved less than it claimed.
     /// </summary>
-    public Vector2 WindowSize => new(1040f, 760f);
+    public override Vector2 WindowSize => new(1040f, 760f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }
 
 /// <summary>
@@ -84,27 +84,27 @@ public sealed class EmptyStatePreview : IPreviewScreen
 /// three strings - the title, the hint and the operator list the hint carries - and that list is the
 /// only place the search grammar is advertised where a player is already stuck.
 /// </remarks>
-public sealed class NoMatchPreview : IPreviewScreen
+public sealed class NoMatchPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
     private readonly MountViewState state = EmptyStatePreview.CreateState(MountOwnership.All, "zzz");
 
     /// <summary>Also the golden's file name: <c>goldens/nomatch.png</c>.</summary>
-    public string Name => "nomatch";
+    public override string Name => "nomatch";
 
     /// <summary>
     /// Tall enough to contain the block it is testing. At 560 the filter column left the list about
     /// forty pixels, so only the heading was in the image and the hint and its button were clipped - the
     /// golden proved less than it claimed.
     /// </summary>
-    public Vector2 WindowSize => new(1040f, 760f);
+    public override Vector2 WindowSize => new(1040f, 760f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }
 
 /// <summary>
@@ -118,23 +118,23 @@ public sealed class NoMatchPreview : IPreviewScreen
 /// hint and was clipped by the child. The acceptance is not "the block looks right at 1040" but "the state
 /// still names one action where the player can actually be", which needs the small window.
 /// </remarks>
-public sealed class EmptyMinimumPreview : IPreviewScreen
+public sealed class EmptyMinimumPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
     private readonly MountViewState state = EmptyStatePreview.CreateState(MountOwnership.All, "zzz");
 
     /// <summary>Also the golden's file name: <c>goldens/empty-minimum.png</c>.</summary>
-    public string Name => "empty-minimum";
+    public override string Name => "empty-minimum";
 
     /// <summary>Exactly the window's enforced minimum, like <see cref="MinimumPreview"/>.</summary>
-    public Vector2 WindowSize => new(820f, 520f);
+    public override Vector2 WindowSize => new(820f, 520f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }
 
 /// <summary>
@@ -147,23 +147,23 @@ public sealed class EmptyMinimumPreview : IPreviewScreen
 /// own scene rather than a flag on <c>main</c> for the same reason: adding it there would re-baseline the
 /// flagship golden for something a returning player never sees.
 /// </remarks>
-public sealed class FirstRunPreview : IPreviewScreen
+public sealed class FirstRunPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
     private readonly MountViewState state = CreateState();
 
     /// <summary>Also the golden's file name: <c>goldens/firstrun.png</c>.</summary>
-    public string Name => "firstrun";
+    public override string Name => "firstrun";
 
     /// <summary>The flagship window size, so a diff against <c>main</c> is the hint line and nothing else.</summary>
-    public Vector2 WindowSize => new(1040f, 660f);
+    public override Vector2 WindowSize => new(1040f, 660f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 
     /// <summary>The browse state <c>main</c> draws, with the first-run flag the window sets on a fresh install.</summary>
     private static MountViewState CreateState()
@@ -182,7 +182,7 @@ public sealed class FirstRunPreview : IPreviewScreen
 /// Without this screen nothing covers the filled marker or the Unwant label: every other golden has
 /// an empty wanted set, so both would only ever be seen with the muted marker.
 /// </remarks>
-public sealed class WantedPreview : IPreviewScreen
+public sealed class WantedPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
@@ -237,22 +237,22 @@ public sealed class WantedPreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/wanted.png</c>.</summary>
-    public string Name => "wanted";
+    public override string Name => "wanted";
 
-    public Vector2 WindowSize => new(1040f, 660f);
+    public override Vector2 WindowSize => new(1040f, 660f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }
 
 /// <summary>
 /// The same book in a narrow window, where the two columns squeeze and the card grid drops to fewer
 /// per row. The main golden is 1040 wide and never exercises that.
 /// </summary>
-public sealed class NarrowPreview : IPreviewScreen
+public sealed class NarrowPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
@@ -296,7 +296,7 @@ public sealed class NarrowPreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/narrow.png</c>.</summary>
-    public string Name => "narrow";
+    public override string Name => "narrow";
 
     /// <summary>
     /// 620 wide is the point of the scene; tall enough that the market row, the wiki link, the price line and
@@ -304,13 +304,13 @@ public sealed class NarrowPreview : IPreviewScreen
     /// and a half-drawn control is not evidence of a working one: this mount stacks five badges at this width,
     /// which is what pushed the price block down.
     /// </summary>
-    public Vector2 WindowSize => new(620f, 820f);
+    public override Vector2 WindowSize => new(620f, 820f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }
 
 /// <summary>
@@ -318,7 +318,7 @@ public sealed class NarrowPreview : IPreviewScreen
 /// pane is too narrow for the price button and the wiki link to share a line - so without this scene the
 /// one-row layout would never appear in a golden and a clipping bug there would ship unseen.
 /// </summary>
-public sealed class PricePreview : IPreviewScreen
+public sealed class PricePreview : PreviewScene
 {
     private readonly MountbookView view = new();
     private readonly MountViewState state;
@@ -369,15 +369,15 @@ public sealed class PricePreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/price.png</c>.</summary>
-    public string Name => "price";
+    public override string Name => "price";
 
-    public Vector2 WindowSize => new(1040f, 660f);
+    public override Vector2 WindowSize => new(1040f, 660f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }
 
 /// <summary>
@@ -388,7 +388,7 @@ public sealed class PricePreview : IPreviewScreen
 /// Without this the table's header, its zebra rows and its truncation would only ever be checked by
 /// opening the client, which is the state the settings window was in before its own golden existed.
 /// </remarks>
-public sealed class TablePreview : IPreviewScreen
+public sealed class TablePreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
@@ -439,13 +439,13 @@ public sealed class TablePreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/table.png</c>.</summary>
-    public string Name => "table";
+    public override string Name => "table";
 
-    public Vector2 WindowSize => new(1040f, 660f);
+    public override Vector2 WindowSize => new(1040f, 660f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }

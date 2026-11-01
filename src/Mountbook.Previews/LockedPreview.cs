@@ -13,7 +13,7 @@ namespace Mountbook.Previews;
 /// reason line, the `Not collected` badge, and a mount with no whistle item - none of which any other golden
 /// draws (every other screen selects an owned mount).
 /// </summary>
-public sealed class LockedPreview : IPreviewScreen
+public sealed class LockedPreview : PreviewScene
 {
     /// <summary>The sample's unowned mount: the two-seat Garlond machine.</summary>
     private const uint LockedId = 470;
@@ -54,13 +54,13 @@ public sealed class LockedPreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/locked.png</c>.</summary>
-    public string Name => "locked";
+    public override string Name => "locked";
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public Vector2 WindowSize => new(1040f, 660f);
+    public override Vector2 WindowSize => new(1040f, 660f);
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }

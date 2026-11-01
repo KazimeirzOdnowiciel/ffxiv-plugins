@@ -13,7 +13,7 @@ namespace Mountbook.Previews;
 /// order. The sample spans five expansions on purpose, so the headings, their order and the row they take
 /// above their cards are all in one image.
 /// </summary>
-public sealed class GroupedPreview : IPreviewScreen
+public sealed class GroupedPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
@@ -51,19 +51,19 @@ public sealed class GroupedPreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/grouped.png</c>.</summary>
-    public string Name => "grouped";
+    public override string Name => "grouped";
 
     /// <summary>
     /// Taller than the table scene on purpose: one heading is not evidence that the headings are ordered,
     /// so the image has to hold at least two of them with their cards.
     /// </summary>
-    public Vector2 WindowSize => new(1040f, 900f);
+    public override Vector2 WindowSize => new(1040f, 900f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }
 
 /// <summary>
@@ -76,7 +76,7 @@ public sealed class GroupedPreview : IPreviewScreen
 /// so the two rules this adds had no golden at all: a mount carrying more than one type is filed under its first
 /// (a section per type would draw the same card twice), and an unknown type would sort after every known one.
 /// </remarks>
-public sealed class TaxonomyPreview : IPreviewScreen
+public sealed class TaxonomyPreview : PreviewScene
 {
     private readonly MountbookView view = new();
 
@@ -114,17 +114,17 @@ public sealed class TaxonomyPreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/taxonomy.png</c>.</summary>
-    public string Name => "taxonomy";
+    public override string Name => "taxonomy";
 
     /// <summary>
     /// As tall as the grouped scene: the sample spans seven types, and the point of the image is that at least
     /// two headings and their cards are in it at once with their order readable.
     /// </summary>
-    public Vector2 WindowSize => new(1040f, 900f);
+    public override Vector2 WindowSize => new(1040f, 900f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }

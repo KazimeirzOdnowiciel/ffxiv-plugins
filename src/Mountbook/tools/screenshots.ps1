@@ -1,4 +1,4 @@
-# Mountbook listing screenshots: the five images in docs/screenshots, from the preview scenes.
+# Mountbook listing screenshots: the six images in docs/screenshots, from the preview scenes.
 #
 #   powershell -NoProfile -ExecutionPolicy Bypass -File src/Mountbook/tools/screenshots.ps1
 #
@@ -11,7 +11,7 @@
 #   -Check          render into a scratch folder and compare with what is committed; nothing is
 #                   written to docs/screenshots. Exits 1 if any image is stale, with the names, so
 #                   this is the form a gate can call.
-#   -Scene <name>   render one scene of the five (the rest are left alone).
+#   -Scene <name>   render one scene of the six (the rest are left alone).
 #   -NoBuild        do not build the previews project first; use the assembly in bin/Release as-is.
 #   -Tool <file>    the glasswork-preview executable (default: %USERPROFILE%\.dotnet\tools).
 #   -Font <file>    the face to rasterise with (default: Segoe UI, the system UI face).
@@ -44,20 +44,21 @@ $screenshots = Join-Path $root 'docs\screenshots'
 
 # Scene -> file, and the size it must come out at. The size is the scene's own: the two columns of the
 # book at the flagship window, the settings window as tall as its content, the grid with its group
-# headings. Pinned here so a layout change cannot rename or reshape a listing image without this line
-# moving with it.
+# headings, and the window squeezed to the 820x520 it will not go below. Pinned here so a layout change
+# cannot rename or reshape a listing image without this line moving with it.
 $shots = @(
     [pscustomobject]@{ Scene = 'main';   File = 'card-grid.png';   Size = '1088x708'; About = 'the card grid at the flagship window, with a mount selected' }
     [pscustomobject]@{ Scene = 'table';  File = 'table.png';       Size = '1088x708'; About = 'the same book as a sortable table' }
     [pscustomobject]@{ Scene = 'price';  File = 'detail-pane.png'; Size = '1088x708'; About = 'the detail pane: badges, market price, how to obtain' }
     [pscustomobject]@{ Scene = 'config'; File = 'config.png';      Size = '608x1108'; About = 'the settings window, whole' }
     [pscustomobject]@{ Scene = 'grouped'; File = 'grouped.png';     Size = '1088x948'; About = 'the same book grouped by expansion' }
+    [pscustomobject]@{ Scene = 'minimum'; File = 'minimum.png';   Size = '868x568'; About = 'the window at its enforced minimum (820x520)' }
 )
 
 if ($Scene) {
     $shots = @($shots | Where-Object { $_.Scene -eq $Scene })
     if ($shots.Count -eq 0) {
-        throw "-Scene '$Scene' is not one of the listing scenes; pick from main, table, price, config, grouped."
+        throw "-Scene '$Scene' is not one of the listing scenes; pick from main, table, price, config, grouped, minimum."
     }
 }
 

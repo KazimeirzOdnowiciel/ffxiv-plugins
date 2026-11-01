@@ -1,6 +1,6 @@
 # Mountbook listing screenshots
 
-The five images in [`screenshots/`](screenshots) are what the plugin page and the README show. They
+The six images in [`screenshots/`](screenshots) are what the plugin page and the README show. They
 are not screen captures: each one is a Mountbook preview scene drawn headless by
 `glasswork-preview`, so the same command produces the same pixels on any machine, and nothing about
 them depends on a game client being open, on a resolution, or on who was playing at the time.
@@ -11,7 +11,7 @@ them depends on a game client being open, on a resolution, or on who was playing
 powershell -NoProfile -ExecutionPolicy Bypass -File src/Mountbook/tools/screenshots.ps1
 ```
 
-It builds the previews assembly, renders the five scenes below, writes them into
+It builds the previews assembly, renders the six scenes below, writes them into
 `docs/screenshots/`, and fails if any file comes out at a size other than the one pinned in the
 script. `-Check` renders into a scratch folder and compares instead of writing:
 
@@ -32,14 +32,19 @@ them is good.
 | `detail-pane.png` | `price` | 1088×708 | the detail pane with a market price on demand, the badges, and the "How to obtain" rows |
 | `config.png` | `config` | 608×1108 | the settings window, whole |
 | `grouped.png` | `grouped` | 1088×948 | the grid grouped by expansion, with a group heading per expansion |
+| `minimum.png` | `minimum` | 868×568 | the window at the 820×520 it will not shrink below: filters, grid and detail pane in the least room they ever get |
 
 The sizes differ because the scenes do: the settings window is a tall single column, the browse
-window is two, and the grouped grid is as tall as its eight headings. Each is the scene's own size at
-1:1, pinned in `tools/screenshots.ps1`, so the numbers above are enforced rather than remembered.
+window is two, the grouped grid is as tall as its eight headings, and the last one is the window at its
+own `SizeConstraints` floor rather than a size picked here. Each is the scene's own size at 1:1, pinned
+in `tools/screenshots.ps1`, so the numbers above are enforced rather than remembered. The `narrow`
+scene is deliberately not in this set: at 620 px it is narrower than the 820 px the window allows, so
+its golden covers a layout no player can produce, and the listing shows the smallest window a player
+can actually drag to.
 
 ## Why these are not the goldens
 
-`src/Mountbook.Previews/goldens/` holds the same scenes as pixel baselines for the gate. Four
+`src/Mountbook.Previews/goldens/` holds the same scenes as pixel baselines for the gate. Five
 deliberate differences:
 
 - **The face.** A golden renders with ImGui's default font, whose range stops at U+00FF, so a
@@ -54,22 +59,18 @@ deliberate differences:
   read from the player's own game files at run time; a preview has no game, and committing extracted
   Square Enix art to a public repository is not an option, so every card shows the empty-artwork
   frame the window draws while a texture is not loaded yet.
-
-## What is missing
-
-There is no small-window image yet. The 620 px wide `narrow` scene, and every other scene rendered
-below the flagship size (820×520 `minimum`, `empty-minimum`, `filters`), draws a strip the preview
-composites as a **grey checkerboard**: the glass surface does not cover the window's own padding at
-those sizes, so the frame is left with alpha 0 where nothing was drawn, and the previewer shows
-transparency as a checker. In game that area is the game world showing through the window's edge,
-which is the intended glass effect and the reason the strip is invisible there; in a still image it
-reads as a rendering fault.
-
-The checkerboard is in the committed goldens too (`narrow.png` at x 628–641, y 643–815; the bottom
-and right edges of `minimum.png`), which is worth knowing: it means that region has never been
-covered by a diff. It is tracked as its own task — the fix belongs in the window's layout or in how
-the previewer composites, not in a screenshot script — and the narrow listing image goes in when it
-lands.
+- The window's **panel is drawn by the scene**, not by the previewer. A preview window is created with
+  `NoBackground` - `IPreviewScreen.Draw` is documented as "the window's content, background included" -
+  so every scene derives from `PreviewScene`, whose `Draw` paints the Look's `PanelMaterial` over the
+  window's rect before it calls the scene's body, exactly as `GlassWindow.DrawGlass` does in game. That
+  is what makes the glass in these images the plugin's own, and it is also what removed the grey
+  checkerboard that used to sit in the bottom-right corner of the small-window goldens: that pattern is
+  the previewer's backdrop, a calibration target it draws for the glass blur, and it showed wherever a
+  scene left the frame unpainted. See the remarks on `PreviewSurface` for the coordinates.
+  The frame's outermost two rows are a soft edge - the material itself fades them out, in game as
+  much as here - so the backdrop still shows through those two rows, which is why `minimum.png`'s
+  bottom edge carries a faint dotted line where the calibration target sits behind it. That row is
+  the background doing what it should, not an unpainted window.
 
 ## Adding or changing an image
 

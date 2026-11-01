@@ -27,7 +27,10 @@ namespace Mountbook.Windows;
 /// </remarks>
 public sealed class WantedBoardWindow : GlassWindow
 {
-    protected override float Radius => 20f;
+    /// <summary>The pane's rounding, in logical units; the previews paint the same panel, so it is public.</summary>
+    public const float SurfaceRadius = 20f;
+
+    protected override float Radius => SurfaceRadius;
 
     private readonly Plugin plugin;
 

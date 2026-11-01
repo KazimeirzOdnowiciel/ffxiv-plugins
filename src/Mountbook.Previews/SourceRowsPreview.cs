@@ -17,7 +17,7 @@ namespace Mountbook.Previews;
 /// a chevron) and one that is prose (a plain row) - because those are the two branches of
 /// <see cref="MountSourceLinks"/> and the difference is a single glyph on the right edge.
 /// </remarks>
-public sealed class SourceRowsPreview : IPreviewScreen
+public sealed class SourceRowsPreview : PreviewScene
 {
     /// <summary>The sample's Aithon, whose pane is the one this scene shows.</summary>
     private const uint SelectedId = 58u;
@@ -76,14 +76,14 @@ public sealed class SourceRowsPreview : IPreviewScreen
     }
 
     /// <summary>Also the golden's file name: <c>goldens/sources.png</c>.</summary>
-    public string Name => "sources";
+    public override string Name => "sources";
 
     /// <summary>Tall on purpose: the whole detail pane, source rows included, has to be above the fold.</summary>
-    public Vector2 WindowSize => new(940f, 1000f);
+    public override Vector2 WindowSize => new(940f, 1000f);
 
-    public Look Look { get; } = MountLook.Dense(Look.Eorzea());
+    public override Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
-    public ReadOnlySpan<PreviewInput> Script => [];
+    public override ReadOnlySpan<PreviewInput> Script => [];
 
-    public void Draw() => view.Draw(state);
+    protected override void DrawScene() => view.Draw(state);
 }
