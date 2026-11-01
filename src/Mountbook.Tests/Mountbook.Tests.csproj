@@ -57,8 +57,17 @@
     <Compile Include="..\Mountbook\Configuration.Shape.cs" LinkBase="Linked" />
   </ItemGroup>
 
+  <!-- The changelog is checked against the version the build ships, so both files are copied here
+       rather than embedded or re-declared: what the tests parse is the file a reader opens and the
+       <Version> the artifact carries. A bump without its changelog section therefore fails the suite. -->
+  <ItemGroup>
+    <None Include="..\..\CHANGELOG.md" Link="CHANGELOG.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Mountbook\Mountbook.csproj" Link="Mountbook.csproj" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <!-- Real settings files from three earlier builds, plus one hand-damaged copy. They are read as files, not as
        string literals, so what the test parses is the bytes a user's disk holds. -->
+
   <ItemGroup>
     <None Include="Fixtures\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

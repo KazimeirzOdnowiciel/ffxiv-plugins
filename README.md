@@ -48,11 +48,19 @@ longer exists. Sizes, provenance and the one command: [`docs/screenshots.md`](do
 
 ![The settings window](docs/screenshots/config.png)
 
+## Changelog
+
+[`CHANGELOG.md`](CHANGELOG.md) says what changed for the player, one line per change, version by
+version. Each section is the release text: `src/Mountbook/tools/release-notes.ps1` prints the one for
+the version being built, and that output is what the GitHub release says. The suite refuses a version
+bump that arrives without a section.
+
 ## Repository layout
 
 ```
 .
 ├── src/<Plugin>/      plugin sources, one folder per plugin
+├── CHANGELOG.md       what changed for the player, one version at a time
 ├── dist/              release zips + dist/icons/ (this is what Dalamud downloads)
 ├── icons/             source icons referenced by repo.json
 ├── repo.json          the repository manifest
@@ -92,10 +100,14 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 
 ## Releasing
 
-1. Bump `AssemblyVersion` in the plugin's `.csproj` — Dalamud compares this number to decide whether
+1. Write the version's section in `CHANGELOG.md` (the format is its own preamble; the suite fails a
+   bump with no section) and date its heading.
+2. Bump `AssemblyVersion` in the plugin's `.csproj` — Dalamud compares this number to decide whether
    an update exists, so an unchanged version is never offered.
-2. Run `.\build.ps1`.
-3. Commit `dist/` and `repo.json` together with the version bump.
+3. Run `.\build.ps1`.
+4. Commit `dist/` and `repo.json` together with the version bump.
+5. Create the GitHub release from the changelog section:
+   `src/Mountbook/tools/release-notes.ps1` prints it, so the notes cannot drift from the build.
 
 `repo.json`'s `LastUpdate` field and CRLF line endings in descriptions change on every build. That
 is expected; commit the artifacts when the version changes, not on every local build.

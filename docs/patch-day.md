@@ -165,8 +165,15 @@ not a formality after step 2.
 
 ## 6. Changelog and version
 
-- Write the changelog entry for the version being bumped (see the CHANGELOG task's format: what a
-  player notices, one line per change - "the 7.6 mounts are in, and their obtain steps").
+- Write the changelog entry for the version being bumped in `CHANGELOG.md` at the repo root: what a
+  player notices, one line per change - "the 7.6 mounts are in, and their obtain steps". The section
+  for the next version already exists and is marked `unreleased` (the suite refuses a bump that
+  arrives with no section, and refuses a section still marked `unreleased` for the version the project
+  file builds), so this step writes the lines and dates the heading. `CHANGELOG.md`'s own preamble is
+  the format; the tests check the shape, never the wording.
+- Print the release text with `src/Mountbook/tools/release-notes.ps1` (no arguments: the version in
+  the project file). That output is the GitHub release body - paste it, do not retype it, so the notes
+  cannot describe a different build from the one the manifest points at.
 - Bump `<Version>` in `src/Mountbook/Mountbook.csproj` (it becomes the manifest's `AssemblyVersion`,
   which is what the installer compares). That property is the one place a version lives. **The bump is what makes
   the release workflow publish** - the workflow refuses to commit artifacts without one.
