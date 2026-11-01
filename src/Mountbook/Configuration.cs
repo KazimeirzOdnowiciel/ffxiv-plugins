@@ -81,6 +81,17 @@ public sealed class Configuration : IPluginConfiguration
     /// </remarks>
     public Dictionary<uint, MountGrindRecord> Grinds { get; set; } = [];
 
+    /// <summary>
+    /// The mounts the player watches a price for, keyed by mount id: the price worth a toast, when the
+    /// market was last read for it, and the price that read found.
+    /// </summary>
+    /// <remarks>
+    /// Opt-in and empty by default, because an entry here is the only thing that makes the plugin poll a
+    /// network service by itself: switching a watch off removes its record rather than zeroing a threshold,
+    /// so "watching nothing" and "watching with no threshold" cannot both be persisted.
+    /// </remarks>
+    public Dictionary<uint, MountWatchRecord> Watches { get; set; } = [];
+
     /// <summary>How the wanted board orders its rows.</summary>
     public MountBoardSort BoardSort { get; set; }
 
@@ -115,6 +126,9 @@ public sealed class Configuration : IPluginConfiguration
         // A file written before the grind tracker existed has no member for it at all, and Dalamud's
         // deserialiser leaves a missing collection null rather than running the initialiser.
         Grinds ??= new Dictionary<uint, MountGrindRecord>();
+
+        // Same reasoning for the price watches: a 0.4.0 config file has no member for them.
+        Watches ??= new Dictionary<uint, MountWatchRecord>();
 
         if (string.IsNullOrWhiteSpace(LookName))
         {

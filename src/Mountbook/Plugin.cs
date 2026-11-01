@@ -73,6 +73,29 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ConfigWindow configWindow;
     private readonly WantedBoardWindow boardWindow;
 
+    /// <summary>
+    /// The Universalis reads behind the price watches, off the draw thread.
+    /// </summary>
+    /// <remarks>
+    /// A client of its own rather than the main window's, for two reasons: a watch outlives the window (it
+    /// polls and toasts with the book closed), and it must not take the answer to a price the player asked
+    /// for away from the pane that is waiting for it - both readers pull from the same finished queue.
+    /// </remarks>
+    private readonly MarketPrices watchMarket;
+
+    /// <summary>
+    /// When the next watch poll is due, on <see cref="Environment.TickCount64"/>'s clock. Zero means "now",
+    /// which is how a watch switched on this session is read without waiting out an interval.
+    /// </summary>
+    private long watchPollAt;
+
+    /// <summary>
+    /// How soon a poll is tried again when it could start nothing. The usual cause is no character yet, so
+    /// there is no home world and therefore no data center to ask; a full interval of silence after a login
+    /// is the wrong answer to that.
+    /// </summary>
+    private const long WatchRetryMs = 30_000;
+
     /// <summary>Set once the draw pass has failed, so it is logged on the transition and not per frame.</summary>
     private bool loggedDrawFailure;
 
@@ -113,6 +136,7 @@ public sealed class Plugin : IDalamudPlugin
         Catalog = new MountCatalog(Data, ClientState, Log);
         Textures = new MountTextureCache(TextureProvider, Log);
         Actions = new MountActions(Catalog, ClientState, Condition, ChatGui, GameGui, Log, DisplayName);
+        watchMarket = new MarketPrices(Log, DataCenterName);
 
         // Build the mount list here rather than in the first draw: reading ~700 sheet rows plus the
         // embedded dataset is a load-time cost, and paying it inside a draw pass stalls the client.
@@ -174,6 +198,10 @@ public sealed class Plugin : IDalamudPlugin
         mainWindow.Dispose();
         configWindow.Dispose();
 
+        // The watch client is the plugin's, not a window's, so it is disposed here: leaving it alive would
+        // keep a socket pool (and a poll) running past the unload.
+        watchMarket.Dispose();
+
         CommandManager.RemoveHandler(CommandName);
 
         // Last, and only after Draw is unsubscribed: a glass callback recorded after the
@@ -198,6 +226,28 @@ public sealed class Plugin : IDalamudPlugin
     /// header button.
     /// </summary>
     public void OpenBoard() => boardWindow.IsOpen = true;
+
+    /// <summary>
+    /// The player's data center, e.g. <c>Light</c>, or empty before a character is loaded.
+    /// </summary>
+    /// <remarks>
+    /// A market answer is asked for by data center and never by world: a world-only answer hides every
+    /// cheaper listing one hop away, and cross-world travel makes those buyable. <c>ValueNullable</c> on both
+    /// hops is deliberate - a <c>RowRef</c> throws before the character loads, and "no price today" must
+    /// never arrive as an exception on a draw path.
+    /// </remarks>
+    internal static string DataCenterName()
+    {
+        try
+        {
+            return PlayerState.HomeWorld.ValueNullable?.DataCenter.ValueNullable?.Name.ExtractText()
+                ?? string.Empty;
+        }
+        catch (Exception)
+        {
+            return string.Empty;
+        }
+    }
 
     /// <summary>
     /// Bumped whenever something the wanted board draws changes outside the catalog: a mount starred or
@@ -433,6 +483,10 @@ public sealed class Plugin : IDalamudPlugin
 
             afterSetup = firstFrame?.Elapsed.TotalMilliseconds ?? 0d;
 
+            // The price watch's clock, and the only thing that makes this plugin touch the network on its
+            // own. It never waits on a socket: requests are started as tasks and read back on a later frame.
+            TickWatchPoll();
+
             WindowSystem.Draw();
             afterWindows = firstFrame?.Elapsed.TotalMilliseconds ?? 0d;
 
@@ -478,6 +532,142 @@ public sealed class Plugin : IDalamudPlugin
                     firstFrame.Elapsed.TotalMilliseconds);
             }
         }
+    }
+
+    /// <summary>
+    /// The price watch's clock: asks the market for every watched mount when the jittered interval is up, and
+    /// puts the answers that have landed back onto the records.
+    /// </summary>
+    /// <remarks>
+    /// This runs from the draw pass because that is this plugin's only per-frame hook - but no HTTP happens
+    /// on it (AGENTS N2). <see cref="MarketPrices.Request"/> only starts a task, so the socket work sits on a
+    /// worker thread and the answer is read back on a later frame; the cost here is a dictionary walk and one
+    /// clock read. Nothing at all is asked for while no watch is live, which is the acceptance rule expressed
+    /// as code: the feature cannot reach the network until the player switches a watch on.
+    /// </remarks>
+    private void TickWatchPoll()
+    {
+        DrainWatchAnswers();
+
+        if (MountWatch.Count(Configuration.Watches) == 0)
+        {
+            // Back to zero, so a watch switched on later is read at once instead of waiting out an interval
+            // that was armed for a set which no longer existed.
+            watchPollAt = 0;
+            return;
+        }
+
+        long now = Environment.TickCount64;
+
+        if (watchPollAt != 0 && now < watchPollAt)
+        {
+            return;
+        }
+
+        watchPollAt = AskForWatchedPrices() > 0
+            ? MountWatch.NextDue(now, Random.Shared.NextDouble())
+            : now + WatchRetryMs;
+    }
+
+    /// <summary>
+    /// Starts a request for every watched mount's price and reports how many were actually started.
+    /// </summary>
+    /// <remarks>
+    /// Forced past the quote cache: the poll interval is the schedule the player chose, so a quote the pane
+    /// already holds is exactly the answer a poll exists to replace. The count tells the caller whether to
+    /// arm an interval or retry shortly - no character loaded means no data center, so no request.
+    /// </remarks>
+    private int AskForWatchedPrices()
+    {
+        if (!Catalog.EnsureBuilt())
+        {
+            return 0;
+        }
+
+        var started = 0;
+
+        foreach (KeyValuePair<uint, MountWatchRecord> pair in Configuration.Watches)
+        {
+            if (MountWatch.IsWatching(pair.Value)
+                && Catalog.TryGetItemId(pair.Key, out uint itemId)
+                && watchMarket.Request(itemId, force: true))
+            {
+                started++;
+            }
+        }
+
+        return started;
+    }
+
+    /// <summary>
+    /// Applies every watch answer that has landed: the record takes what was seen and when, and a crossing
+    /// that has not been announced yet raises its toast and stays latched until the price goes back up.
+    /// </summary>
+    private void DrainWatchAnswers()
+    {
+        var changed = false;
+
+        while (watchMarket.TryTakeFinished(out uint itemId, out MarketQuote? quote, out bool failed))
+        {
+            // A failure is not an answer: MarketPrices logs the first one (N4) and this leaves CheckedAt
+            // alone, so the pane keeps saying when the watch was last really read and the next poll retries.
+            if (failed)
+            {
+                continue;
+            }
+
+            foreach (KeyValuePair<uint, MountWatchRecord> pair in Configuration.Watches)
+            {
+                if (!MountWatch.IsWatching(pair.Value)
+                    || !Catalog.TryGetItemId(pair.Key, out uint watchedItemId)
+                    || watchedItemId != itemId)
+                {
+                    continue;
+                }
+
+                int price = quote?.MinPrice ?? 0;
+                string name = WatchName(pair.Key);
+
+                if (MountWatch.ShouldAlert(pair.Value, price))
+                {
+                    Gw.Toast(
+                        MountWatch.AlertText(name, price, pair.Value.Threshold),
+                        ToastKind.Success);
+                }
+
+                MountWatch.Observe(pair.Value, price, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                changed = true;
+
+                // The same formatter the pane draws, so the log and the screen cannot report different numbers.
+                Log.Information(
+                    "Watch: {Mount} {Quote}",
+                    name,
+                    MountMarket.Describe(quote, DataCenterName()));
+            }
+        }
+
+        if (changed)
+        {
+            SaveConfigSafe(Configuration);
+        }
+    }
+
+    /// <summary>
+    /// A watched mount's display name for the toast, falling back to its id when the catalog does not carry
+    /// it (a hand-edited config naming something that is not a mount).
+    /// </summary>
+    /// <param name="mountId">The mount id the record is keyed by.</param>
+    private string WatchName(uint mountId)
+    {
+        foreach (MountShelfItem item in Catalog.Items)
+        {
+            if (item.Id == mountId)
+            {
+                return item.Name;
+            }
+        }
+
+        return string.Concat("#", mountId.ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
     /// <summary>

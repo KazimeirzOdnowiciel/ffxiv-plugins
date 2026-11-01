@@ -483,10 +483,20 @@ public sealed partial class MountbookView
         }
 
         // Under the badges, above the scroll: the book explains how to start, the wiki explains the whole
-        // fight, and a scrolling pane would hide the link right where the source text is.
+        // fight, and a scrolling pane would hide the link right where the source text is. Drawn before the
+        // watch so it stays beside the price button whose row it could not fit on.
         if (!wikiBesidePrice)
         {
             DrawWikiButton(state);
+        }
+
+        // The watch is about a price, so it goes under the price line - and only for a mount the market can
+        // answer for: a watch on an untradeable whistle would be a poll that can never find a listing. Its own
+        // row, not the price row: three small buttons up there left the wiki link wrapping in one scene and
+        // not in the other.
+        if (state.MarketCanCheck)
+        {
+            DrawWatch(state, LayoutMeasure.WatchRowFits(width));
         }
 
         // Obtain data before the flavour text: "where do I get it" is the question the pane exists to
@@ -816,6 +826,65 @@ public sealed partial class MountbookView
     /// interface must draw it rather than clamp it away, this only bounds what the arrows can reach.
     /// </summary>
     private const int MaxGrindTokens = 99_999;
+
+    /// <summary>
+    /// The price watch: the toggle, the threshold it alerts at, and the line saying what the last read found.
+    /// </summary>
+    /// <remarks>
+    /// Opt-in, and drawn only where a price can be asked for at all. The toggle is a plain small button
+    /// because switching a watch on is the same kind of decision as asking for one price; the view only
+    /// reports the press, because starting a watch needs the price already on screen, which is a market read
+    /// the view is not allowed to make (T7). One stepper rather than a text field, because a threshold is
+    /// nudged in round numbers and typing one hands the pane to the keyboard. Every control writes the state
+    /// and raises <see cref="MountViewState.WatchChanged"/>, so the window persists the record once after the
+    /// draw.
+    /// </remarks>
+    /// <param name="state">The state to read and write.</param>
+    /// <param name="shareRow">True when the pane is wide enough for the toggle and the stepper to share a row.</param>
+    private static void DrawWatch(MountViewState state, bool shareRow)
+    {
+        var label = state.Watching ? Loc.T("detail.watch.stop") : Loc.T("detail.watch.add");
+
+        if (Gw.Button(label, ButtonStyle.Plain, ButtonSize.Small))
+        {
+            state.ToggleWatchRequested = true;
+        }
+
+        Gw.TooltipFor(
+            ImGui.IsItemHovered(),
+            Loc.T(state.Watching ? "detail.watch.stop.tooltip" : "detail.watch.add.tooltip"));
+
+        if (!state.Watching)
+        {
+            return;
+        }
+
+        if (shareRow)
+        {
+            ImGui.SameLine(0f, Frame.Look.SpaceSmall * Frame.Scale);
+        }
+
+        var threshold = state.WatchThreshold;
+
+        if (Gw.Stepper(
+            ref threshold,
+            MountWatch.ThresholdStep,
+            MountWatch.MinThreshold,
+            MountWatch.MaxThreshold,
+            Loc.T("detail.watch.threshold")))
+        {
+            state.WatchThreshold = threshold;
+            state.WatchChanged = true;
+        }
+
+        Gw.TooltipFor(ImGui.IsItemHovered(), Loc.T("detail.watch.threshold.tooltip"));
+
+        if (state.WatchText.Length > 0)
+        {
+            var width = MathF.Max(ImGui.GetContentRegionAvail().X, 1f);
+            Gw.Text(FitRole(state.WatchText, width, Frame.Scale, TextRole.Footnote), TextRole.Footnote);
+        }
+    }
 
     /// <summary>Long enough for a sentence about where the player stands, short enough to stay one line.</summary>
     private const int MaxNoteLength = 120;

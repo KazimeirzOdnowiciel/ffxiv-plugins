@@ -226,7 +226,13 @@ public sealed class NarrowPreview : IPreviewScreen
     /// <summary>Also the golden's file name: <c>goldens/narrow.png</c>.</summary>
     public string Name => "narrow";
 
-    public Vector2 WindowSize => new(620f, 620f);
+    /// <summary>
+    /// 620 wide is the point of the scene; tall enough that the market row, the wiki link, the price line and
+    /// the watch toggle are all drawn in full. At 620 tall the toggle landed exactly on the body clip edge,
+    /// and a half-drawn control is not evidence of a working one: this mount stacks five badges at this width,
+    /// which is what pushed the price block down.
+    /// </summary>
+    public Vector2 WindowSize => new(620f, 820f);
 
     public Look Look { get; } = MountLook.Dense(Look.Eorzea());
 
@@ -271,6 +277,17 @@ public sealed class PricePreview : IPreviewScreen
             MarketCanCheck = true,
             MarketPriceText = "2,999,999 gil | 12 listings | Shiva (Light)",
             ItemName = "Genie of the Lamp",
+
+            // Watched, on purpose: the "Unwatch" label, the threshold stepper, the "last seen" line and the
+            // header's count all exist only while a watch does, so this scene is where they are drawn
+            // (`narrow` has the same mount unwatched, which is the other branch). The line is built by the same
+            // rule the window uses, against fixed numbers, so the wording cannot drift away from the code.
+            Watching = true,
+            WatchThreshold = 3_000_000,
+            WatchText = MountWatch.Line(
+                new MountWatchRecord { Threshold = 3_000_000, CheckedAt = 1_000_000, LastSeen = 2_999_999 },
+                1_000_720),
+            WatchingCount = 1,
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,

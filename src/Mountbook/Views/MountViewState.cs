@@ -98,6 +98,39 @@ public sealed class MountViewState
     /// </summary>
     public bool GrindChanged { get; set; }
 
+    /// <summary>True when the player watches a price for the selected mount.</summary>
+    public bool Watching { get; set; }
+
+    /// <summary>
+    /// The price the watch alerts at, in gil, as the pane's stepper edits it. Zero while the mount is not
+    /// watched, which is why the control reads the flag first and this second.
+    /// </summary>
+    public int WatchThreshold { get; set; }
+
+    /// <summary>
+    /// The line under the watch control: the threshold and what the last read found, already formatted.
+    /// Empty when the mount is not watched, so a mount nobody watches costs the pane no space.
+    /// </summary>
+    public string WatchText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// True when the player switched the selected mount's watch on or off. A one-frame request: the window
+    /// applies it after the draw, because switching a watch on needs a price the view cannot read.
+    /// </summary>
+    public bool ToggleWatchRequested { get; set; }
+
+    /// <summary>
+    /// True on the frame a watch control finished an edit (the toggle, or the stepper). The window persists
+    /// it once after the draw, like <see cref="GrindChanged"/>.
+    /// </summary>
+    public bool WatchChanged { get; set; }
+
+    /// <summary>
+    /// How many mounts are watched. Zero draws no header badge at all: a badge counting nothing would be
+    /// chrome for a feature the player has not switched on.
+    /// </summary>
+    public int WatchingCount { get; set; }
+
     /// <summary>How many mounts the player owns, over every mount in the game (not over <see cref="Items"/>).</summary>
     public int Owned { get; set; }
 
@@ -166,6 +199,8 @@ public sealed class MountViewState
         WikiRequested = false;
         ToggleWantedId = null;
         GrindChanged = false;
+        ToggleWatchRequested = false;
+        WatchChanged = false;
         ClearFiltersRequested = false;
         SettingsRequested = false;
         RefreshRequested = false;

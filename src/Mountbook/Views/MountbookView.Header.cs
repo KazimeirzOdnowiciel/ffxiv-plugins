@@ -193,15 +193,24 @@ public sealed partial class MountbookView
 
         var badgeText = RefreshWantedCount(state.WantedIds.Count);
 
-        // The badge sits below the two statistics lines, so it is part of the block height. Without
-        // it the badge overlapped the filter footnote (the wanted golden showed the collision).
-        var badgeHeight = badgeText.Length > 0
+        // The price watch's count shares that line. It is a count and not an action, so it needs no door of
+        // its own; a line per feature would cost the grid 24 px for something most players never switch on,
+        // and it is drawn at all only when something is watched ("Watching 0" is not a state to show).
+        var watchingBadge = RefreshWatchingCount(state.WatchingCount);
+
+        // The badges sit below the two statistics lines, so they are part of the block height. Without
+        // one the badge overlapped the filter footnote (the wanted golden showed the collision).
+        var badgeHeight = badgeText.Length > 0 || watchingBadge.Length > 0
             ? secondLine + stackGap
             : 0f;
 
-        if (badgeText.Length > 0)
+        if (badgeHeight > 0f)
         {
             ImGui.SetCursorScreenPos(new Vector2(textLeft, at.Y + firstLine + secondLine + (stackGap * 2f)));
+        }
+
+        if (badgeText.Length > 0)
+        {
             Gw.Badge(badgeText, look.Accent);
 
             // The badge is a shortcut into the list it counts: hovering it promises a click, and a click
@@ -221,6 +230,17 @@ public sealed partial class MountbookView
                     state.BoardRequested = true;
                 }
             }
+        }
+
+        if (watchingBadge.Length > 0)
+        {
+            if (badgeText.Length > 0)
+            {
+                ImGui.SameLine(0f, look.SpaceSmall * scale);
+            }
+
+            Gw.Badge(watchingBadge, look.Info);
+            Gw.TooltipFor(ImGui.IsItemHovered(), Loc.T("header.watching.hint"));
         }
 
         // The strip's own line, under everything the counters block already draws. It costs the header one
@@ -445,6 +465,24 @@ public sealed partial class MountbookView
         countedWanted = wanted;
         wantedText = wanted <= 0 ? string.Empty : Loc.F("header.wanted", FormatInt(wanted));
         return wantedText;
+    }
+
+    /// <summary>
+    /// The watch badge, built once per count: <see cref="MountWatch.HeaderLabel"/> formats through the string
+    /// table, and this runs inside the per-frame draw.
+    /// </summary>
+    /// <param name="watching">How many mounts are watched.</param>
+    private string RefreshWatchingCount(int watching)
+    {
+        if (watching == countedWatching)
+        {
+            return watchingText;
+        }
+
+        countedWatching = watching;
+        watchingText = MountWatch.HeaderLabel(watching);
+
+        return watchingText;
     }
 
     /// <summary>

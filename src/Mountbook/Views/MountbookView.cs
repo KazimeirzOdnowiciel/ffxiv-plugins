@@ -192,6 +192,7 @@ public sealed partial class MountbookView
         countedOwned = -1;
         countedTotal = -1;
         countedWanted = -1;
+        countedWatching = -1;
 
         filteredOwned = -1;
         filteredShown = -1;
@@ -227,7 +228,11 @@ public sealed partial class MountbookView
     private string remainingText = string.Empty;
 
     private int countedWanted = -1;
+
+    /// <summary>The watched count the badge text was last built for, so the string table is not hit per frame.</summary>
+    private int countedWatching = -1;
     private string wantedText = string.Empty;
+    private string watchingText = string.Empty;
 
     /// <summary>
     /// Draws the whole body from <paramref name="state"/>, and reports clicks back into it.

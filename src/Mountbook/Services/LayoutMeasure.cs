@@ -44,6 +44,22 @@ public static class LayoutMeasure
     public const float DetailTwoColumnMinWidth = 330f;
 
     /// <summary>
+    /// The narrowest detail pane that puts the watch toggle and its threshold stepper on one row, in logical
+    /// units.
+    /// </summary>
+    /// <remarks>
+    /// The same number as the two-column header, for the same shape of reason: the stepper is two large
+    /// control heights wide before its label, so at the narrow size (~211 px) the pair leaves the toggle's own
+    /// label clipped, while from 330 the stepper still has over 200 px of label room. A rule rather than a
+    /// measurement of the stepper, whose inside width the facade does not report.
+    /// </remarks>
+    public const float WatchRowMinWidth = 330f;
+
+    /// <summary>True when the detail pane is wide enough to put the watch toggle and its stepper on one row.</summary>
+    /// <param name="paneWidth">The detail pane's width, in logical units.</param>
+    public static bool WatchRowFits(float paneWidth) => paneWidth >= WatchRowMinWidth;
+
+    /// <summary>
     /// The two-column detail header's measurements, in logical units.
     /// </summary>
     /// <param name="ArtWidth">The artwork box's width; the box is square, so this is also its height.</param>

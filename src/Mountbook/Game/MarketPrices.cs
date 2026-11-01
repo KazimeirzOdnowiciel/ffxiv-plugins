@@ -108,26 +108,45 @@ internal sealed class MarketPrices : IDisposable
     /// does nothing when the same item is already being read or has a fresh quote.
     /// </summary>
     /// <param name="itemId">The whistle's item id.</param>
-    public void Request(uint itemId)
+    /// <returns>True when this call started a request.</returns>
+    public bool Request(uint itemId) => Request(itemId, force: false);
+
+    /// <summary>
+    /// Starts one request for <paramref name="itemId"/>, and with <paramref name="force"/> re-reads a quote
+    /// that is still inside <see cref="Fresh"/>.
+    /// </summary>
+    /// <remarks>
+    /// The watch poll is the one caller that forces: its interval is the schedule the player set up, and a
+    /// cached quote is exactly the answer such a poll exists to replace. A request already out for the item
+    /// is never doubled, forced or not, so two callers asking for the same whistle still cost one request.
+    /// </remarks>
+    /// <param name="itemId">The whistle's item id.</param>
+    /// <param name="force">True to ignore a fresh cached quote.</param>
+    /// <returns>
+    /// True when this call started a request: false for an item already being read, for a fresh quote, and for
+    /// no data center to ask about. The watch poll arms its interval on this answer, so a poll that could not
+    /// ask must not report that it did.
+    /// </returns>
+    public bool Request(uint itemId, bool force)
     {
         if (itemId == 0)
         {
-            return;
+            return false;
         }
 
         string world = worldName();
 
         if (string.IsNullOrWhiteSpace(world))
         {
-            return;
+            return false;
         }
 
         lock (gate)
         {
-            if (inFlight.Contains(itemId) || (cachedAt.TryGetValue(itemId, out DateTime at)
+            if (inFlight.Contains(itemId) || (!force && cachedAt.TryGetValue(itemId, out DateTime at)
                 && DateTime.UtcNow - at < Fresh))
             {
-                return;
+                return false;
             }
 
             inFlight.Add(itemId);
@@ -162,6 +181,8 @@ internal sealed class MarketPrices : IDisposable
                 finished.Add((itemId, quote, failed));
             }
         });
+
+        return true;
     }
 
     /// <summary>True while a batch read is out.</summary>

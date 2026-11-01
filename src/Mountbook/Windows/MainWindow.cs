@@ -45,6 +45,21 @@ public sealed class MainWindow : GlassWindow, IDisposable
     /// <summary>The selection the tracker was last loaded for, so typing in the note is not overwritten per frame.</summary>
     private uint grindForId;
 
+    /// <summary>The selection the watch control was last loaded for, for the same reason as <see cref="grindForId"/>.</summary>
+    private uint watchForId;
+
+    /// <summary>
+    /// The record the watch line was last formatted from. Seeded past every value the data can hold, so the
+    /// first frame formats rather than trusting a match nobody wrote.
+    /// </summary>
+    private uint watchLineForId = uint.MaxValue;
+
+    private int watchLineThreshold = int.MinValue;
+
+    private long watchLineCheckedAt = long.MinValue;
+
+    private int watchLineLastSeen = int.MinValue;
+
     /// <summary>The item id whose price request failed, so the pane can say so and offer a retry.</summary>
     private uint marketFailedItem;
 
@@ -128,7 +143,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
         };
 
         this.plugin = plugin;
-        market = new MarketPrices(Plugin.Log, DataCenterName);
+        market = new MarketPrices(Plugin.Log, Plugin.DataCenterName);
         stock = new CurrencyStock(Plugin.Inventory, Plugin.Data, Plugin.Log);
         IsOpen = plugin.Configuration.MainWindowOpen;
     }
@@ -163,25 +178,6 @@ public sealed class MainWindow : GlassWindow, IDisposable
 
         return MountCosts.Describe(cost, itemId == 0 ? null : stock.Count(itemId));
     }
-
-    /// <summary>
-    /// The player's data center, or empty when the client has not loaded the character. Prices are read
-    /// across the whole DC: a world-only answer hides every cheaper listing a one-hop trip away. A RowRef
-    /// is only valid after the player state loads, and a price is not worth a throw on the draw path.
-    /// </summary>
-    private static string DataCenterName()
-    {
-        try
-        {
-            return Plugin.PlayerState.HomeWorld.ValueNullable?.DataCenter.ValueNullable?.Name.ExtractText()
-                ?? string.Empty;
-        }
-        catch (Exception)
-        {
-            return string.Empty;
-        }
-    }
-
 
     public override void OnOpen()
     {
@@ -357,7 +353,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
             Plugin.Log.Information(
                 "Market: item {ItemId} {Quote}",
                 pricedId,
-                MountMarket.Describe(pricedQuote, DataCenterName()));
+                MountMarket.Describe(pricedQuote, Plugin.DataCenterName()));
         }
 
         state.MarketCanCheck = marketItemId != 0;
@@ -396,10 +392,28 @@ public sealed class MainWindow : GlassWindow, IDisposable
         state.MarketPriceText = marketItemId != 0 && marketItemId == marketFailedItem
             ? Loc.T("market.unreadable")
             : marketItemId != 0 && market.TryGetFresh(marketItemId, out MarketQuote? quote)
-                ? MountMarket.Describe(quote, DataCenterName())
+                ? MountMarket.Describe(quote, Plugin.DataCenterName())
                 : marketItemId != 0 && market.TryGetPrice(marketItemId, out int batchPrice)
                     ? MountMarket.DescribeFrom(batchPrice)
                     : string.Empty;
+
+        // The watch control is loaded once per selection, like the tracker: the threshold is edited in place
+        // on the state, so re-reading it every frame would eat a stepper click.
+        if ((state.SelectedId ?? 0) != watchForId)
+        {
+            watchForId = state.SelectedId ?? 0;
+            _ = config.Watches.TryGetValue(watchForId, out MountWatchRecord? watch);
+
+            state.Watching = MountWatch.IsWatching(watch);
+            state.WatchThreshold = state.Watching ? watch!.Threshold : 0;
+        }
+
+        // "Watching 3" in the header. A walk over the watched records - a handful at most - and no allocation.
+        state.WatchingCount = MountWatch.Count(config.Watches);
+
+        // The line is formatted only when the record behind it moved (a poll landed, a stepper moved), because
+        // it goes through the string table and the draw path may not allocate per frame.
+        RefreshWatchLine(config);
 
         view.Draw(state);
 
@@ -410,6 +424,9 @@ public sealed class MainWindow : GlassWindow, IDisposable
         // The tracker's edits are the same kind of write, applied in the same place so a note typed on a
         // frame that also changed a filter is still one save.
         var grindChanged = ApplyGrind(config);
+
+        // The watch toggle and its threshold are config writes like the two above.
+        var watchChanged = ApplyWatch(config);
 
         // The header's wanted badge is the board's only door (the task asked for no new header button).
         if (state.BoardRequested)
@@ -449,7 +466,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
 
         var browseChanged = ApplyBrowseState(config);
 
-        if (wantedChanged || browseChanged || grindChanged)
+        if (wantedChanged || browseChanged || grindChanged || watchChanged)
         {
             Plugin.SaveConfigSafe(config);
         }
@@ -750,6 +767,152 @@ public sealed class MainWindow : GlassWindow, IDisposable
         plugin.BoardRevision++;
 
         return true;
+    }
+
+    /// <summary>
+    /// Applies the watch control's edits to the persisted records, and returns whether the config changed so
+    /// the caller saves once after the draw.
+    /// </summary>
+    /// <remarks>
+    /// Switching a watch off removes its record instead of zeroing its threshold: the poll is driven by these
+    /// records, so an entry that is off would still have to be filtered out of every frame's count, and a file
+    /// full of zeroes is what "watching nothing" would look like by accident.
+    /// <para>
+    /// A new watch starts latched when the price it was set against is already at or under the threshold: the
+    /// player is looking at that price, so announcing it would be telling them what they just read. The latch
+    /// clears the moment a read puts the price back above, so the next real crossing is announced.
+    /// </para>
+    /// </remarks>
+    private bool ApplyWatch(Configuration config)
+    {
+        uint mountId = state.SelectedId ?? 0;
+
+        // The toggle belongs to the window, not the view: the view only reports that the control moved, and
+        // the starting threshold needs the market the view cannot see.
+        if (state.ToggleWatchRequested && mountId != 0)
+        {
+            state.ToggleWatchRequested = false;
+            state.Watching = !state.Watching;
+            state.WatchChanged = true;
+
+            if (state.Watching)
+            {
+                state.WatchThreshold = StartThresholdFor(mountId);
+            }
+        }
+
+        if (!state.WatchChanged || mountId == 0)
+        {
+            return false;
+        }
+
+        state.WatchChanged = false;
+
+        if (!state.Watching)
+        {
+            return config.Watches.Remove(mountId);
+        }
+
+        config.Watches.TryGetValue(mountId, out MountWatchRecord? saved);
+
+        MountWatchRecord record = saved ?? new MountWatchRecord();
+        record.Threshold = Math.Clamp(state.WatchThreshold, MountWatch.ThresholdStep, MountWatch.MaxThreshold);
+
+        if (saved is null)
+        {
+            SeedSeen(mountId, record);
+        }
+        else
+        {
+            // A moved threshold re-decides the latch against the last read: raised above the price it arms the
+            // watch, lowered to or below it says the crossing already happened, which is what the player saw.
+            record.Alerted = MountWatch.Crossed(record.LastSeen, record.Threshold);
+        }
+
+        config.Watches[mountId] = record;
+        state.WatchThreshold = record.Threshold;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Gives a new watch the price this session already holds, so the pane answers "last seen" without a
+    /// request. A batch price carries no world, which does not matter here: the player is setting their own
+    /// number against it, not buying from it.
+    /// </summary>
+    /// <param name="mountId">The mount being watched.</param>
+    /// <param name="record">The record to seed.</param>
+    private void SeedSeen(uint mountId, MountWatchRecord record)
+    {
+        if (!plugin.Catalog.TryGetItemId(mountId, out uint itemId) || itemId == 0)
+        {
+            return;
+        }
+
+        long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        if (market.TryGetFresh(itemId, out MarketQuote? quote) && quote is not null)
+        {
+            MountWatch.Observe(record, quote.MinPrice, now);
+            return;
+        }
+
+        if (market.TryGetPrice(itemId, out int batchPrice))
+        {
+            MountWatch.Observe(record, batchPrice, now);
+        }
+    }
+
+    /// <summary>
+    /// The threshold a watch starts at when it is switched on: the price already known for the mount, or the
+    /// default when this session has none yet.
+    /// </summary>
+    /// <param name="mountId">The mount being watched.</param>
+    private int StartThresholdFor(uint mountId)
+    {
+        var known = CachedPrice(mountId);
+
+        if (known == 0 && plugin.Catalog.TryGetItemId(mountId, out uint itemId))
+        {
+            _ = market.TryGetFresh(itemId, out MarketQuote? quote);
+            known = quote?.MinPrice ?? 0;
+        }
+
+        return MountWatch.StartThreshold(known);
+    }
+
+    /// <summary>
+    /// Formats the watch line from the persisted record, and only when that record moved.
+    /// </summary>
+    /// <remarks>
+    /// The line goes through the string table, so building it every frame would allocate in a path that is
+    /// not allowed to (see the contract on <see cref="DrawBody"/>). The four values it is made of are compared
+    /// instead, which is why the cached id starts past every value the data can hold rather than at zero.
+    /// </remarks>
+    /// <param name="config">The configuration the records live in.</param>
+    private void RefreshWatchLine(Configuration config)
+    {
+        uint mountId = state.SelectedId ?? 0;
+        _ = config.Watches.TryGetValue(mountId, out MountWatchRecord? record);
+
+        var threshold = MountWatch.IsWatching(record) ? record!.Threshold : 0;
+        long checkedAt = record?.CheckedAt ?? 0;
+        int lastSeen = record?.LastSeen ?? 0;
+
+        if (mountId == watchLineForId
+            && threshold == watchLineThreshold
+            && checkedAt == watchLineCheckedAt
+            && lastSeen == watchLineLastSeen)
+        {
+            return;
+        }
+
+        watchLineForId = mountId;
+        watchLineThreshold = threshold;
+        watchLineCheckedAt = checkedAt;
+        watchLineLastSeen = lastSeen;
+
+        state.WatchText = MountWatch.Line(record, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
     }
 
     /// <summary>
