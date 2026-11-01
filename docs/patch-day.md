@@ -67,8 +67,9 @@ candidate in its scratch directory for inspection. The report is also written as
 | `-ReportPath <file>` | where the markdown report goes |
 | `-AllowedShrink/-AllowedGrowth/-Minimum` | widen the row band deliberately (see `row-count`) |
 
-The script warns when the model map is **older than the snapshot**: an old map cannot know the patch's
-new mounts, and would pass a mount the game has not published.
+The script warns when the model map **predates the snapshot's `generated` date** (not the snapshot
+file's timestamp - git checks every file out "now", so a fresh clone would call a fresh map stale): an
+old map cannot know the patch's new mounts, and would pass a mount the game has not published.
 
 ## 3. Read the report
 
@@ -103,7 +104,8 @@ dotnet build src/Mountbook.Previews/Mountbook.Previews.csproj -c Release
 ~/.dotnet/tools/glasswork-preview.exe --assembly src/Mountbook.Previews/bin/Release/Mountbook.Previews.dll --compare src/Mountbook.Previews/goldens --out artifacts/previews/Mountbook
 ```
 
-Expect `every image matches its golden` (13 scenes). `--out` is not optional: without it the tool prints
+Expect `every image matches its golden` (10 scenes in the committed tree - the count is whatever the
+preview assembly defines, so read the table, not this number). `--out` is not optional: without it the tool prints
 its help and exits 0, which reads exactly like a pass. **If a scene moved, look at
 `artifacts/previews/Mountbook/<scene>.png` and its `.diff.png` before regenerating anything** - a moved
 golden after a data change means a source line or a patch value that a scene draws changed, and that is
@@ -174,4 +176,5 @@ release gate.
 
 | date | commit | rows | new mounts | changed patches | notes |
 | --- | --- | --- | --- | --- | --- |
-| 2026-11-01 | `(this commit)` | 356 | none | none | first run, followed end to end on a non-patch day to prove the runbook. `mdlrip --resolve` refreshed the model map (450 rows: 33 demihuman, 400 monster, 17 placeholder); the regeneration moved only the `generated` date and five ownership percentages (`ownership-drift`); 13/13 goldens byte-identical; 335 tests in the committed tree (358 in the working tree, which also carried other tasks' uncommitted test files); `build.ps1` packaged 10 plugins and the rest of the path - version bump, artifacts, one commit - was rehearsed in a scratch clone rather than on the live tree (a version bump and a publish are the owner's call); the client pass was skipped because an unattended selling loop was running in the session - the build was checked instead (the Release assembly embeds the 2026-11-01 snapshot, 356 rows), and the in-game pass stays with the 1.0.0 release gate |
+| 2026-11-01 | `5db67a4` | 356 | none | none | first run, followed end to end on a non-patch day to prove the runbook. `mdlrip --resolve` refreshed the model map (450 rows: 33 demihuman, 400 monster, 17 placeholder); the regeneration moved only the `generated` date and five ownership percentages (`ownership-drift`); 13/13 goldens byte-identical; 335 tests in the committed tree (358 in the working tree, which also carried other tasks' uncommitted test files); `build.ps1` packaged 10 plugins and the rest of the path - version bump, artifacts, one commit - was rehearsed in a scratch clone rather than on the live tree (a version bump and a publish are the owner's call); the client pass was skipped because an unattended selling loop was running in the session - the build was checked instead (the Release assembly embeds the 2026-11-01 snapshot, 356 rows), and the in-game pass stays with the 1.0.0 release gate |
+| 2026-11-01 | `(this commit)` | 356 | none | none | replay from a clean worktree at `5db67a4` to prove the runbook end to end on a non-patch day: `-SkipRegenerate` passed (356 rows, 450 sheet ids, 94 uncovered), 335 tests green, `dotnet format --verify-no-changes` clean, 10/10 goldens byte-identical; the offline half was rehearsed with a real bump (0.1.0.0 -> 0.1.0.1): `build.ps1` produced `dist/Mountbook-0.1.0.1.zip` + its icon and rewrote `repo.json`'s version and link, then the worktree was discarded - nothing published. The map-age warning now compares the snapshot's `generated` date instead of file mtimes, because a fresh checkout made it fire on a fresh map |

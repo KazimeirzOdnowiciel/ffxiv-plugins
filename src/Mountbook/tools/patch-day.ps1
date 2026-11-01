@@ -122,9 +122,22 @@ elseif (Test-Path -LiteralPath $ModelMap) {
     Write-Host "  $($ids.Count) ids from $ModelMap"
 
     # A map older than the snapshot cannot know the patch's new mounts, so it would pass a mount the
-    # game has not published - the exact failure the sheet check exists for.
-    if ((Get-Item -LiteralPath $ModelMap).LastWriteTime -lt (Get-Item -LiteralPath $dataFile).LastWriteTime) {
-        Write-Host '  WARNING: that map is older than the snapshot. Refresh it first:' -ForegroundColor Yellow
+    # game has not published - the exact failure the sheet check exists for. Compare against the date
+    # the snapshot says it was generated, not the file's timestamp: git checks every file out "now", so
+    # a fresh clone would call a perfectly fresh map stale and teach the reader to skip the warning.
+    $generated = $null
+    try {
+        $generated = [datetime]::ParseExact(
+            [string] (Get-Content -LiteralPath $dataFile -Raw | ConvertFrom-Json).generated,
+            'yyyy-MM-dd',
+            [System.Globalization.CultureInfo]::InvariantCulture)
+    }
+    catch {
+        Write-Host "  WARNING: the snapshot's generated date is unreadable; cannot tell whether the map is current." -ForegroundColor Yellow
+    }
+
+    if ($generated -and (Get-Item -LiteralPath $ModelMap).LastWriteTime -lt $generated) {
+        Write-Host '  WARNING: that map predates the snapshot. Refresh it first:' -ForegroundColor Yellow
         Write-Host '           cd D:\Deepseek\tools\mdlrip; dotnet run -c Release -- --resolve' -ForegroundColor Yellow
     }
 }
