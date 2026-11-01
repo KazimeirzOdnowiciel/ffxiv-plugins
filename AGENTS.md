@@ -34,7 +34,7 @@ exits 1 on any mismatch, and `--out` is **not** optional - without it the tool p
 
 ```powershell
 dotnet build src/Mountbook/Mountbook.csproj -c Release
-dotnet run --project src/Mountbook.Tests/Mountbook.Tests.csproj -c Release   # 762 tests committed
+dotnet run --project src/Mountbook.Tests/Mountbook.Tests.csproj -c Release   # 766 tests committed
 dotnet build src/Mountbook.Previews/Mountbook.Previews.csproj -c Release
 ~/.dotnet/tools/glasswork-preview.exe --assembly src/Mountbook.Previews/bin/Release/Mountbook.Previews.dll --compare src/Mountbook.Previews/goldens --out artifacts/previews/Mountbook
 ```

@@ -95,21 +95,27 @@ public sealed partial class MountbookView
         // it, while the rows are already in the new order.
         bool changed = Gw.TableSortChanged(out int column, out bool descending);
 
-        if (changed && MountTable.ClickedOrder(column, descending, HeaderPressed()) is { } order)
+        // One call decides the frame: the click's order, and the caret that order belongs under. It is a
+        // pure function in Services/ because the rule is about the table's frames - a report that does not
+        // fire on the return - and not about ImGui, so the click sequence that used to leave the caret
+        // behind is pinned by TableSortTests without a renderer.
+        TableSort sort = TableSort.Observe(state.Order, column, descending, changed, HeaderPressed());
+
+        if (sort.Order != state.Order)
         {
-            state.Order = order;
+            state.Order = sort.Order;
         }
 
         // The caret follows the rows, which are the single source of truth: the column that shows the
-        // order, in the direction it sorts. Repairing it here rather than only on the report is what makes
-        // a restored spec harmless - including the one ImGui loads from the ini at startup - and a
-        // declared default sort cannot do it alone: it carries no direction, so a descending order drew
-        // an ascending caret over rows sorted the other way. DescribedBy is one comparison per frame and
-        // keeps the write to the frames the spec actually lies; on the returning frame ImGui has already
-        // computed the header, so the caret is right on the next one.
-        if (!MountTable.DescribedBy(state.Order, column, descending))
+        // order, in the direction it sorts. It is written whenever the table's spec says something else - a spec
+        // ImGui restored (including the one it loads from the ini at startup), or the spec the click just
+        // wrote to the id being left - because a declared default sort cannot do it alone: it carries no
+        // direction, so a descending order drew an ascending caret over rows sorted the other way. The
+        // comparison is what keeps the write to the frames the spec actually lies; on the returning frame
+        // ImGui has already computed the header, so the caret is right on the next one.
+        if (sort.Column != column || sort.Descending != descending)
         {
-            SetCaret(state.Order);
+            SetCaret(sort.Order);
         }
 
         var accent = Frame.Look.Accent;
