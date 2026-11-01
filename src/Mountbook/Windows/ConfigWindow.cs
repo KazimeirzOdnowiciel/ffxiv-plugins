@@ -470,7 +470,8 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
             ResetImpact = new ConfigResetImpact(
                 config.WantedMounts.Count,
                 config.Grinds.Count,
-                config.Watches.Count),
+                config.Watches.Count,
+                config.SavedViews.Count),
             ResetConfirmOpen = resetConfirmPending,
         };
     }

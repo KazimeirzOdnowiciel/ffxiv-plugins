@@ -208,6 +208,9 @@ public sealed class MountViewState
         CopyMissingRequested = false;
         SourceLinkRequested = null;
         BoardRequested = false;
+        SaveViewRequested = false;
+        ApplyViewIndex = null;
+        DeleteViewIndex = null;
     }
 
     /// <summary>True when the window should open the selected mount's wiki page in a browser.</summary>
@@ -310,4 +313,42 @@ public sealed class MountViewState
     /// the window hands it, so the golden for it can be rendered without a settings file (T7).
     /// </remarks>
     public bool FirstRunHint { get; set; }
+
+    /// <summary>
+    /// The player's saved filter presets, in the order they want them. Empty means the filter block draws no
+    /// saved-views row at all - not an empty one - which is what keeps the four-row block's height.
+    /// </summary>
+    public IReadOnlyList<SavedView> SavedViews { get; set; } = [];
+
+    /// <summary>
+    /// True while the saved-views dialog is open. A place rather than a one-frame request, so it survives
+    /// <see cref="ClearRequests"/>: the dialog edits its field for as long as the player keeps it open, and the
+    /// view writes back to it when the player closes it with Escape or a click on the scrim.
+    /// </summary>
+    public bool ViewsDialogOpen { get; set; }
+
+    /// <summary>
+    /// The name field inside the dialog, as typed. It lives here rather than in the view because it has to
+    /// outlive the frame (an ImGui field's buffer is per-frame), and it is deliberately not cleared with the
+    /// requests: clearing it is what would eat a letter mid-word.
+    /// </summary>
+    public string ViewNameDraft { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The preset a rename is aimed at, or null when the dialog's button saves the current filter instead. Set
+    /// by the per-row Rename button, which also loads that preset's name into <see cref="ViewNameDraft"/>.
+    /// </summary>
+    public int? ViewRenameIndex { get; set; }
+
+    /// <summary>True on the frame the dialog's save (or rename) button was pressed. A one-frame request.</summary>
+    public bool SaveViewRequested { get; set; }
+
+    /// <summary>
+    /// The preset whose chip or dialog row was clicked, or null. A one-frame request: the window applies the
+    /// five axes after the draw, so the list re-queries on its next frame like any other filter change.
+    /// </summary>
+    public int? ApplyViewIndex { get; set; }
+
+    /// <summary>The preset the dialog asked to delete, or null. A one-frame request, applied after the draw.</summary>
+    public int? DeleteViewIndex { get; set; }
 }

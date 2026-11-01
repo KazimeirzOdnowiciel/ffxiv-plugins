@@ -273,6 +273,11 @@ public sealed class MainWindow : GlassWindow, IDisposable
         // empty after the draw) rather than filtering the whole shelf away for a frame.
         MountSourceKind savedSource = MountSourceKinds.Parse(config.SavedSource);
         state.SourceFilter = savedSource.IsKnown ? savedSource : MountSourceKinds.Any;
+
+        // The presets, by reference: the row and the dialog only read them, and a delete applied after the draw
+        // has to be visible on the next frame without a copy to keep in step.
+        state.SavedViews = config.SavedViews;
+
         state.SelectedId = config.SelectedMountId == 0 ? null : config.SelectedMountId;
         // The breakdown is of the whole collection, not of the filtered list: it is a progress strip,
         // and a filter must not make it look like the player owns more of an expansion. Cached by the
@@ -475,6 +480,10 @@ public sealed class MainWindow : GlassWindow, IDisposable
         // The watch toggle and its threshold are config writes like the two above.
         var watchChanged = ApplyWatch(config);
 
+        // A preset's five axes are a browse-state write, so applying one is a state change like a click on a
+        // filter; saving, renaming and deleting are config writes, and all of it lands in the one save below.
+        var viewsChanged = ApplySavedViews(config);
+
         // The first-run line is one-shot: recording it as seen on the frame it was drawn is what stops it
         // coming back next session. The held field is what keeps it on screen for the rest of this one.
         var firstRunChanged = state.FirstRunHint && !config.FirstRunHintSeen;
@@ -522,7 +531,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
 
         var browseChanged = ApplyBrowseState(config);
 
-        if (wantedChanged || browseChanged || grindChanged || watchChanged || firstRunChanged)
+        if (wantedChanged || browseChanged || grindChanged || watchChanged || viewsChanged || firstRunChanged)
         {
             Plugin.SaveConfigSafe(config);
         }
@@ -917,6 +926,144 @@ public sealed class MainWindow : GlassWindow, IDisposable
         {
             MountWatch.Observe(record, batchPrice, now);
         }
+    }
+
+    /// <summary>
+    /// Applies what the saved-views row and dialog reported: a preset to put back, one to delete, or the name
+    /// field's save. Returns whether the config changed, so the caller saves once after the draw.
+    /// </summary>
+    /// <remarks>
+    /// Applying a preset copies its five axes into the view state and nothing else: the browse-state write at
+    /// the end of the frame persists whatever the state holds, so a preset and a hand-picked filter take exactly
+    /// one path to disk. A name is only ever written by an explicit save or rename, which is what makes "the
+    /// applied chip" honest - it is the preset those five fields *are*, not the last one clicked.
+    /// </remarks>
+    /// <param name="config">The configuration the presets live in.</param>
+    private bool ApplySavedViews(Configuration config)
+    {
+        var changed = false;
+
+        if (state.ApplyViewIndex is { } applied && applied >= 0 && applied < config.SavedViews.Count)
+        {
+            SavedView view = config.SavedViews[applied];
+
+            state.Search = view.Query ?? string.Empty;
+            state.Ownership = view.Ownership;
+            state.Expansion = view.Expansion;
+            state.Order = view.Order;
+            state.GroupBy = view.GroupBy;
+
+            // Choosing a preset is the answer the dialog was asking for, so it closes: a modal left over the
+            // list means the player dismisses it before seeing what they chose.
+            state.ViewsDialogOpen = false;
+
+            Plugin.Log.Information(
+                "Applied view {Name}: query \"{Query}\", ownership {Ownership}, expansion {Expansion}, order {Order}, grouping {GroupBy}.",
+                view.Name,
+                state.Search,
+                state.Ownership,
+                state.Expansion,
+                state.Order,
+                state.GroupBy);
+        }
+
+        if (state.DeleteViewIndex is { } doomed && SavedViewRules.Delete(config.SavedViews, doomed))
+        {
+            changed = true;
+
+            // The aim was an index; deleting the entry it names leaves it past the end of the list, where a
+            // rename would be refused by index and read as a broken button.
+            if (state.ViewRenameIndex is { } aim && aim >= config.SavedViews.Count)
+            {
+                state.ViewRenameIndex = null;
+            }
+
+            Plugin.Log.Information("Deleted view at {Index}; {Count} left.", doomed, config.SavedViews.Count);
+        }
+
+        if (state.SaveViewRequested)
+        {
+            changed |= SaveSavedView(config);
+        }
+
+        return changed;
+    }
+
+    /// <summary>
+    /// Commits the dialog's name field: renames the aimed-at preset, or stores the current filter under that
+    /// name. Returns whether the config changed.
+    /// </summary>
+    /// <remarks>
+    /// A refused save says why and keeps the dialog exactly as it was - the typed name stays in the field - so
+    /// the answer to "that name is taken" is a different name rather than a closed dialog and a guess about what
+    /// happened. A profile that already holds <see cref="SavedViewRules.MaxViews"/> views is the other refusal,
+    /// and it is a toast for the same reason: a button that silently does nothing is a bug report.
+    /// </remarks>
+    /// <param name="config">The configuration to write the presets into.</param>
+    private bool SaveSavedView(Configuration config)
+    {
+        string name = SavedViewRules.Clean(state.ViewNameDraft);
+
+        // The dialog disables its button for a blank name; this is the other half of that guard, because the
+        // request is read after the draw and the builder may have closed the dialog in between.
+        if (name.Length == 0)
+        {
+            return false;
+        }
+
+        if (state.ViewRenameIndex is { } aim)
+        {
+            SavedViewRules.RenameResult result = SavedViewRules.Rename(config.SavedViews, aim, name);
+
+            if (result == SavedViewRules.RenameResult.NameTaken)
+            {
+                Gw.Toast(Loc.T("toast.viewNameTaken"), ToastKind.Error);
+                return false;
+            }
+
+            if (result == SavedViewRules.RenameResult.Refused)
+            {
+                state.ViewRenameIndex = null;
+                state.ViewNameDraft = string.Empty;
+                return false;
+            }
+
+            Plugin.Log.Information("Renamed view {Index} to \"{Name}\".", aim, name);
+            Gw.Toast(Loc.F("toast.viewRenamed", name), ToastKind.Success);
+
+            state.ViewRenameIndex = null;
+            state.ViewNameDraft = string.Empty;
+            return true;
+        }
+
+        SavedView captured = SavedViewRules.Capture(
+            name,
+            state.Search,
+            state.Ownership,
+            state.Expansion,
+            state.Order,
+            state.GroupBy);
+
+        if (!SavedViewRules.TrySave(config.SavedViews, captured, out int index))
+        {
+            Gw.Toast(Loc.F("toast.viewsFull", SavedViewRules.MaxViews), ToastKind.Error);
+            return false;
+        }
+
+        Plugin.Log.Information(
+            "Saved view {Name} at {Index}: query \"{Query}\", ownership {Ownership}, expansion {Expansion}, order {Order}, grouping {GroupBy}.",
+            name,
+            index,
+            captured.Query,
+            captured.Ownership,
+            captured.Expansion,
+            captured.Order,
+            captured.GroupBy);
+
+        Gw.Toast(Loc.F("toast.viewSaved", name), ToastKind.Success);
+        state.ViewNameDraft = string.Empty;
+
+        return true;
     }
 
     /// <summary>

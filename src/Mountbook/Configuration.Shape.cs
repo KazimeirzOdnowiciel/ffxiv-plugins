@@ -24,11 +24,11 @@ public sealed partial class Configuration
     /// <remarks>
     /// The ladder is one numbered step per persisted shape, in the order the shapes shipped: 1 the first
     /// file (browse state, the wanted list, the owned baseline), 2 the grind tracker, 3 the price watch,
-    /// 4 the obtain-type taxonomy. A file written before the ladder existed says <c>1</c> whatever it
-    /// carried, so every step has to be safe to run on a file that already has its shape - which is why a
-    /// step sweeps a collection instead of assuming it is absent.
+    /// 4 the obtain-type taxonomy, 5 the saved views. A file written before the ladder existed says <c>1</c>
+    /// whatever it carried, so every step has to be safe to run on a file that already has its shape - which
+    /// is why a step sweeps a collection instead of assuming it is absent.
     /// </remarks>
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
     /// <summary>The shape version this file was written with, from <see cref="CurrentVersion"/>'s ladder.</summary>
     public int Version { get; set; }
@@ -81,6 +81,19 @@ public sealed partial class Configuration
     /// as "any" instead of emptying the shelf.
     /// </summary>
     public string SavedSource { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The player's named filter presets, in the order they want them: each one is a name and the five axes of
+    /// the filter block, so one click puts the shelf back the way it was when they saved it.
+    /// </summary>
+    /// <remarks>
+    /// A <see cref="List{T}"/> rather than a map keyed by name, because the order is the row's order and the
+    /// player puts them there; the duplicate-name rule lives in <see cref="SavedViewRules"/> so the file, the
+    /// dialog and the migration cannot disagree about what "the same name" means. An entry here is work the
+    /// player typed, so the reset-to-defaults control counts it (ConfigResetImpact) rather than clearing it
+    /// silently. It is the first list member since the wanted set - a wanted *id* has no order, a preset does.
+    /// </remarks>
+    public List<SavedView> SavedViews { get; set; } = [];
 
     /// <summary>
     /// The ids owned the last time the window looked, or null before the first reconcile. It exists so a
@@ -171,6 +184,7 @@ public sealed partial class Configuration
         RecentCollected ??= new Dictionary<uint, long>();
         Grinds ??= new Dictionary<uint, MountGrindRecord>();
         Watches ??= new Dictionary<uint, MountWatchRecord>();
+        SavedViews ??= new List<SavedView>();
 
         if (string.IsNullOrWhiteSpace(LookName))
         {
@@ -254,6 +268,7 @@ public sealed partial class Configuration
         RecentCollected.Clear();
         Grinds.Clear();
         Watches.Clear();
+        SavedViews.Clear();
         SavedSource = fresh.SavedSource;
     }
 
@@ -296,6 +311,15 @@ public sealed partial class Configuration
                 // label ("pvp") stops being re-folded on every load; a value that names no type is cleared,
                 // which the main window already refuses to adopt (MountSourceKinds.Parse + IsKnown).
                 CanonicaliseSavedSource();
+                break;
+
+            case 5:
+                // The saved views. A preset is a name and five enum values, and the enums are the only part a
+                // hand edit or a newer build can damage - a value outside the enum would make the chip's filter
+                // select nothing, which reads as "the preset is broken". The sweep also drops a blank name (a
+                // chip with no text is not a control), a repeated one (two chips reading the same) and anything
+                // past SavedViewRules.MaxViews.
+                SavedViewRules.Normalise(SavedViews);
                 break;
 
             default:

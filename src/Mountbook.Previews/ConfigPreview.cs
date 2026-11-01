@@ -96,7 +96,7 @@ public sealed class ConfigPreview : IPreviewScreen
 
 /// <summary>
 /// The reset-to-defaults confirmation, drawn open. It is the one branch of the settings window that can take
-/// the wanted list, the grind records and the watches with it, so the sentence, the two answers and the way
+/// the wanted list, the grind records, the watches and the saved views with it, so the sentence, the two answers and the way
 /// they fit need an image of their own - the default <c>config</c> scene shows the button that opens it and
 /// nothing else about it.
 /// </summary>
@@ -108,7 +108,7 @@ public sealed class ConfigResetPreview : IPreviewScreen
     public ConfigResetPreview()
     {
         ConfigViewState state = ConfigPreview.CreateState();
-        state.ResetImpact = new ConfigResetImpact(12, 3, 1);
+        state.ResetImpact = new ConfigResetImpact(12, 3, 1, 2);
         state.ResetConfirmOpen = true;
 
         scene = new ConfigPreview("config-reset", state);

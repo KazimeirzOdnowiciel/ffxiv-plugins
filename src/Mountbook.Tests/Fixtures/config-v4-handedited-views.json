@@ -1,0 +1,68 @@
+{
+  "$type": "Mountbook.Configuration, Mountbook",
+  "Version": 4,
+  "MainWindowOpen": false,
+  "FirstRunHintSeen": true,
+  "SearchText": "",
+  "Ownership": 0,
+  "Expansion": 0,
+  "Order": 0,
+  "ViewMode": 0,
+  "GroupBy": 0,
+  "SelectedMountId": 0,
+  "WantedMounts": [],
+  "SavedSource": "",
+  "KnownOwnedIds": [
+    1
+  ],
+  "RecentCollected": {},
+  "LookName": "eorzea",
+  "Grinds": {},
+  "Watches": {},
+  "SavedViews": [
+    {
+      "Name": "Farmable now",
+      "Query": "tradeable:y owned:n",
+      "Ownership": 2,
+      "Expansion": 0,
+      "Order": 5,
+      "GroupBy": 1
+    },
+    null,
+    {
+      "Name": "   ",
+      "Query": "",
+      "Ownership": 0,
+      "Expansion": 0,
+      "Order": 0,
+      "GroupBy": 0
+    },
+    {
+      "Name": "  pvp   only  ",
+      "Query": "source:pvp",
+      "Ownership": 1,
+      "Expansion": 0,
+      "Order": 0,
+      "GroupBy": 0
+    },
+    {
+      "Name": "PVP only",
+      "Query": "source:pvp",
+      "Ownership": 3,
+      "Expansion": 2,
+      "Order": 7,
+      "GroupBy": 9
+    },
+    {
+      "Name": "broken",
+      "Query": null,
+      "Ownership": 99,
+      "Expansion": 42,
+      "Order": 77,
+      "GroupBy": -1
+    }
+  ],
+  "BoardSort": 0,
+  "BoardWindowOpen": false,
+  "FollowGameTheme": false
+}

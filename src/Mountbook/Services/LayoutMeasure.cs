@@ -81,6 +81,46 @@ public static class LayoutMeasure
     public static bool FilterPairFits(float columnWidth) => columnWidth >= FilterPairMinWidth;
 
     /// <summary>
+    /// How many of the saved-view chips fit across the filter column, leaving the trailing button that opens the
+    /// dialog its corner.
+    /// </summary>
+    /// <remarks>
+    /// The row is one line - the whole point of it is that it costs the list a line and not a block - so a chip
+    /// that does not fit is not drawn rather than wrapped: it is still in the dialog, which is where the name is
+    /// edited anyway. The trailing button is always drawn, even at zero chips, because a row with nothing on it
+    /// is not a row. Pure so the three column widths the layout work measured (589, 438 and 328 logical px) can be
+    /// pinned in a test against real label widths.
+    /// </remarks>
+    /// <param name="columnWidth">The filter column's width, in pixels.</param>
+    /// <param name="reserve">What the trailing button takes, in pixels, and the gutter that separates it.</param>
+    /// <param name="gap">The gutter between two chips, in pixels.</param>
+    /// <param name="widths">Each chip's own width, in draw order, in pixels.</param>
+    /// <returns>How many leading chips fit, which may be none.</returns>
+    public static int ViewsThatFit(float columnWidth, float reserve, float gap, ReadOnlySpan<float> widths)
+    {
+        float left = columnWidth - reserve;
+
+        for (var count = 0; count < widths.Length; count++)
+        {
+            float used = 0f;
+
+            for (var index = 0; index <= count; index++)
+            {
+                used += widths[index];
+            }
+
+            used += gap * (count + 1);
+
+            if (used > left)
+            {
+                return count;
+            }
+        }
+
+        return widths.Length;
+    }
+
+    /// <summary>
     /// The two-column detail header's measurements, in logical units.
     /// </summary>
     /// <param name="ArtWidth">The artwork box's width; the box is square, so this is also its height.</param>

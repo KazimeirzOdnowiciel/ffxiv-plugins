@@ -109,7 +109,7 @@ public sealed class MountViewRequestTests
 
     private static string[] PulseNames(Type type) =>
         type == typeof(MountViewState)
-            ? ["ToggleWantedId"]
+            ? ["ToggleWantedId", "ApplyViewIndex", "DeleteViewIndex"]
             : ["ThemePickedIndex", "FollowGameThemeSet"];
 
     /// <summary>A value a request can hold: <c>true</c> for a flag, a payload for a request that carries one.</summary>

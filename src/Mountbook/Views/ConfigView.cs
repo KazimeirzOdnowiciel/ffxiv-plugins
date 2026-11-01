@@ -206,7 +206,8 @@ public sealed class ConfigView
                             "config.resetAll.confirm",
                             state.ResetImpact.Wanted,
                             state.ResetImpact.Grinds,
-                            state.ResetImpact.Watches),
+                            state.ResetImpact.Watches,
+                            state.ResetImpact.Views),
                         ImGui.GetContentRegionAvail().X,
                         TextRole.Footnote),
                     TextRole.Footnote);

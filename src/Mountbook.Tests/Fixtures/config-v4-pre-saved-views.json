@@ -1,0 +1,47 @@
+{
+  "$type": "Mountbook.Configuration, Mountbook",
+  "Version": 4,
+  "MainWindowOpen": true,
+  "FirstRunHintSeen": true,
+  "SearchText": "trial",
+  "Ownership": 2,
+  "Expansion": 4,
+  "Order": 5,
+  "ViewMode": 0,
+  "GroupBy": 1,
+  "SelectedMountId": 420,
+  "WantedMounts": [
+    192,
+    82
+  ],
+  "SavedSource": "PvP",
+  "KnownOwnedIds": [
+    1,
+    6,
+    9
+  ],
+  "RecentCollected": {
+    "192": 1730000000,
+    "82": 1731000000
+  },
+  "LookName": "aurora",
+  "Grinds": {
+    "82": {
+      "Have": 300,
+      "Want": 1200,
+      "Note": "shared fate runs",
+      "UpdatedAt": 1731111111
+    }
+  },
+  "Watches": {
+    "192": {
+      "Threshold": 900000,
+      "CheckedAt": 1731200500,
+      "LastSeen": 875000,
+      "Alerted": false
+    }
+  },
+  "BoardSort": 1,
+  "BoardWindowOpen": true,
+  "FollowGameTheme": true
+}

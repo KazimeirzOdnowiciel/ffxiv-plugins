@@ -1,7 +1,8 @@
 # The settings file: shape, migration and recovery
 
 `%APPDATA%\XIVLauncher\pluginConfigs\Mountbook.json` is the only state Mountbook keeps between sessions:
-the browse filters, the wanted list, the owned baseline, the grind records, the price watches and the theme.
+the browse filters, the wanted list, the owned baseline, the grind records, the price watches, the saved views
+and the theme.
 This document records what the file actually is, what happens to one that cannot be read (measured, not
 assumed), how a file written by an older build is upgraded, and what the reset-to-defaults control is allowed
 to take without asking.
@@ -74,7 +75,7 @@ spent an evening on.
 
 ## 4. The ladder
 
-`Configuration.CurrentVersion` is **4**. `Migrate()` runs the always-on guards, then walks the ladder one step
+`Configuration.CurrentVersion` is **5**. `Migrate()` runs the always-on guards, then walks the ladder one step
 per version the file is behind, then asks its Dalamud half to save once (a partial method, so the migration
 itself is Dalamud-free and the tests compile it - T1).
 
@@ -84,6 +85,7 @@ itself is Dalamud-free and the tests compile it - T1).
 | 2 | the grind tracker: `Grinds`, a map of mount id → `MountGrindRecord` | sweeps the map: drops a null value and a record that holds nothing (`MountGrind.IsTracked`), clamps a negative count to zero, folds a whitespace note to null |
 | 3 | the price watch: `Watches`, a map of mount id → `MountWatchRecord` | sweeps the map: drops a record whose threshold is not positive (`MountWatch.IsWatching` - the pane never persists one, so it came from a hand edit), clamps negative timestamps |
 | 4 | the obtain-type taxonomy: `SavedSource` is one type's own spelling | rewrites the saved filter as the taxonomy spells it (`pvp` → `PvP`), clears a value that names no type |
+| 5 | the saved views: `SavedViews`, a list of `SavedView` (a name and the filter block's five axes) | sweeps the list: drops a null entry, a blank name and a name an earlier entry already has, clamps an unknown `Ownership`/`Expansion`/`Order`/`GroupBy` to its default, folds a null `Query` to empty, keeps the order and stops at `SavedViewRules.MaxViews` |
 
 Two rules that decide whether a step is allowed to do this:
 
@@ -99,11 +101,14 @@ A step must also never throw: `Migrate` runs from the plugin constructor, so an 
 that does not load. The sweep checks `IsTracked`/`IsWatching` *before* touching a record's members - a null
 value in the map is exactly the case that made an earlier draft of step 2 throw a `NullReferenceException`.
 
-**Saved views is not a step yet, because it is not in the shape.** The 0.3.0 roadmap promises a list of saved
-filters; nothing in `Configuration.Shape.cs` persists one today, so there is no fourth collection to migrate
-and no fixture for it. When it lands it takes step 5 (`CurrentVersion` 5) with a fixture of its own, and the
-member it adds is the first *list* member since the wanted set - the ladder and
-`EveryMemberAFixtureCarriesIsStillAMemberOfTheShape` are what it plugs into, not something it has to invent.
+**Step 5 is the first *list* member since the wanted set, and that changes nothing about the rules above.** A
+wanted *id* has no order, so that collection is a set; a preset does, so this one is a list and its order is
+the row's order - which is why the sweep drops a duplicate instead of merging it, and why it never sorts. The
+enum clamps matter more here than anywhere earlier: the values are enum *integers* inside a JSON object a
+human may type, and an out-of-range `Order` would make a chip select an order the list cannot apply. As with
+every other step, it sweeps even though the shape is new: a file can say `Version: 4` and already carry
+`SavedViews` (`config-v4-handedited-views.json` is exactly that file), and the migration is the only thing
+between it and a broken row.
 
 ## 5. Reset to defaults, and the confirmation rule
 
@@ -114,12 +119,15 @@ member, including the three collections the player fills in themselves.
 by hand (so a member added later cannot be forgotten), keeps `Version` at `CurrentVersion` (a reset file is
 the current shape, not one that still has to be upgraded), and **clears the collections in place**: the main
 window may still hold the set it copied this frame, and replacing the instance would leave it drawing the list
-the player just cleared.
+the player just cleared. The saved views are one of those collections, and the main window's filter block draws
+the very list instance the config holds, so a replaced list would leave the row standing after a reset.
 
 `Services/ConfigReset.NeedsConfirmation(ConfigResetImpact)` is the rule, and it is a test rather than a read
-of `ConfigWindow`: a reset that would discard a wanted mount, a grind record or a price watch **opens a
-confirmation row** first (counts, "There is no undo.", *Clear everything* / *Keep it*); a reset that would
-only undo settings applies on the first click. The pending flag lives in the window, because the view state is
+of `ConfigWindow`: a reset that would discard a wanted mount, a grind record, a price watch or a saved view
+**opens a confirmation row** first (counts, "There is no undo.", *Clear everything* / *Keep it*); a reset that
+would only undo settings applies on the first click. A preset is on that side of the line because its *name* is
+typed work: the five axes are one click away again, the word the player chose for them is not - which is why
+`config.resetAll.confirm` gained a fourth count rather than the sentence staying at three. The pending flag lives in the window, because the view state is
 rebuilt every frame and a confirmation has to outlive the frame its click landed in.
 
 The confirmation is a second golden - `config-reset.png` - because it is a branch that can destroy data and
@@ -137,9 +145,12 @@ written the way Dalamud writes them:
 | `config-v1-grind.json` | the grind era: both records survive the sweep member-for-member (including the one whose `Want` is 0), `Watches` arrives empty |
 | `config-v1-watch.json` | the watch era: all four members of both watch records survive, `Grinds` untouched |
 | `config-v1-handedited.json` | a damaged file of the same era: null collections, a null map value, a dead grind record, a zero-threshold watch, negative counts and timestamps, out-of-range enums, `"pvp "` |
+| `config-v4-pre-saved-views.json` | the shape at `Version` 4, written before the saved views: every field kept, `SavedViews` arrives empty rather than null, and a v4 view saved by this build still reads back with all five axes |
+| `config-v4-handedited-views.json` | a v4 file whose `SavedViews` list was damaged by hand: a null entry, a blank name, two spellings of one name, an out-of-range enum in every axis, a null query |
 
 `EveryMemberAFixtureCarriesIsStillAMemberOfTheShape` walks the fixtures and fails if a member they carry no
-longer exists - a rename cannot pass the migration tests by reading as a default.
+longer exists - a rename cannot pass the migration tests by reading as a default. It covers the two entry
+shapes (`MountGrindRecord`, `MountWatchRecord`) and the list's (`SavedView`) for the same reason.
 
 Reproducing the measurement outside the tests: build the plugin, then load the shipped
 `Dalamud.dll` (`%APPDATA%\XIVLauncher\addon\Hooks\<version>\Dalamud.dll`) into a scratch console app, get

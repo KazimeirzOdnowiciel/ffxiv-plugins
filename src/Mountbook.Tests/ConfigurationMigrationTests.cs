@@ -277,6 +277,155 @@ public sealed class ConfigurationMigrationTests
     }
 
     [Fact]
+    public void AFileFromBeforeSavedViewsKeepsEveryFieldAndGainsNoViews()
+    {
+        Configuration config = Load("config-v4-pre-saved-views.json");
+
+        Assert.Empty(config.SavedViews);
+
+        config.Migrate();
+
+        Assert.Equal(Configuration.CurrentVersion, config.Version);
+
+        // A missing list keeps its initialiser, which is what lets the filter block test Count without a null
+        // guard - the same measured rule the other collections follow.
+        Assert.Empty(config.SavedViews);
+
+        // Everything the file carried still means what it meant: the migration adds a shape, it does not touch
+        // a saved field.
+        Assert.True(config.MainWindowOpen);
+        Assert.True(config.FirstRunHintSeen);
+        Assert.Equal("trial", config.SearchText);
+        Assert.Equal(MountOwnership.Unowned, config.Ownership);
+        Assert.Equal(MountExpansion.Shadowbringers, config.Expansion);
+        Assert.Equal(MountOrder.RarestFirst, config.Order);
+        Assert.Equal(MountViewMode.Grid, config.ViewMode);
+        Assert.Equal(MountGrouping.Expansion, config.GroupBy);
+        Assert.Equal(420u, config.SelectedMountId);
+        Assert.Equal(new HashSet<uint> { 192, 82 }, config.WantedMounts);
+        Assert.Equal("PvP", config.SavedSource);
+        Assert.Equal(new HashSet<uint> { 1, 6, 9 }, config.KnownOwnedIds);
+        Assert.Equal(1730000000L, config.RecentCollected[192]);
+        Assert.Equal(1731000000L, config.RecentCollected[82]);
+        Assert.Equal("aurora", config.LookName);
+        Assert.Equal("shared fate runs", config.Grinds[82].Note);
+        Assert.Equal(900000, config.Watches[192].Threshold);
+        Assert.Equal(MountBoardSort.Price, config.BoardSort);
+        Assert.True(config.BoardWindowOpen);
+        Assert.True(config.FollowGameTheme);
+    }
+
+    [Fact]
+    public void TheSavedViewStepSweepsAListAHandEditDamaged()
+    {
+        // Version 4, carrying a SavedViews list: exactly what a hand edit of a v4-era file looks like, and the
+        // case the ladder's "every step sweeps rather than trusting the version" rule exists for.
+        Configuration config = Load("config-v4-handedited-views.json");
+
+        Assert.Equal(6, config.SavedViews.Count);
+
+        config.Migrate();
+
+        Assert.Equal(Configuration.CurrentVersion, config.Version);
+
+        // The three that can be drawn survive in order; the null entry, the blank name and the case-variant
+        // duplicate are dropped, and the damaged one is clamped rather than read as an out-of-range enum.
+        Assert.Equal(3, config.SavedViews.Count);
+
+        SavedView farmable = config.SavedViews[0];
+        Assert.Equal("Farmable now", farmable.Name);
+        Assert.Equal("tradeable:y owned:n", farmable.Query);
+        Assert.Equal(MountOwnership.Unowned, farmable.Ownership);
+        Assert.Equal(MountExpansion.All, farmable.Expansion);
+        Assert.Equal(MountOrder.RarestFirst, farmable.Order);
+        Assert.Equal(MountGrouping.Expansion, farmable.GroupBy);
+
+        SavedView renamedByHand = config.SavedViews[1];
+        Assert.Equal("pvp only", renamedByHand.Name);
+        Assert.Equal("source:pvp", renamedByHand.Query);
+        Assert.Equal(MountOwnership.Owned, renamedByHand.Ownership);
+
+        SavedView broken = config.SavedViews[2];
+        Assert.Equal("broken", broken.Name);
+        Assert.Equal(string.Empty, broken.Query);
+        Assert.Equal(MountOwnership.All, broken.Ownership);
+        Assert.Equal(MountExpansion.All, broken.Expansion);
+        Assert.Equal(MountOrder.Name, broken.Order);
+        Assert.Equal(MountGrouping.None, broken.GroupBy);
+    }
+
+    [Fact]
+    public void SavingAViewAndReadingItBackKeepsEveryAxis()
+    {
+        // The acceptance for "a saved view restores all six axes", through the serialiser the file is really
+        // written with (Indented + TypeNameHandling.Objects, docs/config-migration.md section 1) rather than
+        // through an object copied in memory.
+        var written = new Configuration { Version = Configuration.CurrentVersion };
+
+        _ = SavedViewRules.TrySave(
+            written.SavedViews,
+            SavedViewRules.Capture(
+                "Farmable now",
+                "tradeable:y owned:n",
+                MountOwnership.Unowned,
+                MountExpansion.Shadowbringers,
+                MountOrder.Cheapest,
+                MountGrouping.Source),
+            out _);
+
+        _ = SavedViewRules.TrySave(
+            written.SavedViews,
+            SavedViewRules.Capture("PvP only", "source:pvp", MountOwnership.All, MountExpansion.All, MountOrder.RarestFirst, MountGrouping.None),
+            out _);
+
+        string json = JsonConvert.SerializeObject(
+            written,
+            Formatting.Indented,
+            new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.Objects });
+
+        Assert.Contains("SavedViews", json);
+
+        Configuration read = JsonConvert.DeserializeObject<Configuration>(json)!;
+
+        read.Migrate();
+
+        Assert.Equal(Configuration.CurrentVersion, read.Version);
+        Assert.Equal(2, read.SavedViews.Count);
+
+        SavedView restored = read.SavedViews[0];
+        Assert.Equal("Farmable now", restored.Name);
+        Assert.Equal("tradeable:y owned:n", restored.Query);
+        Assert.Equal(MountOwnership.Unowned, restored.Ownership);
+        Assert.Equal(MountExpansion.Shadowbringers, restored.Expansion);
+        Assert.Equal(MountOrder.Cheapest, restored.Order);
+        Assert.Equal(MountGrouping.Source, restored.GroupBy);
+
+        // And the row draws it as applied only when the filter really is that preset.
+        Assert.Equal(0, SavedViewRules.MatchIndex(read.SavedViews, "tradeable:y owned:n", MountOwnership.Unowned, MountExpansion.Shadowbringers, MountOrder.Cheapest, MountGrouping.Source));
+
+        SavedView second = read.SavedViews[1];
+        Assert.Equal("PvP only", second.Name);
+        Assert.Equal("source:pvp", second.Query);
+        Assert.Equal(MountOrder.RarestFirst, second.Order);
+    }
+
+    [Fact]
+    public void AResetClearsTheSavedViewsInPlace()
+    {
+        Configuration config = Load("config-v4-handedited-views.json");
+        config.Migrate();
+
+        List<SavedView> held = config.SavedViews;
+
+        config.ResetToDefaults();
+
+        // The player typed these names; a reset is allowed to take them only through the confirmation, and it
+        // clears the list the window is holding rather than replacing it.
+        Assert.Same(held, config.SavedViews);
+        Assert.Empty(held);
+    }
+
+    [Fact]
     public void TheGuardsRepairADamagedFileWhoseVersionClaimsToBeCurrent()
     {
         // Every guard runs on a load, not only on a version step: a hand edit does not bump Version, so a file
@@ -386,10 +535,19 @@ public sealed class ConfigurationMigrationTests
             .GetProperties()
             .Select(property => property.Name)
             .Concat(typeof(MountWatchRecord).GetProperties().Select(property => property.Name))
+            .Concat(typeof(SavedView).GetProperties().Select(property => property.Name))
             .Append("$type")
             .ToHashSet(StringComparer.Ordinal);
 
-        foreach (string fixture in new[] { "config-v1-pre-grind.json", "config-v1-grind.json", "config-v1-watch.json", "config-v1-handedited.json" })
+        foreach (string fixture in new[]
+                 {
+                     "config-v1-pre-grind.json",
+                     "config-v1-grind.json",
+                     "config-v1-watch.json",
+                     "config-v1-handedited.json",
+                     "config-v4-pre-saved-views.json",
+                     "config-v4-handedited-views.json",
+                 })
         {
             JObject root = JObject.Parse(File.ReadAllText(FixturePath(fixture)));
 
@@ -401,12 +559,22 @@ public sealed class ConfigurationMigrationTests
 
         JObject damaged = JObject.Parse(File.ReadAllText(FixturePath("config-v1-handedited.json")));
 
-        foreach (JObject record in new[] { "Grinds", "Watches" }
-                     .Select(name => damaged[name])
-                     .OfType<JObject>()
-                     .SelectMany(map => map.Properties())
-                     .Select(entry => entry.Value)
-                     .OfType<JObject>())
+        // The two maps' entries and the list's: a saved view is a record with the same kind of damage, and the
+        // guard has to fail on a member it no longer has just as it does for a grind or a watch.
+        var records = new List<JObject>(
+            new[] { "Grinds", "Watches" }
+                .Select(name => damaged[name])
+                .OfType<JObject>()
+                .SelectMany(map => map.Properties())
+                .Select(entry => entry.Value)
+                .OfType<JObject>());
+
+        if (damaged["SavedViews"] is JArray savedViews)
+        {
+            records.AddRange(savedViews.Children<JObject>());
+        }
+
+        foreach (JObject record in records)
         {
             foreach (JProperty property in record.Properties())
             {

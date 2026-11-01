@@ -36,6 +36,16 @@ public sealed partial class MountbookView
 
         var filtersTop = ImGui.GetCursorScreenPos().Y;
 
+        // The one door into the saved views that exists before there are any: the row and its button are drawn
+        // only once a preset exists, so a row-only affordance would leave nothing to save the first one with. A
+        // right-click on the filter block opens the dialog and costs no pixels anywhere - a closed popup draws
+        // nothing - which is what lets "draw nothing with no presets" and "there is always a way to save one"
+        // both hold. The search field's tooltip names it, so it is discoverable without a control.
+        if (ImGui.IsWindowHovered() && ImGui.IsMouseReleased(ImGuiMouseButton.Right))
+        {
+            state.ViewsDialogOpen = true;
+        }
+
         // At the window's 820x520 minimum the filter block alone is taller than the column, so the list is
         // left no height at all - and the empty state is drawn into the list, which put "no mounts match" and
         // its one action below the fold of a scrolling child: measured, the room left was 1 px. The filters'
@@ -134,6 +144,10 @@ public sealed partial class MountbookView
             var paired = LayoutMeasure.FilterPairFits(width / scale);
             var half = MathF.Max((width - gap) * 0.5f, 1f);
 
+            // The presets own a line of their own above the search box, and no line at all when there are none
+            // (see DrawSavedViewRow): the block's four rows are the space the list was given back.
+            DrawSavedViewRow(state);
+
             // The switch keeps its natural width - two cells of its own widest label - so the search field gets
             // the rest of the row. It never takes more than half the row, so a long translation cannot starve
             // the field it shares the row with; on a column too narrow to pair it keeps the whole row instead,
@@ -148,7 +162,7 @@ public sealed partial class MountbookView
 
             // The operators exist but nothing on screen advertises them; a tooltip is the one hint that
             // costs no layout in any of the goldens.
-            Gw.TooltipFor(ImGui.IsItemHovered(), Loc.F("filter.search.tooltip", SearchHint));
+            Gw.TooltipFor(ImGui.IsItemHovered(), SearchTooltip);
 
             // Cards or the dense table. It sits with the filters because it changes how the list is
             // drawn, not what is in it, and because a fifth header button cost the per-expansion strip

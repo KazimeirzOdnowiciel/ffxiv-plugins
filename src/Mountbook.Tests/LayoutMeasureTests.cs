@@ -178,6 +178,36 @@ public sealed class LayoutMeasureTests
     public void TheFilterPairsFollowTheColumnWidth(float columnWidth, bool paired) =>
         Assert.Equal(paired, LayoutMeasure.FilterPairFits(columnWidth));
 
+    /// <summary>
+    /// The saved-views row is one line of the filter block, so the chips that do not fit are dropped rather than
+    /// wrapped - and the trailing button that opens the dialog keeps its corner whatever the chips do.
+    /// </summary>
+    /// <remarks>
+    /// The widths here are a label's *shape* - a chip is its text plus padding - not a measurement: the real ones
+    /// come from the Look's type face, and what pins those is the views golden. What this pins is the arithmetic
+    /// the row leans on: the reserve is taken out first, every chip pays one gutter, and the answer is a prefix
+    /// count rather than a wrap.
+    /// </remarks>
+    [Fact]
+    public void TheSavedViewRowKeepsTheButtonItsCorner()
+    {
+        float[] five = [40f, 40f, 40f, 40f, 40f];
+
+        // 230 - 70 = 160 px of chips: three of 40 plus three gutters of 8 is 144, a fourth is 192.
+        Assert.Equal(3, LayoutMeasure.ViewsThatFit(230f, 70f, 8f, five));
+
+        // A row with no room for even one chip still draws the button.
+        Assert.Equal(0, LayoutMeasure.ViewsThatFit(70f, 70f, 8f, five));
+
+        // Everything fits when it fits, and an empty list asks for nothing.
+        Assert.Equal(2, LayoutMeasure.ViewsThatFit(230f, 70f, 8f, [40f, 40f]));
+        Assert.Equal(0, LayoutMeasure.ViewsThatFit(230f, 70f, 8f, []));
+
+        // A chip that would only fit by sitting under the button is not counted: the reserve is a hard cut, and
+        // the button is the only door into the dialog.
+        Assert.Equal(0, LayoutMeasure.ViewsThatFit(190f, 150f, 8f, [40f]));
+    }
+
     [Fact]
     public void ThePairGateSitsBetweenTheNarrowAndTheMinimumColumn()
     {

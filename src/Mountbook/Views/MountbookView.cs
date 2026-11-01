@@ -340,6 +340,11 @@ public sealed partial class MountbookView
         MeasureCardInset(columnsBottomScreenY);
 
         state.Committed = Gw.Committed;
+
+        // After the card's own measurement and after the commit read: a dialog draws in its own window, so the
+        // item rect it leaves behind is not the card's bottom edge, and a button pressed inside it is not a
+        // value control's edit.
+        DrawSavedViewsDialog(state);
     }
 
     /// <summary>
