@@ -1,5 +1,5 @@
 {
-  "generated": "2026-10-31",
+  "generated": "2026-11-01",
   "source": "ffxivcollect.com",
   "mounts": [
     {
@@ -3336,7 +3336,7 @@
       "id": 363,
       "patch": "7.1",
       "itemId": 44499,
-      "owned": 2.4,
+      "owned": 2.5,
       "tradeable": false,
       "customMusic": true,
       "sources": [
@@ -3754,7 +3754,7 @@
       "id": 417,
       "patch": "7.55",
       "itemId": 52258,
-      "owned": 4.7,
+      "owned": 4.8,
       "tradeable": false,
       "customMusic": false,
       "sources": [
@@ -3864,7 +3864,7 @@
       "id": 430,
       "patch": "7.57",
       "itemId": 52261,
-      "owned": 0.3,
+      "owned": 0.4,
       "tradeable": false,
       "customMusic": true,
       "sources": [
@@ -3875,7 +3875,7 @@
       "id": 432,
       "patch": "7.56",
       "itemId": 52262,
-      "owned": 0.2,
+      "owned": 0.3,
       "tradeable": false,
       "customMusic": false,
       "sources": [
@@ -3933,7 +3933,7 @@
       "id": 438,
       "patch": "7.51",
       "itemId": 52267,
-      "owned": 2.6,
+      "owned": 2.7,
       "tradeable": true,
       "customMusic": true,
       "sources": [

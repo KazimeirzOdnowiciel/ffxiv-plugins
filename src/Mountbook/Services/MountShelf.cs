@@ -22,6 +22,12 @@ public sealed class MountShelf
     public int Count => entries.Count;
 
     /// <summary>
+    /// Every mount id the dataset carries, in no particular order. Exposed so a caller that has to
+    /// enumerate the shelf (the patch-day validator) does not keep a second copy of the ids it parsed.
+    /// </summary>
+    public IReadOnlyCollection<uint> Ids => entries.Keys;
+
+    /// <summary>
     /// Parses the shipped dataset. Property names are matched case-insensitively; a missing
     /// <c>sources</c> array is an empty list, a null <c>relatedType</c> becomes
     /// <see cref="string.Empty"/>, and a null or absent <c>relatedId</c> becomes zero.

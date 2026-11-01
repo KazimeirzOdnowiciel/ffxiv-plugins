@@ -26,16 +26,24 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1
 
 ## Verify
 
-Mountbook is the one plugin kept in the full three-project shape it was built in: `src/Mountbook`,
-`src/Mountbook.Tests` and `src/Mountbook.Previews` sit side by side, and its ten goldens live in
-`src/Mountbook.Previews/goldens`. Its gate:
+Mountbook is the one plugin kept in the full multi-project shape it was built in: `src/Mountbook`,
+`src/Mountbook.Tests`, `src/Mountbook.Previews` and `src/Mountbook.Tools` sit side by side, and its
+thirteen goldens live in `src/Mountbook.Previews/goldens`. Its gate (the last line is the only one that proves the layout: it
+exits 1 on any mismatch, and `--out` is **not** optional - without it the tool prints its help and exits
+0, which reads exactly like a pass):
 
 ```powershell
 dotnet build src/Mountbook/Mountbook.csproj -c Release
-dotnet run --project src/Mountbook.Tests/Mountbook.Tests.csproj -c Release   # 308 tests
+dotnet run --project src/Mountbook.Tests/Mountbook.Tests.csproj -c Release   # 335 tests committed
 dotnet build src/Mountbook.Previews/Mountbook.Previews.csproj -c Release
-~/.dotnet/tools/glasswork-preview.exe --assembly src/Mountbook.Previews/bin/Release/Mountbook.Previews.dll --compare src/Mountbook.Previews/goldens
+~/.dotnet/tools/glasswork-preview.exe --assembly src/Mountbook.Previews/bin/Release/Mountbook.Previews.dll --compare src/Mountbook.Previews/goldens --out artifacts/previews/Mountbook
 ```
+
+`--update` instead of `--compare` re-baselines every scene; check `git status` afterwards and expect only
+the images you meant to move. A scene is any public parameterless `IPreviewScreen` in that assembly, and
+`--scene <name>` renders one of them. Every scene renders at UI scale 1 - the interface has no scale
+member and `--scale` is refused with `--assembly` - so scale-dependent defects are caught by audit and by
+a fix's own reasoning, not by an image.
 
 `dotnet test` does not start in this environment (the test host cannot get a named pipe); `dotnet run` on
 the xunit v3 project is the portable path.
@@ -49,6 +57,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -File src/SlotYield/verify.ps1
 
 The other plugins have no automated tests; verify by building and, when the change is behavioural,
 say explicitly that in-game verification is still pending.
+
+## The obtain dataset
+
+`src/Mountbook/Data/mount-sources.json` is generated, committed and embedded - the plugin never calls
+ffxivcollect at runtime. It goes stale on a patch, so refreshing it is a runbook, not a build step:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File src/Mountbook/tools/patch-day.ps1
+```
+
+One command regenerates it into a scratch file and validates it against the committed snapshot and the
+game's `Mount` sheet (row band, unknown ids, vanished mounts, lost sources, patch values the expansion
+map cannot read); the committed file is replaced only when nothing is an error. `docs/patch-day.md` is
+the runbook - the flags, what every finding code means, and the rest of the release path.
 
 ## Release
 
