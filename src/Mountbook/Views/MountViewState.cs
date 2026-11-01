@@ -147,7 +147,6 @@ public sealed class MountViewState
         ClearFiltersRequested = false;
         SettingsRequested = false;
         RefreshRequested = false;
-        ThemesRequested = false;
         CopyMissingRequested = false;
         SourceLinkRequested = null;
     }
@@ -179,9 +178,6 @@ public sealed class MountViewState
 
     /// <summary>True when the header's copy-missing action was clicked.</summary>
     public bool CopyMissingRequested { get; set; }
-
-    /// <summary>True when the header's themes action was clicked.</summary>
-    public bool ThemesRequested { get; set; }
 
     /// <summary>The acquire-method filter ("Trial", "PvP", ...), or empty for any.</summary>
     public string SourceFilter { get; set; } = string.Empty;

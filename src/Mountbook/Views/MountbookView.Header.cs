@@ -12,7 +12,7 @@ namespace Mountbook.Views;
 public sealed partial class MountbookView
 {
     /// <summary>
-    /// Settings / Refresh / Themes / Copy missing, right-aligned in the header. Small and plain (text
+    /// Settings / Refresh / Copy missing, right-aligned in the header. Small and plain (text
     /// ink, no fill) so they read as window chrome rather than competing with Ride.
     /// </summary>
     private static void DrawHeaderActions(
@@ -28,14 +28,15 @@ public sealed partial class MountbookView
 
         try
         {
-            Span<string> labels = ["Settings", "Refresh", "Themes", "Copy missing"];
+            // Themes is not here: it opened the same folder as Settings > Appearance > Open themes
+            // folder, and a second door to one folder is 70 px of chrome for nothing.
+            Span<string> labels = ["Settings", "Refresh", "Copy missing"];
             Span<string> hints =
             [
                 "Open the settings window",
-            "Re-read your collection from the game",
-            "Open the folder the theme JSONs live in",
-            "Copy every uncollected mount in this list to the clipboard",
-        ];
+                "Re-read your collection from the game",
+                "Copy every uncollected mount in this list to the clipboard",
+            ];
             var gap = look.SpaceSmall * scale;
             var x = left;
 
@@ -62,9 +63,6 @@ public sealed partial class MountbookView
                         case 1:
                             state.RefreshRequested = true;
                             break;
-                        case 2:
-                            state.ThemesRequested = true;
-                            break;
                         default:
                             state.CopyMissingRequested = true;
                             break;
@@ -80,16 +78,16 @@ public sealed partial class MountbookView
         }
     }
 
-    /// <summary>The four header actions' label widths, measured once per UI scale.</summary>
+    /// <summary>The three header actions' label widths, measured once per UI scale.</summary>
     private static float[] ActionWidths(Look look, float scale)
     {
-        if (actionWidthsScale == scale && actionWidths.Length == 4)
+        if (actionWidthsScale == scale && actionWidths.Length == 3)
         {
             return actionWidths;
         }
 
-        Span<string> labels = ["Settings", "Refresh", "Themes", "Copy missing"];
-        actionWidths = new float[4];
+        Span<string> labels = ["Settings", "Refresh", "Copy missing"];
+        actionWidths = new float[3];
         actionWidthsScale = scale;
 
         for (var index = 0; index < labels.Length; index++)
@@ -106,11 +104,12 @@ public sealed partial class MountbookView
         return actionWidths;
     }
 
-    /// <summary>The width the four header actions need, or zero when there are none to draw.</summary>
+    /// <summary>The width the three header actions need, or zero when there are none to draw.</summary>
     private static float ActionsWidth(Look look, float scale)
     {
         var widths = ActionWidths(look, scale);
-        var total = 3f * look.SpaceSmall * scale;
+        // Two gaps between three buttons, matching the loop in DrawHeaderActions.
+        var total = 2f * look.SpaceSmall * scale;
 
         for (var index = 0; index < widths.Length; index++)
         {

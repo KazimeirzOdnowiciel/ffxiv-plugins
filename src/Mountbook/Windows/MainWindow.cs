@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Numerics;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
@@ -414,11 +413,6 @@ public sealed class MainWindow : GlassWindow, IDisposable
             RefreshMounts();
         }
 
-        if (state.ThemesRequested)
-        {
-            OpenThemesFolder();
-        }
-
         if (state.CopyMissingRequested)
         {
             CopyMissingMounts();
@@ -499,33 +493,24 @@ public sealed class MainWindow : GlassWindow, IDisposable
     {
         plugin.Catalog.RefreshIfDue(Environment.TickCount64, force: true);
 
+        // Report the result. The two-second tick already keeps the counters right, so without a toast
+        // this action had no visible effect at all and read as inert: the one thing it can add is a
+        // number the player can check against the game.
+        if (!plugin.Catalog.IsBuilt)
+        {
+            Gw.Toast("Could not read your mounts. See the log."u8, ToastKind.Error);
+        }
+        else
+        {
+            Gw.Toast(
+                MountProgress.RefreshToast(plugin.Catalog.Owned, plugin.Catalog.Total),
+                ToastKind.Info);
+        }
+
         // RefreshItems only re-runs when one of its inputs changed; clearing the built flag is what
         // forces the re-query without touching the user's search, filters or selection.
         itemsBuilt = false;
         lastRevision = -1;
-    }
-
-    /// <summary>
-    /// Opens the themes folder in the desktop's file manager, creating it first so a fresh install
-    /// has one to open. A failure is logged and toasted, never left to the draw guard (N4).
-    /// </summary>
-    private void OpenThemesFolder()
-    {
-        var folder = plugin.ThemesDirectory;
-
-        try
-        {
-            Directory.CreateDirectory(folder);
-
-            // UseShellExecute hands the folder to the desktop; without it Process.Start would try
-            // to execute a directory. The returned handle is not needed after the spawn.
-            using Process? process = Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            Plugin.Log.Error(ex, "Could not open the themes folder '{Folder}'.", folder);
-            Gw.Toast("Could not open the folder."u8, ToastKind.Error);
-        }
     }
 
     /// <summary>
