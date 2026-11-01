@@ -13,6 +13,11 @@
 #   -SkipSheet      skip the Mount sheet ids check (see -SheetIds / -ModelMap)
 #   -SheetIds <f>   sheet ids: one mount id per line, or the mdlrip model map CSV
 #   -ModelMap <f>   the mdlrip model map to read sheet ids from (default: the tools/mdlrip copy)
+#   -Offline        build the candidate from the sheets alone (ffxivcollect is down): the committed
+#                   snapshot's rows are carried over and pruned to the sheet. The candidate says
+#                   "enrichment": "sheet-only" and the validator warns - read that before -NoWrite
+#                   is dropped
+#   -MaxBytes <n>   the size budget the candidate must stay under (default 122880 = 120 KB)
 #   -ReportPath <f> where the markdown report goes (default: artifacts/patch-day/validation-<stamp>.md)
 #
 # The offline half of a patch day - goldens, changelog, version bump, build.ps1, the commit - is the
@@ -26,10 +31,12 @@ param(
     [switch] $SkipRegenerate,
     [switch] $SkipSheet,
     [switch] $NoWrite,
+    [switch] $Offline,
     [string] $ReportPath,
     [int] $AllowedShrink = 8,
     [int] $AllowedGrowth = 40,
-    [int] $Minimum = 300
+    [int] $Minimum = 300,
+    [int] $MaxBytes = 122880
 )
 
 Set-StrictMode -Version Latest
@@ -73,27 +80,6 @@ if (-not $ReportPath) {
 # reference that can answer "what changed", so it is captured before anything touches the data file.
 $baseline = Join-Path $scratch 'baseline.json'
 Copy-Item -LiteralPath $dataFile -Destination $baseline -Force
-
-Write-Step "Regenerating the snapshot"
-$candidate = Join-Path $scratch 'candidate.json'
-
-if ($SkipRegenerate) {
-    Write-Host '  skipped (-SkipRegenerate): validating the committed file as it stands'
-    Copy-Item -LiteralPath $dataFile -Destination $candidate -Force
-}
-else {
-    Write-Host "  ffxivcollect.com -> $candidate"
-    try {
-        & $generator -OutputPath $candidate
-    }
-    catch {
-        Stop-WithError "the generator failed ($($_.Exception.Message)); $dataFile is untouched."
-    }
-}
-
-if (-not (Test-Path -LiteralPath $candidate)) {
-    Stop-WithError "the generator wrote nothing; $dataFile is untouched."
-}
 
 Write-Step 'Resolving the Mount sheet ids'
 $sheetPath = $null
@@ -145,6 +131,44 @@ else {
     Write-Host "  no sheet ids: $ModelMap not found and -SheetIds not given (-SkipSheet to silence)" -ForegroundColor Yellow
 }
 
+Write-Step "Regenerating the snapshot"
+$candidate = Join-Path $scratch 'candidate.json'
+
+if ($SkipRegenerate) {
+    Write-Host '  skipped (-SkipRegenerate): validating the committed file as it stands'
+    Copy-Item -LiteralPath $dataFile -Destination $candidate -Force
+}
+elseif ($Offline) {
+    # No network: the sheet is the id list, the committed snapshot is the only enrichment there is.
+    # The generator is told both, so its output is the sheet's rows pruned of what the game dropped,
+    # and the file declares "enrichment": "sheet-only" for every reader that comes after.
+    $idSource = $ModelMap
+    if ($sheetPath) {
+        $idSource = $sheetPath
+    }
+
+    Write-Host "  Mount sheet ($idSource) + committed snapshot -> $candidate" -ForegroundColor Yellow
+    try {
+        & $generator -Offline -SheetIds $idSource -CarryOver $baseline -OutputPath $candidate
+    }
+    catch {
+        Stop-WithError "the offline generator failed ($($_.Exception.Message)); $dataFile is untouched."
+    }
+}
+else {
+    Write-Host "  ffxivcollect.com -> $candidate"
+    try {
+        & $generator -OutputPath $candidate
+    }
+    catch {
+        Stop-WithError "the generator failed ($($_.Exception.Message)); $dataFile is untouched."
+    }
+}
+
+if (-not (Test-Path -LiteralPath $candidate)) {
+    Stop-WithError "the generator wrote nothing; $dataFile is untouched."
+}
+
 Write-Step 'Validating'
 & dotnet build $toolProject -c Release -v q | Out-Host
 if ($LASTEXITCODE -ne 0) {
@@ -159,7 +183,8 @@ $validatorArgs = @(
     '--report', $ReportPath,
     '--allowed-shrink', $AllowedShrink,
     '--allowed-growth', $AllowedGrowth,
-    '--minimum', $Minimum
+    '--minimum', $Minimum,
+    '--max-bytes', $MaxBytes
 )
 
 if ($sheetPath) {

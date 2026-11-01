@@ -334,6 +334,7 @@ public sealed class MainWindow : GlassWindow, IDisposable
         state.TextureSizes = plugin.Textures.Sizes;
         state.Owned = plugin.Catalog.Owned;
         state.Total = plugin.Catalog.Total;
+        state.DatasetSource = plugin.Catalog.DatasetSource;
 
         var selected = FindSelected(state.Items, state.SelectedId);
         uint whistleItemId = 0;

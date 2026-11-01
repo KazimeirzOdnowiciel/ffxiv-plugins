@@ -234,6 +234,114 @@ public sealed class MountShelfTests
         Assert.Equal(0, shelf.Count);
     }
 
+[Fact]
+    public void ReadsTheHeaderThisBuildUnderstands()
+    {
+        const string json = """
+            {
+              "schemaVersion": 2,
+              "generated": "2026-11-01",
+              "source": "ffxivcollect.com",
+              "enrichment": "full",
+              "attribution": "Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.",
+              "attributionUrl": "https://ffxivcollect.com",
+              "mounts": [ { "id": 1, "patch": "2.0", "sources": [] } ]
+            }
+            """;
+
+        MountShelf shelf = MountShelf.Parse(json);
+
+        Assert.Equal(MountShelf.CurrentSchemaVersion, shelf.SchemaVersion);
+        Assert.Equal("2026-11-01", shelf.Generated);
+        Assert.Equal("ffxivcollect.com", shelf.Source);
+        Assert.Equal(MountShelfHeader.FullEnrichment, shelf.Enrichment);
+        Assert.True(shelf.HasAttribution);
+        Assert.False(shelf.IsStale);
+        Assert.False(shelf.IsNewer);
+        Assert.False(shelf.IsSheetOnly);
+        Assert.Equal(1, shelf.Count);
+    }
+
+    [Fact]
+    public void ASnapshotWithNoHeaderIsReadAsStaleAndNotRefused()
+    {
+        // The first shipped shape. Losing every "How to obtain" line because the file predates the
+        // header would be a far worse outcome than reading it and saying it is old.
+        MountShelf shelf = MountShelf.Parse("""{ "mounts": [ { "id": 1, "patch": "2.0" } ] }""");
+
+        Assert.Equal(1, shelf.Count);
+        Assert.Equal(MountShelf.LegacySchemaVersion, shelf.SchemaVersion);
+        Assert.True(shelf.IsStale);
+        Assert.False(shelf.HasAttribution);
+        Assert.Equal(string.Empty, shelf.AttributionUrl);
+    }
+
+    [Fact]
+    public void ANegativeSchemaVersionIsTreatedAsNoHeaderAtAll()
+    {
+        MountShelf shelf = MountShelf.Parse("""{ "schemaVersion": -3, "mounts": [ { "id": 1, "patch": "2.0" } ] }""");
+
+        Assert.Equal(MountShelf.LegacySchemaVersion, shelf.SchemaVersion);
+        Assert.True(shelf.IsStale);
+    }
+
+    [Fact]
+    public void ASnapshotFromANewerGeneratorIsNewerAndNotStale()
+    {
+        // The two mismatches are different facts: an older file is missing fields, a newer one has
+        // fields this build ignores. Reporting either as the other hides which side to fix.
+        MountShelf shelf = MountShelf.Parse("""{ "schemaVersion": 3, "mounts": [ { "id": 1, "patch": "2.0" } ] }""");
+
+        Assert.True(shelf.IsNewer);
+        Assert.False(shelf.IsStale);
+    }
+
+    [Fact]
+    public void ASheetOnlySnapshotSaysSo()
+    {
+        MountShelf shelf = MountShelf.Parse("""
+            { "schemaVersion": 2, "enrichment": "sheet-only", "mounts": [ { "id": 1, "patch": "" } ] }
+            """);
+
+        Assert.True(shelf.IsSheetOnly);
+    }
+
+    [Fact]
+    public void DescribeNamesTheSourceTheDateAndTheVersion()
+    {
+        MountShelf shelf = MountShelf.Parse("""
+            { "schemaVersion": 2, "generated": "2026-11-01", "source": "ffxivcollect.com", "enrichment": "full", "mounts": [] }
+            """);
+
+        Assert.Equal("ffxivcollect.com, 2026-11-01, schema v2", shelf.Describe());
+    }
+
+    [Fact]
+    public void DescribeCallsOutAnOfflineBuildAndAnOldSnapshot()
+    {
+        MountShelf sheetOnly = MountShelf.Parse("""
+            { "schemaVersion": 2, "generated": "2026-11-01", "source": "ffxivcollect.com", "enrichment": "sheet-only", "mounts": [] }
+            """);
+        MountShelf stale = MountShelf.Parse("""
+            { "generated": "2026-01-01", "source": "ffxivcollect.com", "mounts": [] }
+            """);
+
+        Assert.Equal(
+            "ffxivcollect.com, 2026-11-01, schema v2 (built offline: no obtain data refreshed)",
+            sheetOnly.Describe());
+        Assert.Equal(
+            "ffxivcollect.com, 2026-01-01, schema v0 (older than this build reads: v2)",
+            stale.Describe());
+    }
+
+    [Fact]
+    public void DescribeAdmitsWhenTheFileSaysNothingAboutItself()
+    {
+        string text = MountShelf.Parse("""{ "mounts": [] }""").Describe();
+
+        Assert.Equal("unknown source, schema v0 (older than this build reads: v2)", text);
+    }
+
     [Fact]
     public void NonObjectRootIsRejected()
     {

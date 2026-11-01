@@ -21,6 +21,7 @@ internal static class Program
                                    [--sheet-ids <file>]
                                    [--report <file.md>]
                                    [--allowed-shrink <n>] [--allowed-growth <n>] [--minimum <n>]
+                                   [--max-bytes <n>]
 
         --candidate   the freshly generated snapshot; the only required input.
         --baseline    the snapshot as committed before this run. Without it the row band has no
@@ -31,6 +32,8 @@ internal static class Program
         --report      also write the findings as markdown, for the run's evidence trail.
         --minimum     the row floor (default 300); --allowed-shrink/--allowed-growth widen the band
                       around the baseline (defaults 8 and 40).
+        --max-bytes   the size budget the snapshot must stay under (default 122880 = 120 KB): the file
+                      is embedded in the assembly and downloaded by every player.
 
         Exit codes: 0 the snapshot is valid, 1 it must not ship, 2 bad usage or an unreadable file.
         """;
@@ -118,6 +121,14 @@ internal static class Program
 
                     options = options with { MinimumCount = minimum };
                     break;
+                case "--max-bytes":
+                    if (!TryCount(value, out int maxBytes))
+                    {
+                        return Fail("--max-bytes needs a whole number.");
+                    }
+
+                    options = options with { MaxBytes = maxBytes };
+                    break;
                 default:
                     return Fail($"Unknown option \"{flag}\".");
             }
@@ -167,7 +178,14 @@ internal static class Program
         MountSourcesValidationReport report;
         try
         {
-            report = MountSourcesValidator.Validate(candidateJson, baselineJson, sheetIdsText, options);
+            // The size check is about the shipped file, so it uses the bytes on disk rather than the
+            // length of the string the reader parsed.
+            long candidateBytes = new FileInfo(candidate).Length;
+            report = MountSourcesValidator.Validate(
+                candidateJson,
+                baselineJson,
+                sheetIdsText,
+                options with { CandidateBytes = candidateBytes });
         }
         catch (FormatException exception)
         {

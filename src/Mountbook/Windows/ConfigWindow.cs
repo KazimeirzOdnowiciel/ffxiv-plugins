@@ -348,6 +348,7 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
                 state.VersionText,
                 state.ProgressText,
                 state.CatalogText,
+                state.DatasetText,
                 plugin.Configuration.LookName,
                 plugin.Configuration.FollowGameTheme));
             Gw.Toast(Loc.T("toast.diagnosticsCopied"), ToastKind.Success);
@@ -393,6 +394,10 @@ public sealed class ConfigWindow : GlassWindow, IDisposable
                 "config.catalog.summary",
                 plugin.Catalog.Total.ToString(CultureInfo.InvariantCulture),
                 plugin.Catalog.SourceCount.ToString(CultureInfo.InvariantCulture)),
+            // The snapshot's own words: source, generated date, schema version, and whether it was
+            // built offline. Empty only when the catalog could not be built at all.
+            DatasetText = plugin.Catalog.DatasetText,
+            DatasetSource = plugin.Catalog.DatasetSource,
             // The assembly version, not the manifest: IPluginManifest has no Version member in API 15, and
             // the assembly version is what the packager stamps anyway.
             VersionText = Loc.F(

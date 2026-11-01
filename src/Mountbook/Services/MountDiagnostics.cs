@@ -12,15 +12,17 @@ namespace Mountbook.Services;
 public static class MountDiagnostics
 {
     /// <summary>
-    /// One line per fact, in a stable order: plugin version, collection progress, catalog size and theme.
-    /// Empty inputs are written as-is rather than replaced, so the result never claims a fact it does not have.
+    /// One line per fact, in a stable order: plugin version, collection progress, catalog size, the
+    /// obtain dataset it is reading, and the theme. Empty inputs are written as-is rather than
+    /// replaced, so the result never claims a fact it does not have.
     /// </summary>
     /// <exception cref="ArgumentNullException">Any argument is null.</exception>
-    public static string Build(string version, string progress, string catalog, string theme, bool followsGameTheme)
+    public static string Build(string version, string progress, string catalog, string dataset, string theme, bool followsGameTheme)
     {
         ArgumentNullException.ThrowIfNull(version);
         ArgumentNullException.ThrowIfNull(progress);
         ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentNullException.ThrowIfNull(dataset);
         ArgumentNullException.ThrowIfNull(theme);
 
         var newline = Environment.NewLine;
@@ -34,6 +36,9 @@ public static class MountDiagnostics
             newline,
             "Catalog: ",
             catalog,
+            newline,
+            "Obtain data: ",
+            dataset,
             newline,
             "Theme: ",
             theme,

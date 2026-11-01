@@ -315,7 +315,141 @@ public sealed class MountSourcesValidationTests
         Assert.Contains(MountSourcesValidator.OwnershipDriftCode, Codes(report));
     }
 
+    [Fact]
+    public void ASnapshotWithoutASchemaVersionFails()
+    {
+        // The first shipped shape: rows parse, but the document cannot say which generator wrote it,
+        // so a field added since would go missing without a word.
+        string candidate = SnapshotWithHeader(string.Empty, (1, "7.0", 1));
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.False(report.IsValid);
+        Assert.Contains(MountSourcesValidator.SchemaMissingCode, Codes(report));
+        Assert.Equal(1, report.CandidateCount);
+    }
+
+    [Fact]
+    public void ASnapshotFromAnotherGeneratorVersionFails()
+    {
+        string candidate = SnapshotWithHeader("  \"schemaVersion\": 1,\n", (1, "7.0", 1));
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.False(report.IsValid);
+        Assert.Contains(MountSourcesValidator.SchemaVersionCode, Codes(report));
+        Assert.Contains("v1", ReportText(report));
+    }
+
+    [Fact]
+    public void ASnapshotWithoutAttributionFails()
+    {
+        // The obtain data is a volunteer project's work; shipping it uncredited is the one thing the
+        // licence asks for, so the build refuses rather than leaving it to review.
+        string candidate = SnapshotWithHeader(
+            "  \"schemaVersion\": 2,\n  \"attributionUrl\": \"https://ffxivcollect.com\",\n",
+            (1, "7.0", 1));
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.False(report.IsValid);
+        Assert.Contains(MountSourcesValidator.AttributionMissingCode, Codes(report));
+    }
+
+    [Fact]
+    public void ASnapshotOverTheSizeBudgetFails()
+    {
+        // The file is embedded in the assembly and downloaded by every player, so the budget is a
+        // build gate and not a note. 200 bytes makes any real snapshot fail without faking a size.
+        string candidate = Snapshot((1, "7.0", 1));
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1, MaxBytes = 200 });
+
+        Assert.False(report.IsValid);
+        Assert.Contains(MountSourcesValidator.SizeBudgetCode, Codes(report));
+        Assert.True(report.CandidateBytes > 200, $"The measurement never ran: {report.CandidateBytes} bytes.");
+    }
+
+    [Fact]
+    public void TheApisDescriptionCopyFails()
+    {
+        // The game's MountTransient sheet already carries the flavour text, and the site's copy is
+        // what would take the file from 83 KB to 251 KB.
+        string candidate = Snapshot((1, "7.0", 1)).Replace(
+            "\"itemId\": 0,",
+            "\"itemId\": 0, \"tooltip\": \"Remember to attack while it's tail's up!\",",
+            StringComparison.Ordinal);
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.False(report.IsValid);
+        Assert.Contains(MountSourcesValidator.DescriptionCopyCode, Codes(report));
+    }
+
+    [Fact]
+    public void ASheetOnlySnapshotIsAWarningAndNotAnError()
+    {
+        // The disaster-recovery shape: the site is gone, so the snapshot is the sheet's rows with no
+        // patch and no source refresh. It must ship as a warning - a reader has to accept it - and
+        // the row band must not fire on it, or the only way out of an outage is a broken build.
+        string candidate = SnapshotWithHeader(
+            "  \"schemaVersion\": 2,\n"
+            + "  \"enrichment\": \"sheet-only\",\n"
+            + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
+            + "  \"attributionUrl\": \"https://ffxivcollect.com\",\n",
+            (1, string.Empty, 0),
+            (2, string.Empty, 0));
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.True(report.IsValid, report.ToText());
+        Assert.Contains(MountSourcesValidator.SheetOnlyCode, Codes(report));
+        Assert.Contains(MountSourcesValidator.PatchMissingCode, Codes(report));
+        Assert.Equal(0, report.ErrorCount);
+        Assert.DoesNotContain(MountSourcesValidator.RowCountCode, Codes(report));
+    }
+
+    [Fact]
+    public void AFullSnapshotWithNoPatchIsStillAnError()
+    {
+        // The other direction: a snapshot that claims the site answered and then carries no patch is
+        // a broken generation, not a fallback.
+        string candidate = Snapshot((1, string.Empty, 1));
+
+        MountSourcesValidationReport report = MountSourcesValidator.Validate(
+            candidate,
+            options: new MountSourcesValidationOptions { MinimumCount = 1 });
+
+        Assert.False(report.IsValid);
+        Assert.Equal(MountSourcesIssueSeverity.Error, SeverityOf(report, MountSourcesValidator.PatchMissingCode));
+    }
+
     private static string ReportText(MountSourcesValidationReport report) => report.ToText();
+
+    private static MountSourcesIssueSeverity SeverityOf(MountSourcesValidationReport report, string code)
+    {
+        foreach (MountSourcesIssue issue in report.Issues)
+        {
+            if (string.Equals(issue.Code, code, StringComparison.Ordinal))
+            {
+                return issue.Severity;
+            }
+        }
+
+        throw new InvalidOperationException($"No \"{code}\" finding in:\n{report.ToText()}");
+    }
 
     private static IReadOnlyList<string> Codes(MountSourcesValidationReport report)
     {
@@ -336,12 +470,28 @@ public sealed class MountSourcesValidationTests
     }
 
     /// <summary>
-    /// Builds a snapshot in the generator's shape: one row per tuple, with <c>count</c> obtain lines.
+    /// Builds a snapshot in the generator's shape: the v2 header this build reads, then one row per
+    /// tuple with <c>count</c> obtain lines. Tests that are about a missing or different header use
+    /// <see cref="LegacySnapshot"/> or edit the version in place.
     /// </summary>
-    private static string Snapshot(params (uint Id, string Patch, int Sources)[] rows)
+    private static string Snapshot(params (uint Id, string Patch, int Sources)[] rows) =>
+        SnapshotWithHeader(
+            "  \"schemaVersion\": 2,\n"
+            + "  \"enrichment\": \"full\",\n"
+            + "  \"attribution\": \"Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.\",\n"
+            + "  \"attributionUrl\": \"https://ffxivcollect.com\",\n",
+            rows);
+
+    /// <summary>
+    /// Builds a snapshot with a caller-supplied header: the way to test "no schemaVersion" (an empty
+    /// header) or any other document-level fact without hand-writing a whole file.
+    /// </summary>
+    private static string SnapshotWithHeader(string headerLines, params (uint Id, string Patch, int Sources)[] rows)
     {
         var json = new StringBuilder();
-        json.Append("{\n  \"generated\": \"2026-11-01\",\n  \"source\": \"ffxivcollect.com\",\n  \"mounts\": [\n");
+        json.Append("{\n  \"generated\": \"2026-11-01\",\n  \"source\": \"ffxivcollect.com\",\n");
+        json.Append(headerLines);
+        json.Append("  \"mounts\": [\n");
 
         for (var index = 0; index < rows.Length; index++)
         {

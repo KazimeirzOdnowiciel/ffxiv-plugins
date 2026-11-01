@@ -9,7 +9,9 @@
 
 The detail pane shows the game's artwork and flavour text, a "How to obtain" list where every row that names a duty, quest or achievement opens its page, a token price with your own progress ("12,000 Seafarer's Cowries - you have 3,400, 8,600 to go"), community rarity, and - for a tradeable mount, when you ask - the cheapest listing on your data center.
 
-The plugin reads the Mount, MountTransient and Item sheets and your own unlocked-mount state, and it writes nothing to the game. The Ride button uses the same mount action you could press yourself; the whistle link is an ordinary chat item link. Its one network call is the market price you ask for.</Description>
+The plugin reads the Mount, MountTransient and Item sheets and your own unlocked-mount state, and it writes nothing to the game. The Ride button uses the same mount action you could press yourself; the whistle link is an ordinary chat item link. Its one network call is the market price you ask for.
+
+Patch, obtain-source and community-rarity data is derived from FFXIV Collect (ffxivcollect.com), a volunteer community project, and credits it in the window and in this description; that data is used non-commercially, as its API terms require. Everything else - names, artwork, flavour text - is read from your own game's sheets.</Description>
     <RepoUrl>https://github.com/KazimeirzOdnowiciel/Deepseek-Kingdom</RepoUrl>
     <Tags>mounts;collection;mount guide;how to obtain;market board;prices;glasswork</Tags>
 

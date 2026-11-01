@@ -89,6 +89,27 @@ internal sealed class MountCatalog
     /// <summary>How many entries the embedded obtain dataset carries (zero when it failed to load).</summary>
     public int SourceCount => shelf?.Count ?? 0;
 
+    /// <summary>
+    /// One line about the embedded dataset - source, date and schema version, with the two honest
+    /// exceptions spelled out ("built offline", "older/newer than this build reads") - or empty
+    /// before the catalog is built. The settings window shows it and the diagnostics block copies it,
+    /// so a bug report always says which data the player is running.
+    /// </summary>
+    public string DatasetText => shelf is null ? string.Empty : shelf.Describe();
+
+    /// <summary>True when the shipped snapshot was built without the site, so nothing was refreshed.</summary>
+    public bool DatasetIsSheetOnly => shelf?.IsSheetOnly ?? false;
+
+    /// <summary>True when the shipped snapshot credits the volunteer project it came from.</summary>
+    public bool DatasetHasAttribution => shelf?.HasAttribution ?? false;
+
+    /// <summary>
+    /// The site the snapshot credits ("ffxivcollect.com"), or empty when the file does not say. The views
+    /// print this where the obtain data is shown: the site's terms ask for a link to it, and the full
+    /// credit sentence lives in the file header, the plugin description and docs/data-provenance.md.
+    /// </summary>
+    public string DatasetSource => shelf?.Source ?? string.Empty;
+
     /// <summary>Changes when the items or their owned flags change, so callers can re-query.</summary>
     public int Revision => revision;
 
@@ -465,6 +486,7 @@ internal sealed class MountCatalog
 
             using var reader = new StreamReader(stream, Encoding.UTF8);
             shelf = MountShelf.Parse(reader.ReadToEnd());
+            ReportDatasetHealth();
             return shelf;
         }
         catch (Exception ex)
@@ -477,6 +499,48 @@ internal sealed class MountCatalog
 
             shelf = MountShelf.Parse("{}");
             return shelf;
+        }
+    }
+
+    /// <summary>
+    /// Says once, at load, what the shipped snapshot is: which generator shape wrote it, and whether
+    /// it was built without the site. A mismatch is not fatal - the rows are still worth reading -
+    /// but it is exactly the thing that is invisible until a player reports a field that is suddenly
+    /// empty, so it is logged rather than guessed at.
+    /// </summary>
+    private void ReportDatasetHealth()
+    {
+        if (shelf is null || shelf.Count == 0)
+        {
+            return;
+        }
+
+        if (shelf.IsNewer)
+        {
+            log.Error(
+                "The embedded obtain data was written by generator schema v{Found}, but this build reads v{Reads}; fields it does not know are ignored.",
+                shelf.SchemaVersion,
+                MountShelf.CurrentSchemaVersion);
+        }
+        else if (shelf.IsStale)
+        {
+            log.Warning(
+                "The embedded obtain data was written by generator schema v{Found}, older than the v{Reads} this build reads; anything added since is missing.",
+                shelf.SchemaVersion,
+                MountShelf.CurrentSchemaVersion);
+        }
+
+        if (shelf.IsSheetOnly)
+        {
+            log.Warning(
+                "The embedded obtain data was built offline (schema v{Schema}, {Count} mounts): patches and obtain sources were not refreshed for this build.",
+                shelf.SchemaVersion,
+                shelf.Count);
+        }
+
+        if (!shelf.HasAttribution)
+        {
+            log.Warning("The embedded obtain data carries no attribution for its source ({Source}); the credit line cannot be shown.", shelf.Source);
         }
     }
 }

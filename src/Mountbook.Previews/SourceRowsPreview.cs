@@ -65,6 +65,9 @@ public sealed class SourceRowsPreview : IPreviewScreen
             // both fixed here, so the image cannot drift with a player's bags.
             CostText = "12,000 Seafarer's Cowries - you have 3,400, 8,600 to go",
             ItemName = "Aithon Whistle",
+            // The credit the shipped dataset carries, so the golden proves it draws under the list (and
+            // proves the pane still fits with one more footnote in it).
+            DatasetSource = "ffxivcollect.com",
             Ownership = MountOwnership.All,
             Expansion = MountExpansion.All,
             Order = MountOrder.Name,

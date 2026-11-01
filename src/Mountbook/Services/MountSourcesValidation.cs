@@ -54,6 +54,20 @@ public sealed record MountSourcesValidationOptions
 
     /// <summary>How many ids one finding lists before it says "and N more".</summary>
     public int MaxListedIds { get; init; } = 10;
+
+    /// <summary>
+    /// The largest snapshot that may ship: 120 KB. The file is embedded in the assembly and
+    /// downloaded by every player, so the budget is enforced here rather than rediscovered when the
+    /// package grows - metadata measures 83 KB and the API's description copy would take it to
+    /// 251 KB, which is the trade this number protects.
+    /// </summary>
+    public int MaxBytes { get; init; } = 122_880;
+
+    /// <summary>
+    /// The candidate file's size on disk, when the caller knows it. Null means "measure the text",
+    /// which is the same number for the UTF-8 the generator writes (no BOM).
+    /// </summary>
+    public long? CandidateBytes { get; init; }
 }
 
 /// <summary>
@@ -64,6 +78,7 @@ public sealed record MountSourcesValidationReport(
     int CandidateCount,
     int BaselineCount,
     int SheetCount,
+    long CandidateBytes,
     IReadOnlyList<MountSourcesIssue> Issues)
 {
     /// <summary>True when the snapshot may be committed: no finding is an error.</summary>
@@ -87,6 +102,7 @@ public sealed record MountSourcesValidationReport(
         text.Append(CountText(WarningCount, "warning")).Append(", ");
         text.Append(CountText(CountOf(MountSourcesIssueSeverity.Note), "note")).Append(")").Append(Environment.NewLine);
         text.Append("  candidate ").Append(CandidateCount).Append(" rows");
+        text.Append(" (").Append(Kilobytes(CandidateBytes)).Append(')');
         text.Append(" | baseline ").Append(BaselineCount > 0 ? BaselineCount.ToString(CultureInfo.InvariantCulture) : "none");
         text.Append(" | sheet ").Append(SheetCount > 0 ? SheetCount.ToString(CultureInfo.InvariantCulture) : "not supplied");
         text.Append(Environment.NewLine);
@@ -110,6 +126,7 @@ public sealed record MountSourcesValidationReport(
         text.Append("# Mount sources validation - ").Append(IsValid ? "passed" : "FAILED").Append('\n').Append('\n');
         text.Append("| | |\n| --- | --- |\n");
         text.Append("| Candidate rows | ").Append(CandidateCount).Append(" |\n");
+        text.Append("| Candidate size | ").Append(Kilobytes(CandidateBytes)).Append(" |\n");
         text.Append("| Committed rows | ").Append(BaselineCount > 0 ? BaselineCount.ToString(CultureInfo.InvariantCulture) : "none").Append(" |\n");
         text.Append("| Mount sheet ids | ").Append(SheetCount > 0 ? SheetCount.ToString(CultureInfo.InvariantCulture) : "not supplied").Append(" |\n");
         text.Append("| Errors | ").Append(ErrorCount).Append(" |\n");
@@ -146,6 +163,10 @@ public sealed record MountSourcesValidationReport(
 
     private static string CountText(int count, string noun) =>
         count.ToString(CultureInfo.InvariantCulture) + " " + noun + (count == 1 ? string.Empty : "s");
+
+    /// <summary>Bytes as "108.4 KB (110,738 bytes)", the two numbers a budget conversation needs.</summary>
+    private static string Kilobytes(long bytes) =>
+        (bytes / 1024.0).ToString("0.0", CultureInfo.InvariantCulture) + " KB (" + bytes.ToString("N0", CultureInfo.InvariantCulture) + " bytes)";
 }
 
 /// <summary>
@@ -210,6 +231,24 @@ public static class MountSourcesValidator
     /// <summary>Community ownership percentages moved: the site recounts daily.</summary>
     public const string OwnershipDriftCode = "ownership-drift";
 
+    /// <summary>The snapshot declares no schema version, so a stale file cannot be told from a fresh one.</summary>
+    public const string SchemaMissingCode = "schema-missing";
+
+    /// <summary>The snapshot's schema version is not the one this build reads.</summary>
+    public const string SchemaVersionCode = "schema-version";
+
+    /// <summary>The snapshot does not credit the volunteer project it came from.</summary>
+    public const string AttributionMissingCode = "attribution-missing";
+
+    /// <summary>The snapshot is bigger than the size budget it ships under.</summary>
+    public const string SizeBudgetCode = "size-budget";
+
+    /// <summary>A row carries the API's own description copy, which the game's sheets already provide.</summary>
+    public const string DescriptionCopyCode = "description-copy";
+
+    /// <summary>The snapshot was built offline, so nothing in it was refreshed from the site.</summary>
+    public const string SheetOnlyCode = "enrichment-sheet-only";
+
     /// <summary>No sheet ids were supplied, so ids were checked for shape only.</summary>
     public const string SheetSkippedCode = "sheet-skipped";
 
@@ -239,9 +278,11 @@ public static class MountSourcesValidator
         MountIdScan scan = ScanIds(candidateJson);
 
         var issues = new List<MountSourcesIssue>();
+        long candidateBytes = options.CandidateBytes ?? Encoding.UTF8.GetByteCount(candidateJson);
 
+        CheckHeader(candidate, candidateJson, candidateBytes, issues, options);
         CheckIds(scan, issues, options);
-        CheckRowCount(candidate.Count, baseline?.Count ?? 0, issues, options);
+        CheckRowCount(candidate.Count, baseline?.Count ?? 0, candidate.IsSheetOnly, issues, options);
         CheckSheet(candidate, sheet, issues, options);
         CheckDisappeared(candidate, baseline, issues, options);
         CheckSources(candidate, baseline, issues, options);
@@ -252,7 +293,109 @@ public static class MountSourcesValidator
             candidate.Count,
             baseline?.Count ?? 0,
             sheet?.Count ?? 0,
+            candidateBytes,
             Order(issues));
+    }
+
+    /// <summary>
+    /// Checks what the document says about itself: the schema version it was written in, the credit
+    /// line for the volunteer project the data comes from, the size it has to fit in, and whether it
+    /// carries the API's description copy (which the game's own sheets already provide, and which is
+    /// what would blow the budget). A snapshot built offline is a warning, not an error: it is a
+    /// deliberate fallback, but it means nothing in it was refreshed.
+    /// </summary>
+    private static void CheckHeader(
+        MountShelf candidate,
+        string candidateJson,
+        long candidateBytes,
+        List<MountSourcesIssue> issues,
+        MountSourcesValidationOptions options)
+    {
+        if (candidate.SchemaVersion == MountShelf.LegacySchemaVersion)
+        {
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Error,
+                SchemaMissingCode,
+                $"The snapshot declares no schemaVersion, so this build cannot tell a stale file from a fresh one (it reads v{MountShelf.CurrentSchemaVersion}). Regenerate it with tools/generate-mount-sources.ps1."));
+        }
+        else if (candidate.SchemaVersion != MountShelf.CurrentSchemaVersion)
+        {
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Error,
+                SchemaVersionCode,
+                $"The snapshot is schema v{candidate.SchemaVersion}, but this build reads v{MountShelf.CurrentSchemaVersion}. Regenerate it with the generator from this tree, or the fields added since will be silently missing."));
+        }
+
+        if (!candidate.HasAttribution)
+        {
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Error,
+                AttributionMissingCode,
+                "The snapshot carries no attribution (attribution + attributionUrl), and the obtain data is a volunteer community project's work: it has to be credited where it is shown, in the plugin description and in the notices."));
+        }
+
+        if (candidateBytes > options.MaxBytes)
+        {
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Error,
+                SizeBudgetCode,
+                $"The snapshot is {candidateBytes} bytes, over the {options.MaxBytes}-byte budget. The file is embedded in the assembly and downloaded by every player: drop a field (the API's description/tooltip copy is the usual offender at +168 KB) rather than raising the budget."));
+        }
+
+        int withDescription = CountDescriptionCopy(candidateJson);
+        if (withDescription > 0)
+        {
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Error,
+                DescriptionCopyCode,
+                $"{withDescription} mount(s) carry the API's own description/enhancedDescription/tooltip copy. The plugin reads that text from the game's MountTransient sheet, so the copy is both a duplicate and the reason the file would leave the size budget."));
+        }
+
+        if (candidate.IsSheetOnly)
+        {
+            issues.Add(new MountSourcesIssue(
+                MountSourcesIssueSeverity.Warning,
+                SheetOnlyCode,
+                $"The snapshot says it was built offline (enrichment \"{MountShelfHeader.SheetOnlyEnrichment}\"): {candidate.Count} mounts keep whatever the committed file carried and nothing was refreshed from ffxivcollect. Ship it only when the site is unreachable and the alternative is no snapshot at all."));
+        }
+    }
+
+    /// <summary>
+    /// Counts the rows carrying a member the plugin never reads because the game's sheets provide it.
+    /// </summary>
+    private static int CountDescriptionCopy(string json)
+    {
+        using JsonDocument document = JsonDocument.Parse(json, new JsonDocumentOptions
+        {
+            AllowTrailingCommas = true,
+            CommentHandling = JsonCommentHandling.Skip,
+        });
+
+        if (document.RootElement.ValueKind != JsonValueKind.Object
+            || !document.RootElement.TryGetProperty("mounts", out JsonElement mounts)
+            || mounts.ValueKind != JsonValueKind.Array)
+        {
+            return 0;
+        }
+
+        var count = 0;
+        foreach (JsonElement mount in mounts.EnumerateArray())
+        {
+            if (mount.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            if (mount.TryGetProperty("description", out _)
+                || mount.TryGetProperty("enhancedDescription", out _)
+                || mount.TryGetProperty("enhanced_description", out _)
+                || mount.TryGetProperty("tooltip", out _))
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     /// <summary>
@@ -348,11 +491,22 @@ public static class MountSourcesValidator
     private static void CheckRowCount(
         int candidateCount,
         int baselineCount,
+        bool sheetOnly,
         List<MountSourcesIssue> issues,
         MountSourcesValidationOptions options)
     {
         int lowest = Math.Max(options.MinimumCount, baselineCount > 0 ? baselineCount - options.AllowedShrink : 0);
         int highest = baselineCount > 0 ? baselineCount + options.AllowedGrowth : int.MaxValue;
+
+        // A sheet-only snapshot is measured against the game's Mount sheet, not against the committed
+        // file: it may legitimately carry every sheet row (the disaster-recovery shape) or exactly the
+        // committed rows (the carry-over shape), and CheckSheet/CheckDisappeared already prove that
+        // every id is a mount and that none was dropped. The band would only fire on the first shape.
+        if (sheetOnly)
+        {
+            lowest = options.MinimumCount;
+            highest = int.MaxValue;
+        }
 
         if (candidateCount < lowest)
         {
@@ -511,10 +665,18 @@ public static class MountSourcesValidator
 
         if (patchless.Count > 0)
         {
-            issues.Add(new MountSourcesIssue(
-                MountSourcesIssueSeverity.Error,
-                PatchMissingCode,
-                $"{patchless.Count} mount(s) carry no patch, so the patch filter and the expansion strip cannot place them: {ListIds(patchless, options)}."));
+            // A sheet-only snapshot has no patch values by construction; the single warning in
+            // CheckHeader already told the reader that nothing was refreshed, so this is not a second
+            // error about the same fact.
+            issues.Add(candidate.IsSheetOnly
+                ? new MountSourcesIssue(
+                    MountSourcesIssueSeverity.Warning,
+                    PatchMissingCode,
+                    $"{patchless.Count} mount(s) carry no patch because the snapshot was built offline: {ListIds(patchless, options)}.")
+                : new MountSourcesIssue(
+                    MountSourcesIssueSeverity.Error,
+                    PatchMissingCode,
+                    $"{patchless.Count} mount(s) carry no patch, so the patch filter and the expansion strip cannot place them: {ListIds(patchless, options)}."));
         }
 
         if (unmapped.Count > 0)

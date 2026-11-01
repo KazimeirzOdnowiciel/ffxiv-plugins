@@ -17,6 +17,18 @@ public sealed class ConfigViewState
     /// <summary>One line of catalog facts for the About row, e.g. <c>369 mounts, 356 with obtain data</c>.</summary>
     public string CatalogText { get; set; } = string.Empty;
 
+    /// <summary>
+    /// The embedded snapshot's own description - source, date and schema version - e.g.
+    /// <c>ffxivcollect.com, 2026-11-01, schema v2</c>. Empty before the catalog is built.
+    /// </summary>
+    public string DatasetText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The site the snapshot credits ("ffxivcollect.com"), drawn as the credit under the dataset row:
+    /// the obtain data is a volunteer community project's work, and its terms ask for the link.
+    /// </summary>
+    public string DatasetSource { get; set; } = string.Empty;
+
     /// <summary>True when the player asked to copy the diagnostics to the clipboard.</summary>
     public bool CopyDiagnosticsRequested { get; set; }
 

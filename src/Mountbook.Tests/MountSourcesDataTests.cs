@@ -63,6 +63,57 @@ public sealed class MountSourcesDataTests
         Assert.False(string.IsNullOrWhiteSpace(document.RootElement.GetProperty("generated").GetString()));
     }
 
+    [Fact]
+    public void ShippedDatasetDeclaresTheSchemaVersionThisBuildReads()
+    {
+        // The reader and the generator are two programs; the number is what tells a stale snapshot
+        // from a fresh one, so a file that does not carry it is a build failure.
+        MountShelf shelf = MountShelf.Parse(ReadDataset());
+
+        Assert.Equal(MountShelf.CurrentSchemaVersion, shelf.SchemaVersion);
+        Assert.False(shelf.IsStale, $"The shipped snapshot is v{shelf.SchemaVersion}, stale for a v{MountShelf.CurrentSchemaVersion} build.");
+        Assert.False(shelf.IsNewer, $"The shipped snapshot is v{shelf.SchemaVersion}, newer than this build reads (v{MountShelf.CurrentSchemaVersion}).");
+        Assert.Equal(MountShelfHeader.FullEnrichment, shelf.Enrichment);
+    }
+
+    [Fact]
+    public void ShippedDatasetCreditsTheVolunteerProjectItComesFrom()
+    {
+        MountShelf shelf = MountShelf.Parse(ReadDataset());
+
+        Assert.True(shelf.HasAttribution, "The shipped snapshot carries no attribution or no attribution URL.");
+        Assert.Contains("FFXIV Collect", shelf.Attribution, StringComparison.Ordinal);
+        Assert.Equal("https://ffxivcollect.com", shelf.AttributionUrl);
+    }
+
+    [Fact]
+    public void ShippedDatasetStaysInsideTheSizeBudget()
+    {
+        // 120 KB: the file is embedded in the assembly and downloaded by every player, and the API's
+        // description copy is the field that would blow it (83 KB of metadata against 251 KB with it).
+        long bytes = new FileInfo(Path.Combine(AppContext.BaseDirectory, DatasetFileName)).Length;
+
+        Assert.True(bytes <= 122_880, $"The snapshot is {bytes} bytes, over the 120 KB budget.");
+    }
+
+    [Fact]
+    public void ShippedDatasetCarriesNoApiProse()
+    {
+        // Every one of these is the site's copy of text the game's own sheets carry; shipping it is
+        // both a duplicate and three times the file.
+        using JsonDocument document = JsonDocument.Parse(ReadDataset());
+
+        foreach (JsonElement mount in document.RootElement.GetProperty("mounts").EnumerateArray())
+        {
+            foreach (string field in new[] { "description", "enhancedDescription", "enhanced_description", "tooltip" })
+            {
+                Assert.False(
+                    mount.TryGetProperty(field, out _),
+                    $"Mount {mount.GetProperty("id").GetUInt32()} carries \"{field}\", the API's own prose.");
+            }
+        }
+    }
+
     private static string ReadDataset()
     {
         string path = Path.Combine(AppContext.BaseDirectory, DatasetFileName);

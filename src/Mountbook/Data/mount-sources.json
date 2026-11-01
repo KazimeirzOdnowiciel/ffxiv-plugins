@@ -1,6 +1,10 @@
 {
+  "schemaVersion": 2,
   "generated": "2026-11-01",
   "source": "ffxivcollect.com",
+  "enrichment": "full",
+  "attribution": "Patch, obtain source and community ownership data from FFXIV Collect, a volunteer community project.",
+  "attributionUrl": "https://ffxivcollect.com",
   "mounts": [
     {
       "id": 1,

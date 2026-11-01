@@ -750,6 +750,21 @@ public sealed partial class MountbookView
                     ImGui.IsItemHovered(),
                     Loc.F("detail.source.tooltip", source.Detail));
             }
+
+            // The credit belongs at the end of the list it is about, not only in the settings window:
+            // these lines are a volunteer project's work, and a row is read far from any About pane.
+            // Drawn only when there is something to credit, so an unenriched mount does not carry a
+            // footnote about data it does not have.
+            if (item.Sources.Count > 0 && state.DatasetSource.Length > 0)
+            {
+                Gw.Text(
+                    FitRole(
+                        Loc.F("detail.obtain.credit", state.DatasetSource),
+                        ImGui.GetContentRegionAvail().X,
+                        Frame.Scale,
+                        TextRole.Footnote),
+                    TextRole.Footnote);
+            }
         }
 
         Gw.EndSection();

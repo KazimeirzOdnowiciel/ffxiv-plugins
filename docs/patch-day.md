@@ -66,6 +66,8 @@ candidate in its scratch directory for inspection. The report is also written as
 | `-ModelMap <file>` | a different model map (default: the `tools/mdlrip` copy) |
 | `-ReportPath <file>` | where the markdown report goes |
 | `-AllowedShrink/-AllowedGrowth/-Minimum` | widen the row band deliberately (see `row-count`) |
+| `-Offline` | build the candidate from the game's `Mount` sheet plus the committed snapshot (the site is down). The candidate says `"enrichment": "sheet-only"` and the validator warns |
+| `-MaxBytes <n>` | the size budget the candidate must stay under (default 122880 = 120 KiB; see `docs/data-provenance.md` §4) |
 
 The script warns when the model map **predates the snapshot's `generated` date** (not the snapshot
 file's timestamp - git checks every file out "now", so a fresh clone would call a fresh map stale): an
@@ -89,11 +91,32 @@ carries a code, and the code is what the table below is for.
 | `mount-added` | note | mounts the committed snapshot did not have | expected on a patch day; cross-check the count against step 1 |
 | `ownership-drift` | note | community ownership percentages moved | the site recounts daily. This is why a regeneration's diff is never empty - it is not the patch's data change |
 | `sheet-coverage` | note | how many `Mount` sheet rows have no obtain data | expected (unavailable mounts and the unnamed placeholder rows) |
+| `schema-missing` | error | the snapshot carries no `schemaVersion` (the first shipped shape) | regenerate with the current generator, or the fields added since are missing without a word |
+| `schema-version` | error | the snapshot's `schemaVersion` is not the one this build reads | regenerate from this tree; a bump lands in the generator and `MountShelf.CurrentSchemaVersion` together |
+| `attribution-missing` | error | the snapshot credits no one (`attribution` + `attributionUrl`) | the obtain data is a volunteer project's work: never ship it uncredited. See `docs/data-provenance.md` §5 |
+| `size-budget` | error | the file is over 120 KiB | drop a field. The API's `description`/`tooltip` copy is the usual offender and is refused separately |
+| `description-copy` | error | rows carry the API's own `description`/`enhancedDescription`/`tooltip` | the game's `MountTransient` sheet already has that text, and the copy triples the file. Take metadata only |
+| `enrichment-sheet-only` | warning | the snapshot was built offline: nothing was refreshed from the site | intended only when the site is unreachable. Read it, say so in the changelog, then commit |
 | `sheet-skipped` | note | no sheet ids were supplied | the ids were only checked for shape. Rerun with the model map before shipping |
 
 The validator judges whether the snapshot can be described honestly. It cannot judge whether the site's
 data is *right*, and it cannot see a `Mount` sheet column being renamed (that is the API audit's job) or
 a new localisation of a source type.
+
+The licence reading behind the attribution and the size budget, and the measurements they come from, are in
+`docs/data-provenance.md` — read it before changing what the generator takes.
+
+### When the site is down
+
+`patch-day.ps1 -Offline` builds the candidate from the game's `Mount` sheet plus the committed
+snapshot: the committed rows are carried over and pruned to the ids the sheet still has, so nothing is
+invented and nothing is lost. With no snapshot to carry over it writes one bare row per sheet id rather
+than an empty file. The candidate declares `"enrichment": "sheet-only"`, the run prints a red banner
+and the validator reports `enrichment-sheet-only` as a warning — it is a decision to ship a snapshot
+whose obtain data was not refreshed, so say so in the changelog. The plugin also shows it: the
+settings window's "Obtain data" row then reads `... (built offline: no obtain data refreshed)`.
+**An online run that comes back short is not a fallback trigger you can ignore**: it throws, writes
+nothing, and leaves the committed file as it was.
 
 ## 4. Goldens
 
@@ -178,3 +201,4 @@ release gate.
 | --- | --- | --- | --- | --- | --- |
 | 2026-11-01 | `5db67a4` | 356 | none | none | first run, followed end to end on a non-patch day to prove the runbook. `mdlrip --resolve` refreshed the model map (450 rows: 33 demihuman, 400 monster, 17 placeholder); the regeneration moved only the `generated` date and five ownership percentages (`ownership-drift`); 13/13 goldens byte-identical; 335 tests in the committed tree (358 in the working tree, which also carried other tasks' uncommitted test files); `build.ps1` packaged 10 plugins and the rest of the path - version bump, artifacts, one commit - was rehearsed in a scratch clone rather than on the live tree (a version bump and a publish are the owner's call); the client pass was skipped because an unattended selling loop was running in the session - the build was checked instead (the Release assembly embeds the 2026-11-01 snapshot, 356 rows), and the in-game pass stays with the 1.0.0 release gate |
 | 2026-11-01 | `(this commit)` | 356 | none | none | replay from a clean worktree at `5db67a4` to prove the runbook end to end on a non-patch day: `-SkipRegenerate` passed (356 rows, 450 sheet ids, 94 uncovered), 335 tests green, `dotnet format --verify-no-changes` clean, 10/10 goldens byte-identical; the offline half was rehearsed with a real bump (0.1.0.0 -> 0.1.0.1): `build.ps1` produced `dist/Mountbook-0.1.0.1.zip` + its icon and rewrote `repo.json`'s version and link, then the worktree was discarded - nothing published. The map-age warning now compares the snapshot's `generated` date instead of file mtimes, because a fresh checkout made it fire on a fresh map |
+| 2026-11-01 | `(this commit)` | 356 | none | none | the snapshot gained its header (`schemaVersion` 2, `generated`, `source`, `enrichment`, `attribution`, `attributionUrl`): rows byte-for-byte unchanged, 110,738 -> 110,953 bytes (108.4 KiB, budget 120 KiB). Validated against the model map (450 sheet ids, 94 uncovered, `sheet-coverage` note only); the offline path rehearsed with `patch-day.ps1 -NoWrite -SkipSheet -Offline` (356 rows carried over, `enrichment-sheet-only` warning, nothing written); a short fetch was proven to throw with nothing written (`-Minimum 5000`, exit 1). 485 tests, `config` and `sources` goldens re-baselined after inspection, thirteen byte-identical. Terms and measurements: `docs/data-provenance.md` |

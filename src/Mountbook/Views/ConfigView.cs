@@ -197,6 +197,13 @@ public sealed class ConfigView
             Gw.Text(state.CatalogText, TextRole.Body);
             Gw.EndRow();
 
+            // Which snapshot this build is actually reading, in the snapshot's own words: source,
+            // date and schema version. It is the one place a player (or a bug report) can see that
+            // the obtain data is old, offline-built, or newer than the plugin.
+            Gw.BeginRow(Loc.T("config.dataset"));
+            Gw.Text(state.DatasetText, TextRole.Body);
+            Gw.EndRow();
+
             // Fitted, not wrapped: a long footnote in a section ran past the pane and forced a
             // horizontal scrollbar (the config golden showed it clipped mid-word).
             Gw.Text(
@@ -205,6 +212,16 @@ public sealed class ConfigView
                     ImGui.GetContentRegionAvail().X,
                     TextRole.Footnote),
                 TextRole.Footnote);
+
+            // The credit, where the data is shown: the snapshot is a volunteer project's work, so the
+            // settings window names the site the file came from instead of leaving the licence to a
+            // file in the repository (docs/data-provenance.md has the reading behind it).
+            if (state.DatasetSource.Length > 0)
+            {
+                Gw.Text(
+                    Fit(Loc.F("config.obtain.credit", state.DatasetSource), ImGui.GetContentRegionAvail().X, TextRole.Footnote),
+                    TextRole.Footnote);
+            }
 
             // A bug report needs version, collection size and theme; one button puts all three on the
             // clipboard instead of asking the player to hunt through logs.

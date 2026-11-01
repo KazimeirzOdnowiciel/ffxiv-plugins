@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
 
 namespace Mountbook.Services;
@@ -7,19 +9,123 @@ namespace Mountbook.Services;
 /// <summary>
 /// The embedded obtain dataset, indexed by mount id. Parsing lives here rather than in the
 /// wiring layer so it can be tested without the game; the JSON shape is the one emitted by
-/// <c>scripts/generate-mount-sources.ps1</c>.
+/// <c>src/Mountbook/tools/generate-mount-sources.ps1</c>.
 /// </summary>
+/// <remarks>
+/// <para>
+/// The document carries a header as well as the rows: <c>schemaVersion</c> (the shape the
+/// generator wrote), <c>generated</c> (the date), <c>enrichment</c> ("full" when ffxivcollect
+/// answered, "sheet-only" when the snapshot was built offline), and the <c>attribution</c> the
+/// plugin shows wherever the data is credited. Reading the version is what lets a snapshot written
+/// by a different generator be <em>detected</em> - a shape this reader does not know is reported
+/// once instead of being half-understood (N4).
+/// </para>
+/// <para>
+/// The header is optional as far as parsing goes: a snapshot with no <c>schemaVersion</c> (the
+/// first shipped shape) still yields its rows, with <see cref="SchemaVersion"/> zero and
+/// <see cref="IsStale"/> true, because losing every obtain line is worse than reading an old one.
+/// </para>
+/// </remarks>
 public sealed class MountShelf
 {
+    /// <summary>
+    /// The shape this reader understands; the generator writes the same number. Kept in the reader
+    /// rather than derived from the file so a snapshot cannot declare its own compatibility.
+    /// </summary>
+    public const int CurrentSchemaVersion = 2;
+
+    /// <summary>The snapshot that ships without a header, i.e. before <see cref="CurrentSchemaVersion"/>.</summary>
+    public const int LegacySchemaVersion = 0;
+
     private readonly Dictionary<uint, MountSources> entries;
 
-    private MountShelf(Dictionary<uint, MountSources> entries)
+    private MountShelf(Dictionary<uint, MountSources> entries, MountShelfHeader header)
     {
         this.entries = entries;
+        Header = header;
     }
 
     /// <summary>How many mounts the dataset carries.</summary>
     public int Count => entries.Count;
+
+    /// <summary>The document's own description of itself: version, date, provenance and enrichment.</summary>
+    public MountShelfHeader Header { get; }
+
+    /// <summary>The shape the snapshot was written in; zero for a file with no <c>schemaVersion</c>.</summary>
+    public int SchemaVersion => Header.SchemaVersion;
+
+    /// <summary>The date the generator ran, or empty when the file does not say.</summary>
+    public string Generated => Header.Generated;
+
+    /// <summary>The site the enrichment came from, or empty when the file does not say.</summary>
+    public string Source => Header.Source;
+
+    /// <summary>Whether the snapshot was built with the site (<c>full</c>) or from the sheets alone.</summary>
+    public string Enrichment => Header.Enrichment;
+
+    /// <summary>The credit line to show beside the data, or empty when the file carries none.</summary>
+    public string Attribution => Header.Attribution;
+
+    /// <summary>The URL the credit line points at, or empty when the file carries none.</summary>
+    public string AttributionUrl => Header.AttributionUrl;
+
+    /// <summary>True when every mount in this snapshot came from the game sheets, not the site.</summary>
+    public bool IsSheetOnly => string.Equals(Enrichment, MountShelfHeader.SheetOnlyEnrichment, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// True when the snapshot was written by an older generator than this build reads: it parses,
+    /// but a field added since may be missing, so its absence is a fact to report, not a surprise.
+    /// </summary>
+    public bool IsStale => SchemaVersion < CurrentSchemaVersion;
+
+    /// <summary>
+    /// True when the snapshot was written by a newer generator than this build reads. The rows are
+    /// still read (a wrong "How to obtain" list is worse than none), but the mismatch is an error
+    /// in the log: the plugin and the data it ships with were built from different versions.
+    /// </summary>
+    public bool IsNewer => SchemaVersion > CurrentSchemaVersion;
+
+    /// <summary>True when the snapshot names the volunteer project it came from and links to it.</summary>
+    public bool HasAttribution =>
+        !string.IsNullOrWhiteSpace(Header.Attribution) && !string.IsNullOrWhiteSpace(Header.AttributionUrl);
+
+    /// <summary>
+    /// One line describing the data for the settings window and the diagnostics block, e.g.
+    /// <c>ffxivcollect.com, 2026-11-01, schema v2</c>, with the two honest exceptions called out:
+    /// a snapshot built offline, and one written by another generator version.
+    /// </summary>
+    public string Describe()
+    {
+        var text = new StringBuilder();
+        text.Append(string.IsNullOrWhiteSpace(Source) ? "unknown source" : Source);
+
+        if (!string.IsNullOrWhiteSpace(Generated))
+        {
+            text.Append(", ").Append(Generated);
+        }
+
+        text.Append(", schema v").Append(SchemaVersion.ToString(CultureInfo.InvariantCulture));
+
+        if (IsSheetOnly)
+        {
+            text.Append(" (built offline: no obtain data refreshed)");
+        }
+
+        if (IsStale)
+        {
+            text.Append(" (older than this build reads: v")
+                .Append(CurrentSchemaVersion.ToString(CultureInfo.InvariantCulture))
+                .Append(')');
+        }
+        else if (IsNewer)
+        {
+            text.Append(" (newer than this build reads: v")
+                .Append(CurrentSchemaVersion.ToString(CultureInfo.InvariantCulture))
+                .Append(')');
+        }
+
+        return text.ToString();
+    }
 
     /// <summary>
     /// Every mount id the dataset carries, in no particular order. Exposed so a caller that has to
@@ -50,9 +156,10 @@ public sealed class MountShelf
         }
 
         var entries = new Dictionary<uint, MountSources>();
+        MountShelfHeader header = ReadHeader(document.RootElement);
         if (!TryGetProperty(document.RootElement, "mounts", out JsonElement mounts))
         {
-            return new MountShelf(entries);
+            return new MountShelf(entries, header);
         }
 
         if (mounts.ValueKind != JsonValueKind.Array)
@@ -80,7 +187,39 @@ public sealed class MountShelf
                 ReadCommunity(mount));
         }
 
-        return new MountShelf(entries);
+        return new MountShelf(entries, header);
+    }
+
+    /// <summary>
+    /// Reads the document header. Every member is optional: an unknown or missing
+    /// <c>schemaVersion</c> becomes zero (the shape that shipped without one), and the strings fall
+    /// back to empty rather than null so no caller has to null-check a credit line.
+    /// </summary>
+    private static MountShelfHeader ReadHeader(JsonElement root)
+    {
+        int schemaVersion = ReadInt32(root, "schemaVersion");
+
+        if (schemaVersion < 0)
+        {
+            schemaVersion = MountShelf.LegacySchemaVersion;
+        }
+
+        return new MountShelfHeader(
+            schemaVersion,
+            ReadString(root, "generated"),
+            ReadString(root, "source"),
+            ReadString(root, "enrichment"),
+            ReadString(root, "attribution"),
+            ReadString(root, "attributionUrl"));
+    }
+
+    private static int ReadInt32(JsonElement element, string name)
+    {
+        return TryGetProperty(element, name, out JsonElement value)
+            && value.ValueKind == JsonValueKind.Number
+            && value.TryGetInt32(out int number)
+            ? number
+            : 0;
     }
 
     /// <summary>Looks one mount's obtain data up by id.</summary>

@@ -265,6 +265,13 @@ public sealed class MountViewState
     /// </summary>
     public string[] SourceLabels { get; set; } = [UiText.AnySource];
 
+    /// <summary>
+    /// The site the shipped snapshot credits ("ffxivcollect.com"), or empty when the file does not say.
+    /// The view draws this under the obtain list rather than naming the site itself: the data is a
+    /// volunteer project's work, and the credit belongs to whatever the file says it came from.
+    /// </summary>
+    public string DatasetSource { get; set; } = string.Empty;
+
     /// <summary>The whistle item's name for the selected mount, or null when it has none.</summary>
     public string? ItemName { get; set; }
 
