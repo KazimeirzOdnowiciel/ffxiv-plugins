@@ -1,0 +1,131 @@
+name: CI
+
+# The gate that release.yml was missing: Mountbook's test suite and its golden
+# renders. release.yml calls this workflow (`uses: ./.github/workflows/ci.yml`),
+# so a red test blocks a release even on a direct push to main; a pull request
+# runs it on its own.
+#
+# Both jobs are deliberately separate: the test project compiles Services/ by
+# path and references no Dalamud assembly, so it needs neither the Dalamud
+# distribution nor a GPU. The golden job builds the plugin and the preview
+# assembly, which do.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Run the test suite
+        shell: pwsh
+        run: |
+          # `dotnet run`, not `dotnet test`: xunit v3 projects are executables and
+          # this is the path that works on every machine (the VSTest testhost wants
+          # a named pipe the sandboxes here do not give it). The runner exits 1 on a
+          # failed fact, so a red test fails this step.
+          #
+          # The project is Dalamud-free on purpose - it has no DALAMUD_HOME and no
+          # PackageReference to the plugin, so a Dalamud type in Services/ breaks
+          # this build instead of hiding in an untested DLL.
+          dotnet run --project src/Mountbook.Tests/Mountbook.Tests.csproj -c Release
+          if ($LASTEXITCODE -ne 0) {
+            throw "the test suite failed (exit $LASTEXITCODE)"
+          }
+
+  goldens:
+    name: Goldens
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Provide Dalamud assemblies
+        shell: pwsh
+        run: |
+          # The preview assembly references the plugin, and the plugin takes its TFM
+          # and its TerraFX/ImGui assemblies from Dalamud.NET.Sdk, which resolves
+          # them from DALAMUD_HOME. The renderer also loads cimgui.dll from there.
+          $zip = Join-Path $env:RUNNER_TEMP "dalamud.zip"
+          $dest = Join-Path $env:RUNNER_TEMP "dalamud"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Invoke-WebRequest -Uri "https://goatcorp.github.io/dalamud-distrib/latest.zip" -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $dest -Force
+          if (-not (Test-Path (Join-Path $dest "Dalamud.dll"))) {
+            throw "Dalamud.dll missing after unpacking the distribution"
+          }
+          "DALAMUD_HOME=$dest" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+          Write-Host "DALAMUD_HOME=$dest"
+
+      - name: Install the preview renderer
+        shell: pwsh
+        run: |
+          # Pinned: the goldens are byte comparisons, so a renderer bump is a
+          # decision, not an update that lands by itself.
+          dotnet tool install --global glasswork.preview --version 0.1.0-beta.2
+          if ($LASTEXITCODE -ne 0) {
+            throw "glasswork.preview install failed (exit $LASTEXITCODE)"
+          }
+
+      - name: Build the preview assembly
+        shell: pwsh
+        run: |
+          dotnet build src/Mountbook.Previews/Mountbook.Previews.csproj -c Release
+          if ($LASTEXITCODE -ne 0) {
+            throw "preview build failed (exit $LASTEXITCODE)"
+          }
+
+      - name: Show the adapters (WARP availability)
+        shell: pwsh
+        run: |
+          # Evidence, not decoration: this runner has no GPU, so the compare below
+          # can only work through the software rasterizer.
+          & (Join-Path $env:USERPROFILE ".dotnet\tools\glasswork-preview.exe") --list-adapters
+
+      - name: Compare every golden on WARP
+        shell: pwsh
+        run: |
+          # --out is not optional: without it the tool prints its help and exits 0,
+          # which reads exactly like a pass.
+          $tool = Join-Path $env:USERPROFILE ".dotnet\tools\glasswork-preview.exe"
+          $assembly = "src/Mountbook.Previews/bin/Release/Mountbook.Previews.dll"
+
+          & $tool --assembly $assembly --compare src/Mountbook.Previews/goldens --out artifacts/previews/Mountbook
+          if ($LASTEXITCODE -ne 0) {
+            throw "a golden moved (exit $LASTEXITCODE): inspect artifacts/previews/Mountbook"
+          }
+
+      - name: Keep the actuals and diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: previews
+          path: artifacts/previews/Mountbook
+          if-no-files-found: ignore

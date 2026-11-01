@@ -22,7 +22,14 @@ permissions:
   contents: write
 
 jobs:
+  # ci.yml is the test gate: tests + golden renders. Reusing it here means a
+  # direct push to main cannot publish a build that its own suite rejects, and
+  # the steps live in one file instead of drifting between two workflows.
+  ci:
+    uses: ./.github/workflows/ci.yml
+
   build-and-release:
+    needs: ci
     runs-on: windows-latest
     steps:
       - name: Check out
