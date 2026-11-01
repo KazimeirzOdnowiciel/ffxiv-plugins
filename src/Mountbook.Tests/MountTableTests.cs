@@ -167,13 +167,20 @@ public sealed class MountTableTests
     }
 
     [Fact]
-    public void OnlyTheOrdersThatAreASecondClickDescend()
+    public void OnlyTheOrdersThatPutTheirLargestKeyOnTopDescend()
     {
-        // Pinned by count as well as by name: a new order that sorts descending has to be named in
+        // Pinned by count as well as by name: a new order that sorts high-first has to be named in
         // Descends, or its caret claims ascending over rows sorted the other way - which is the bug this
-        // whole pair of rules was written for.
+        // whole pair of rules was written for. Which orders those are is measured against the comparators
+        // by MountQueryTests.TheCaretPointsTheWayEveryOrdersRowsRun; this is the one-line reading of the
+        // same fact, so a change to it shows up in the diff of either file.
         Assert.True(MountTable.Descends(MountOrder.NewestFirst));
         Assert.True(MountTable.Descends(MountOrder.CommonestFirst));
+
+        // The two orders their column only has. No second click can flip them, and both put the larger key
+        // first: more seats, and an owned mount over an unowned one.
+        Assert.True(MountTable.Descends(MountOrder.Seats));
+        Assert.True(MountTable.Descends(MountOrder.OwnedFirst));
 
         var descending = 0;
         foreach (MountOrder order in Enum.GetValues<MountOrder>())
@@ -184,7 +191,7 @@ public sealed class MountTableTests
             }
         }
 
-        Assert.Equal(2, descending);
+        Assert.Equal(4, descending);
     }
 
     [Fact]

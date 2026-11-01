@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Mountbook.Services;
@@ -238,6 +239,80 @@ public sealed class MountQueryTests
         Assert.Equal<uint>(expected, Ids(query.Apply(items).ToArray()));
     }
 
+    /// <summary>
+    /// The caret against the rows it claims to describe, for every order at once - the assertion the Seats bug
+    /// was missing. <see cref="SeatsOrderIsDescendingThenName"/> pins the comparator, and MountTableTests pinned
+    /// <see cref="MountTable.Descends"/> against its own <see cref="MountTable.DescribedBy"/>, so a hand-kept
+    /// direction could pass both while the header drew "ascending" over rows sorted most-seats-first.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The direction is measured rather than restated: a probe shelf whose four mounts each carry a distinct
+    /// value in every column is sorted by the production comparator, and the run between its first and last
+    /// keys is what the caret has to claim. The names run A to D while every other key runs D to A, so a
+    /// comparator that fell back to the name - an unknown price, say - is caught instead of reading as a
+    /// direction.
+    /// </para>
+    /// <para>
+    /// <see cref="MountOrder.Random"/> is the one order with no key of its own: it draws the name column's
+    /// caret because it shares ImGui's table id with the name order, so that is what is pinned for it. And the
+    /// Cheapest direction is measured with prices, which is the state the caret is honest in: with no price read
+    /// the rows fall back to the name and the caret still names the price column, but name order is ascending
+    /// like price order, so only the column it names is ahead of the data, not the direction - and the empty
+    /// price column is what says so. That is why the header is left alone rather than taught to apologise.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void TheCaretPointsTheWayEveryOrdersRowsRun()
+    {
+        MountShelfItem[] probe =
+        [
+            Item(1, "Alpha", patch: "7.0", owned: true, seats: 4, ownedPercent: 10),
+            Item(2, "Bravo", patch: "6.0", owned: false, seats: 8, ownedPercent: 0.5),
+            Item(3, "Charlie", patch: "5.0", owned: true, seats: 2, ownedPercent: 50),
+            Item(4, "Delta", patch: "4.0", owned: false, seats: 1, ownedPercent: 2),
+        ];
+
+        Dictionary<uint, int> prices = new()
+        {
+            [1u] = 300_000,
+            [2u] = 1_000_000,
+            [3u] = 100_000,
+            [4u] = 2_000_000,
+        };
+
+        foreach (MountOrder order in Enum.GetValues<MountOrder>())
+        {
+            TableSort sort = TableSort.At(order);
+
+            if (order == MountOrder.Random)
+            {
+                // No key of its own, so no direction to measure: the shuffled order draws the name
+                // column's caret because it shares ImGui's table id with the name order.
+                Assert.Equal(MountTable.NameColumn, sort.Column);
+                Assert.False(sort.Descending);
+                continue;
+            }
+
+            var query = new MountQuery(null, MountOwnership.All, MountExpansion.All, order);
+            MountShelfItem[] rows = [.. query.Apply(probe, prices: prices, shuffleSeed: 1)];
+
+            Func<MountShelfItem, IComparable> keyOf = KeyOf(sort.Column, prices);
+            int run = keyOf(rows[0]).CompareTo(keyOf(rows[^1]));
+
+            // The probe separates the rows on every column, so a zero here means the key read is wrong,
+            // not that the order is in two directions at once.
+            Assert.NotEqual(0, run);
+            Assert.Equal(run < 0, !sort.Descending);
+
+            // The header draws from the pair the repair accepts: an order reporting its own column as
+            // ascending - the state the Seats bug was seen in - has to be repaired exactly when its rows run
+            // the other way, and otherwise left alone so the caret is not rewritten every frame.
+            Assert.True(MountTable.DescribedBy(order, sort.Column, sort.Descending));
+            Assert.Equal(sort, TableSort.Observe(order, sort.Column, descending: false, reported: true, pressed: false));
+        }
+    }
+
     [Fact]
     public void OwnedFirstOrdersByOwnershipThenName()
     {
@@ -340,6 +415,21 @@ public sealed class MountQueryTests
         Assert.Equal<uint>(expected, Ids(query.Apply(items, wanted).ToArray()));
     }
 
+    /// <summary>
+    /// The value a column sorts on, which is what its caret's direction is measured against. The price comes
+    /// from the batch read rather than the row, because that is the one the cheapest order sorts by.
+    /// </summary>
+    private static Func<MountShelfItem, IComparable> KeyOf(int column, IReadOnlyDictionary<uint, int> prices) =>
+        column switch
+        {
+            MountTable.PatchColumn => item => (IComparable)MountExpansionRules.PatchValue(item.Patch)!.Value,
+            MountTable.SeatsColumn => item => (IComparable)item.Seats,
+            MountTable.OwnedColumn => item => (IComparable)item.Owned,
+            MountTable.RarityColumn => item => (IComparable)item.Community!.OwnedPercent!.Value,
+            MountTable.PriceColumn => item => (IComparable)prices[item.Id],
+            _ => item => (IComparable)item.Name,
+        };
+
     private static uint[] Ids(MountShelfItem[] items)
     {
         uint[] ids = new uint[items.Length];
@@ -358,7 +448,8 @@ public sealed class MountQueryTests
         bool owned = false,
         int seats = 1,
         string description = "",
-        string sourceDetail = "")
+        string sourceDetail = "",
+        double? ownedPercent = null)
     {
         MountSourceLine[] lines = [];
         if (sourceDetail.Length > 0)
@@ -377,6 +468,7 @@ public sealed class MountQueryTests
             description,
             string.Empty,
             string.Empty,
-            lines);
+            lines,
+            ownedPercent is null ? null : new MountCommunity(ownedPercent));
     }
 }

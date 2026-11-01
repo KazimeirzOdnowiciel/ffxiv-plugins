@@ -115,13 +115,27 @@ public static class MountTable
         };
 
     /// <summary>
-    /// Whether <paramref name="order"/> is the descending half of its column's pair, which is also the way
-    /// its caret has to point: the column is declared as the table's default sort, and a declared default
-    /// carries no direction, so a descending order is drawn ascending until something says otherwise.
+    /// Whether <paramref name="order"/> runs its column's key from high to low, which is also the way its caret
+    /// has to point: the column is declared as the table's default sort, and a declared default carries no
+    /// direction, so a high-first order is drawn ascending until something says otherwise.
     /// </summary>
+    /// <remarks>
+    /// This is a reading of the comparators in <see cref="MountQuery"/>, not a statement about where an order
+    /// sits in a pair. "Seats" and "Owned first" are the only orders their column has and neither is a second
+    /// click on anything, but both put the larger key on top: seats sort <c>right.Seats.CompareTo(left.Seats)</c>
+    /// (the most seats first, which is what the column is for) and the owned bit sorts true first (an owned
+    /// mount outranks an unowned one, which is the order's own name). So both carets point down. Until this
+    /// said so, the Seats caret claimed ascending over rows sorted 8, 4, 4, 4.
+    /// <para>
+    /// Every entry here is bound to the comparator it names by
+    /// <c>MountQueryTests.TheCaretPointsTheWayEveryOrdersRowsRun</c>, which sorts a probe shelf with the real
+    /// comparators and measures the direction of the result. Asserting this list against itself - which is what
+    /// the earlier test did, through <see cref="DescribedBy"/> - is what let the two disagree in the first place.
+    /// </para>
+    /// </remarks>
     /// <param name="order">The order the rows are in.</param>
     public static bool Descends(MountOrder order) =>
-        order is MountOrder.NewestFirst or MountOrder.CommonestFirst;
+        order is MountOrder.Seats or MountOrder.OwnedFirst or MountOrder.NewestFirst or MountOrder.CommonestFirst;
 
     /// <summary>
     /// True when a report of <paramref name="column"/> sorted <paramref name="descending"/> is what

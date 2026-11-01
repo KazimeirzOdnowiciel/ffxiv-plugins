@@ -31,6 +31,7 @@ told about.
 - The table is 32 px rows instead of 48, so 17 fit where 11 did; ownership is one accent dot under "Owned", and the rarity share sits under "Owners" rather than "Collected".
 - The table opens in the order you left it in, with the arrow on that column, and Patch and Owners no longer sort backwards in one direction.
 - Clicking a table heading moves the arrow to it: the arrow used to stay on the column you clicked to leave, while the rows were already in the order you asked for.
+- A heading's arrow now points the way its rows run, so "Seats" and "Owned" show a downward arrow over rows that put the most seats, and an owned mount, first.
 - The expansion strip moves to its own line when the header is too narrow to keep it inline, instead of disappearing.
 - Refresh reports what it did - how many mounts it counted as collected - or why it could not read them.
 - The header's Themes button is gone: Settings, then Appearance, then Open themes opens the same folder.
