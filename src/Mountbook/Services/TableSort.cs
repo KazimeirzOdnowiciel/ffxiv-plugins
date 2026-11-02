@@ -14,12 +14,13 @@ namespace Mountbook.Services;
 /// answers what the header shows, which is the pair the view has to compare against the order.
 /// </para>
 /// <para>
-/// The reason that comparison exists at all: a header click is applied by ImGui to the table being drawn
-/// that frame, i.e. to the id of the order being left (the view gives every order its own table id). Coming
-/// back to that order opens a table still sorted by the column that was clicked to leave it, and ImGui
-/// reports that restored spec only on the table's first frame - not on every frame it is current - so
-/// "apply the report when it fires" left the caret on the column the player had clicked away from while the
-/// rows were already in the order they asked for.
+/// The reason that comparison exists at all: a click is applied by ImGui to the spec during the header row,
+/// i.e. after the frame that drew the caret, and on a column whose spec ImGui gives a direction of its own
+/// (ascending, for a column that was not sorted) - so a click can ask for an order whose caret is the other
+/// way round, and "apply the report when it fires" left the header saying ascending over rows sorted
+/// descending. Reading the live spec on every frame is what lets the view repair it with one write; and
+/// because that write is what the table reports too, a report is only believed for an order when the header
+/// was actually pressed, or the repair would read as a second click.
 /// </para>
 /// </remarks>
 /// <param name="Order">The order the rows are drawn in, which is what the window persists.</param>
@@ -30,7 +31,7 @@ public readonly record struct TableSort(MountOrder Order, int Column, bool Desce
     /// <summary>
     /// The sort <paramref name="order"/> is drawn cleanly as: its own column
     /// (<see cref="MountTable.ColumnFor"/>) and the direction it sorts (<see cref="MountTable.Descends"/>).
-    /// This is both the default the table declares and what a repaired caret is set to.
+    /// This is both the spec the view writes before each header row and what a repaired caret is set to.
     /// </summary>
     /// <param name="order">The order the rows are in.</param>
     public static TableSort At(MountOrder order) =>
@@ -42,10 +43,10 @@ public readonly record struct TableSort(MountOrder Order, int Column, bool Desce
     /// </summary>
     /// <remarks>
     /// <paramref name="reported"/> only says whether the spec was dirty this frame - ImGui reports a click,
-    /// a table's first frame and the buffer it drops, but not a table that becomes current again - so the
-    /// caret is settled against the live spec on every frame instead of inside that branch. A report is
-    /// still only believed for an order when <paramref name="pressed"/> says a header was actually clicked,
-    /// because a restored spec is not a click (<see cref="MountTable.ClickedOrder"/>).
+    /// a table's first frame, and the spec the view writes itself - so the caret is settled against the live
+    /// spec on every frame instead of inside that branch. A report is still only believed for an order when
+    /// <paramref name="pressed"/> says a header was actually clicked, because neither a restored spec nor the
+    /// view's own write is a click (<see cref="MountTable.ClickedOrder"/>).
     /// </remarks>
     /// <param name="order">The order the rows are in, before this frame's click.</param>
     /// <param name="column">The column the table reports as sorted, as <c>Gw.TableSortChanged</c> fills it.</param>

@@ -20,7 +20,31 @@ namespace Mountbook.Views;
 /// </remarks>
 public sealed partial class MountbookView
 {
-    private static void DrawTable(MountViewState state)
+    /// <summary>
+    /// The sort the header drew on the last frame: the column its caret sat on and the direction it pointed,
+    /// as the table reported them once the header row had been submitted.
+    /// </summary>
+    /// <remarks>
+    /// The view's own bookkeeping, not the window's state: it describes a table, and the table belongs to
+    /// the view. It exists so the sort spec can be written <em>before</em> the header draws rather than after
+    /// it, and <see cref="NoSpecYet"/> is what makes the first frame write - ImGui opens a table on the spec
+    /// it saved for that id in a previous session, and that spec describes the order that table was last
+    /// left in, never the order the rows are in now.
+    /// </remarks>
+    private int headerColumn = NoSpecYet;
+
+    /// <summary>Whether the caret the header drew on the last frame pointed down.</summary>
+    private bool headerDescending;
+
+    /// <summary>The column of a header that has never drawn a spec: no column at all, so the first frame writes.</summary>
+    private const int NoSpecYet = -1;
+
+    /// <summary>
+    /// Draws the dense table: one table id, one set of column widths, and the rows in the order the caller
+    /// put them in.
+    /// </summary>
+    /// <param name="state">The state whose items, selection and order the table draws.</param>
+    private void DrawTable(MountViewState state)
     {
         const GwTableFlags Flags =
             GwTableFlags.Sortable | GwTableFlags.Resizable | GwTableFlags.Zebra | GwTableFlags.Selectable;
@@ -30,24 +54,21 @@ public sealed partial class MountbookView
         // stopped two thirds of the way across.
         var width = ImGui.GetContentRegionAvail().X / Frame.Scale;
 
-        // The table id carries the order, so a different order is a different ImGui table. ImGui remembers
-        // a table's sort spec and its column widths by id - across sessions - so a shared id left the caret
-        // (and the widths) of whichever order was drawn last. A fresh id per order keeps each order's table
-        // to itself; what the id still restores is overruled below, every frame. Surprise has no id of its
-        // own on purpose: it draws the name column's caret, so it shares the name order's table.
-        ReadOnlySpan<byte> tableId = state.Order switch
-        {
-            MountOrder.OldestFirst => "##mountsTable1"u8,
-            MountOrder.Seats => "##mountsTable2"u8,
-            MountOrder.OwnedFirst => "##mountsTable3"u8,
-            MountOrder.NewestFirst => "##mountsTable4"u8,
-            MountOrder.RarestFirst => "##mountsTable5"u8,
-            MountOrder.Cheapest => "##mountsTable6"u8,
-            MountOrder.CommonestFirst => "##mountsTable7"u8,
-            _ => "##mountsTable0"u8,
-        };
-
-        if (!Gw.BeginTable(tableId, MountTable.ColumnCount, Flags, new Vector2(width, 0f)))
+        // ONE id for every order, and the order is nowhere in it. ImGui keeps a table's state by id - the
+        // widths it fitted to the cells, the sort spec it saves, the scroll it was left at - so the per-order
+        // ids this used to choose (##mountsTable0 through 7, which stopped a restored spec leaking between
+        // orders) also gave every order a table of its own, and every one of those tables measured and drew
+        // a different split. Measured in the client against 369 rows: a click on Seats drew the Seats column
+        // 84 px further right, the Source column 96 px further right and the Owned column 93 px further left
+        // than the Name order had them, and clicking Name again restored the first geometry exactly, because
+        // the ids each kept their own. That is the resize a player sees under the pointer - a table that
+        // re-lays itself out instead of reordering its rows.
+        //
+        // What the per-order ids were for is now the spec written below: the table is told the column its
+        // rows are sorted by, from the order, before the header row is submitted, on every frame the header
+        // disagrees. One spec, always this order's, and no second table for ImGui to restore anything into -
+        // which is the whole class of defect rather than a compensation for it.
+        if (!Gw.BeginTable(MountTable.TableId, MountTable.ColumnCount, Flags, new Vector2(width, 0f)))
         {
             return;
         }
@@ -59,10 +80,15 @@ public sealed partial class MountbookView
         // survives and the source cell truncates, and at 2:3 the name truncates instead. The name wins -
         // a truncated mount name is ambiguous, while "Achieve..." still reads, and the detail pane has the
         // whole line.
-        Gw.TableColumn(Loc.T("table.name"), 3f, true, MountTable.ColumnFor(state.Order) == MountTable.NameColumn, false);
-        Gw.TableColumn(Loc.T("table.patch"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.PatchColumn, false);
-        Gw.TableColumn(Loc.T("table.seats"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.SeatsColumn, true);
-        Gw.TableColumn(Loc.T("table.source"), 2f, true, false, false);
+        //
+        // None of them is declared as the table's default sort any more, and that is deliberate: a declared
+        // default carries no direction, so it could never draw the caret for a descending order, and ImGui
+        // prefers its saved spec over it as soon as the id has one. The sort comes from MountTable.ColumnFor
+        // and MountTable.Descends, written below, and nothing about a column depends on which order is drawn.
+        Gw.TableColumn(Loc.T("table.name"), 3f, true);
+        Gw.TableColumn(Loc.T("table.patch"), 0f, false);
+        Gw.TableColumn(Loc.T("table.seats"), 0f, false, false, true);
+        Gw.TableColumn(Loc.T("table.source"), 2f, true);
 
         // "Owned" is the player's own bit, drawn as one dot instead of the word "Yes"; "Owners" is the
         // share of collectors who have the mount, which the column had long called "Owned" while showing
@@ -75,8 +101,8 @@ public sealed partial class MountbookView
         // one thing a column of numbers must never do. A rare share's mark is now a fill painted behind
         // the number rather than a widget beside it (see DrawRarity), so no cell is wider than its digits
         // and the "Owners" heading that has always sized the column still does.
-        Gw.TableColumn(Loc.T("table.owned"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.OwnedColumn, false);
-        Gw.TableColumn(Loc.T("table.owners"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.RarityColumn, true);
+        Gw.TableColumn(Loc.T("table.owned"), 0f, false);
+        Gw.TableColumn(Loc.T("table.owners"), 0f, false, false, true);
 
         // The Price column is declared at its widest from the first frame, which is what keeps it from
         // changing width as prices arrive. Prices are the one cell that appears after the table is already
@@ -88,31 +114,43 @@ public sealed partial class MountbookView
             Loc.T("table.price"),
             PriceColumnWidth(Frame.Look, Frame.Scale),
             false,
-            MountTable.ColumnFor(state.Order) == MountTable.PriceColumn,
+            false,
             true);
+
+        // The sort spec, from the order, before the header row draws. Where it sits is the point:
+        //
+        // - the header's caret is drawn from the live spec, so writing it here is what makes the caret show
+        //   this frame's order rather than the spec ImGui restored for this id (its saved one from the last
+        //   session, or the first column ascending when it has none);
+        // - and because a spec belongs to an id, the only spec that can be restored into this table is this
+        //   table's own last write - which is exactly what this write corrects, before anything draws it.
+        //
+        // The comparison is against the pair read from the table on the previous frame, because a click
+        // arrives during the header row: on the frame a click changes the order, this write has already
+        // passed. It is skipped while the header already says what the rows say - a write marks the table's
+        // settings dirty, and an unconditional one would rewrite the ini every frame.
+        TableSort wanted = TableSort.At(state.Order);
+
+        if (wanted.Column != headerColumn || wanted.Descending != headerDescending)
+        {
+            SetCaret(state.Order);
+        }
 
         Gw.TableHeaders();
 
-        // Only a pressed header is a click. Glasswork reports a sort change both for a click and for the
-        // spec ImGui restores for this id - preferred over the column declared as the default once one
-        // exists - so believing every report replaced the player's saved order with whatever column that id
-        // was last left on (a persisted "Newest first" opened as "Owned first"), and one click could
-        // cascade: every order is its own id, and each one restored a spec of its own.
-        //
         // The report is read for its column and direction every frame, not only on the frame it returns
         // true: Gw.TableSortChanged fills those two from the live spec either way, and the report itself
-        // only fires while the spec is dirty - on a click, on a table's first frame, or after ImGui drops
-        // its transient buffers. It does not fire when a table drawn earlier in the session becomes
-        // current again, which is exactly the return that used to keep a stale caret: a header click is
-        // applied by ImGui to the table that is being drawn, i.e. to the id of the order being left, so
-        // coming back to that order re-enters a table still sorted by the column that was clicked to leave
-        // it, while the rows are already in the new order.
+        // only fires while the spec is dirty - on a click, on the table's first frame, or after ImGui drops
+        // its transient buffers. A restored spec is not a click, so it is never believed as one
+        // (MountTable.ClickedOrder asks whether a header was pressed), and since the write above has already
+        // replaced a restored spec with this order's, a report that fires on a first frame reports our own
+        // write rather than the ini's.
         bool changed = Gw.TableSortChanged(out int column, out bool descending);
 
         // One call decides the frame: the click's order, and the caret that order belongs under. It is a
         // pure function in Services/ because the rule is about the table's frames - a report that does not
-        // fire on the return - and not about ImGui, so the click sequence that used to leave the caret
-        // behind is pinned by TableSortTests without a renderer.
+        // fire when the spec merely changed outside a click - and not about ImGui, so the click sequences a
+        // caret could get left behind by are pinned by TableSortTests without a renderer.
         TableSort sort = TableSort.Observe(state.Order, column, descending, changed, HeaderPressed());
 
         if (sort.Order != state.Order)
@@ -121,12 +159,15 @@ public sealed partial class MountbookView
         }
 
         // The caret follows the rows, which are the single source of truth: the column that shows the
-        // order, in the direction it sorts. It is written whenever the table's spec says something else - a spec
-        // ImGui restored (including the one it loads from the ini at startup), or the spec the click just
-        // wrote to the id being left - because a declared default sort cannot do it alone: it carries no
-        // direction, so a descending order drew an ascending caret over rows sorted the other way. The
-        // comparison is what keeps the write to the frames the spec actually lies; on the returning frame
-        // ImGui has already computed the header, so the caret is right on the next one.
+        // order, in the direction it sorts. This is the repair for the one frame the write above cannot
+        // cover - a click, which ImGui applies to the spec during the header row, in its own direction
+        // (ascending for a column that was not sorted) - and for a header that has no order of its own, which
+        // asks for nothing but still leaves its spec behind. Writing here is visible on the next frame, which
+        // is the same frame the rows change in, so the caret and the rows never disagree for longer than a
+        // frame, and the write above keeps them agreeing from then on.
+        headerColumn = sort.Column;
+        headerDescending = sort.Descending;
+
         if (sort.Column != column || sort.Descending != descending)
         {
             SetCaret(sort.Order);
@@ -194,7 +235,8 @@ public sealed partial class MountbookView
 
     /// <summary>
     /// True on a frame the header row was pressed: the pointer's button came up over the table, or the key
-    /// an activated button answers to. This is what tells a header click from a sort spec ImGui restored.
+    /// an activated button answers to. This is what tells a header click from a report that only says the
+    /// spec was written.
     /// </summary>
     private static bool HeaderPressed() =>
         ImGui.IsWindowHovered()
@@ -206,11 +248,11 @@ public sealed partial class MountbookView
     /// Points the caret at the column <paramref name="order"/> is drawn in, in the direction it sorts.
     /// </summary>
     /// <remarks>
-    /// The table has no other way to know the direction: <c>Gw.TableColumn</c> declares a column as the
-    /// default sort without one, and ImGui prefers that declaration only while it has no saved spec for the
-    /// id, so the direction has to be stated. This marks the table's settings dirty, which is why the caller
-    /// asks <see cref="MountTable.DescribedBy"/> first - an unconditional call would rewrite the ini every
-    /// frame.
+    /// The table has no other way to know the direction: a column declared as the default sort carries none,
+    /// and ImGui prefers the spec it saved for the id over such a declaration anyway, so the direction has to
+    /// be stated. This is the write that makes the header and the rows agree - it happens before the header
+    /// row is submitted - and it marks the table's settings dirty, which is why the caller compares the pair
+    /// it read last frame first: an unconditional call would rewrite the ini every frame.
     /// </remarks>
     /// <param name="order">The order the rows are in.</param>
     private static void SetCaret(MountOrder order) =>

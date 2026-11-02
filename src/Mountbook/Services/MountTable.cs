@@ -56,6 +56,27 @@ public static class MountTable
     /// <summary>How many columns the table declares.</summary>
     public const int ColumnCount = 7;
 
+    /// <summary>
+    /// The id the table is drawn under, for every order: one table, one set of column widths, one scroll.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ImGui keeps a table's state by id - the widths it fitted to the cells, the sort spec it saves, the
+    /// scroll it was left at - and all of it is restored the next time that id is drawn. So the id is the
+    /// unit of layout, and choosing it from the order (an id per order, which is what the view did while the
+    /// caret was fighting the spec ImGui restored) gave every order a layout of its own: clicking a heading
+    /// drew a table that had never measured this list, and coming back to an order restored the geometry of a
+    /// table drawn minutes earlier. One id can do neither.
+    /// </para>
+    /// <para>
+    /// The sort is then not the id's business at all: the view writes the spec <see cref="TableSort.At"/>
+    /// answers - this order's column, in the direction it sorts - before the header row is drawn, so the
+    /// header draws the order the rows are in and ImGui has no other table's spec to prefer. There is
+    /// deliberately no member here that takes an order and returns an id.
+    /// </para>
+    /// </remarks>
+    public static ReadOnlySpan<byte> TableId => "##mountsTable"u8;
+
     /// <summary>The patch a mount arrived in, or empty when the dataset does not record one.</summary>
     /// <param name="item">The mount to describe.</param>
     /// <exception cref="ArgumentNullException"><paramref name="item"/> is null.</exception>
@@ -194,12 +215,10 @@ public static class MountTable
     /// <remarks>
     /// <para>
     /// Glasswork reports a sort change for a click and for the sort spec ImGui restores from its own saved
-    /// settings as well - the settings are kept per table id, across sessions, and ImGui ignores the column
-    /// the table declares as its default once it has any. Since the id is the order, the restored spec is
-    /// whatever column that order was last left on: clicking "Owned" while the list was on "Newest first"
-    /// saved Owned under that order's id, and the next session opened the list on Owned first instead. A
-    /// report is therefore only believed on a frame the header was actually pressed - a click is what the
-    /// report is for, and a restored spec is not a click.
+    /// settings as well - the settings are kept per table id, across sessions, and ImGui prefers them over any
+    /// column a table declares. The view writes its own spec before each header row (see <see cref="TableId"/>),
+    /// so a report now fires either for that write or for a click; the write is not a click and must not be
+    /// read as a change of order, which is why a report is only believed on a frame the header was pressed.
     /// </para>
     /// <para>
     /// The direction is <paramref name="descending"/> because that is the one <c>Gw.TableSortChanged</c>
