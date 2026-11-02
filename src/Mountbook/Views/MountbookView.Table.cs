@@ -77,7 +77,19 @@ public sealed partial class MountbookView
         // and the "Owners" heading that has always sized the column still does.
         Gw.TableColumn(Loc.T("table.owned"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.OwnedColumn, false);
         Gw.TableColumn(Loc.T("table.owners"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.RarityColumn, true);
-        Gw.TableColumn(Loc.T("table.price"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.PriceColumn, false);
+
+        // The Price column is declared at its widest from the first frame, which is what keeps it from
+        // changing width as prices arrive. Prices are the one cell that appears after the table is already
+        // on screen, and a fit-content column widened when the read landed - the name, patch, seats and
+        // source all slid left under the pointer, and a column that also filled a chunk at a time looked
+        // like it was flickering. A fixed width makes the column's shape a property of the table and not
+        // of what has been answered so far. It is a column of numbers, so it right-aligns like Owners.
+        Gw.TableColumn(
+            Loc.T("table.price"),
+            PriceColumnWidth(Frame.Look, Frame.Scale),
+            false,
+            MountTable.ColumnFor(state.Order) == MountTable.PriceColumn,
+            true);
 
         Gw.TableHeaders();
 
@@ -153,15 +165,32 @@ public sealed partial class MountbookView
             DrawRarity(item, Frame.Look);
 
             // Empty until the prices are read: a column of dashes would read as "free", and the row
-            // order already parks the unpriced mounts at the end when this is the sort column.
+            // order already parks the unpriced mounts at the end when this is the sort column. Which rows
+            // are worth a number is MountPriceColumn's call, the same one the window's fetch rule uses.
             Gw.TableCell();
             Gw.TableText(
-                PriceLabel(state.Prices.TryGetValue(item.Id, out int price) ? price : 0),
+                PriceLabel(MountPriceColumn.PriceOf(state.Prices, item.Id)),
                 TextRole.Footnote);
         }
 
         Gw.EndTable();
     }
+
+    /// <summary>
+    /// The width the Price column is declared at, in logical units: the widest price the column can print,
+    /// plus one cell's padding each side.
+    /// </summary>
+    /// <remarks>
+    /// Logical, not pixels: <see cref="TextWidth"/> measures at <paramref name="scale"/> and
+    /// <c>Gw.TableColumn</c> multiplies a fixed width by <c>Frame.Scale</c> itself (the same unit rule as
+    /// every other <c>Gw.*</c> size). The padding is Glasswork's own - the table pushes
+    /// <c>CellPadding = SpaceMedium</c> - so the number is the match for its cells and not a guess.
+    /// </remarks>
+    /// <param name="look">The Look whose type and spacing the cells are drawn with.</param>
+    /// <param name="scale">The UI scale the text is measured at.</param>
+    private static float PriceColumnWidth(Look look, float scale) =>
+        (TextWidth(MountTable.PriceText(MountTable.WidestPrice), TextRole.Footnote, scale) / scale)
+        + (look.SpaceMedium * 2f);
 
     /// <summary>
     /// True on a frame the header row was pressed: the pointer's button came up over the table, or the key

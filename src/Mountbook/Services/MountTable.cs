@@ -37,8 +37,21 @@ public static class MountTable
     /// <summary>Index of the community-ownership column ("Owners": the share of collectors who have it).</summary>
     public const int RarityColumn = 5;
 
-    /// <summary>Index of the market-price column, empty until prices have been read.</summary>
+    /// <summary>Index of the market-price column: the cheapest known price, empty until prices have been read.</summary>
     public const int PriceColumn = 6;
+
+    /// <summary>
+    /// The widest price the Price column reserves room for, in gil: <c>999,999,999</c>.
+    /// </summary>
+    /// <remarks>
+    /// The column is declared at a fixed width measured from this label rather than fitted to whatever the
+    /// rows happen to carry. A price is the one cell that can appear after the table is already on screen -
+    /// the read lands a few seconds into a session - and a fitted column widened when it did, moving the
+    /// name, the patch, the seats and the source under the pointer. Nine digits is every price a mount is
+    /// actually listed at, with room to spare; a price wider than this is truncated like any other
+    /// over-long cell, which the tooltip and the detail pane cover.
+    /// </remarks>
+    public const int WidestPrice = 999_999_999;
 
     /// <summary>How many columns the table declares.</summary>
     public const int ColumnCount = 7;

@@ -8,7 +8,8 @@ using Mountbook.Services;
 namespace Mountbook.Game;
 
 /// <summary>
-/// Reads market prices from Universalis, off the draw thread, one item at a time.
+/// Reads market prices from Universalis, off the draw thread: one item for the detail pane, one batch for
+/// the table's Price column.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -210,8 +211,8 @@ internal sealed class MarketPrices : IDisposable
     }
 
     /// <summary>
-    /// Counts the batch reads finished so far. The window re-queries only when this changes, which is
-    /// what puts a newly read price into the row order without re-sorting every frame.
+    /// Counts the complete price sets published so far. The window re-queries only when this changes, which
+    /// is what puts a newly read price into the row order without re-sorting every frame.
     /// </summary>
     public int PriceVersion
     {
@@ -241,6 +242,16 @@ internal sealed class MarketPrices : IDisposable
     /// shelf by price costs one round trip rather than one per row. Never blocks, never throws at the
     /// caller; a chunk that fails leaves the items it covered unasked, so a later attempt can retry them.
     /// </summary>
+    /// <remarks>
+    /// The answer is published once, as one set, when the last chunk has landed - not one chunk at a time.
+    /// The window rebuilds the list and the table's Price column from <see cref="PriceVersion"/>, so a set
+    /// published per chunk drew a column that filled fifteen rows every six seconds and re-sorted the rows
+    /// under the pointer five times over. Prices are also the one cell that can appear after a row is
+    /// already drawn, which is exactly the state that must not be visible as an in-progress one: the column
+    /// either has what the last complete read answered, or it has nothing yet and every row draws empty.
+    /// A read where every chunk failed publishes nothing at all and leaves the previous set in place, so no
+    /// row ever shows a number a later read has replaced with a partial one.
+    /// </remarks>
     /// <param name="itemIds">The item ids to price.</param>
     public void RequestBatch(IReadOnlyList<uint> itemIds)
     {
@@ -290,6 +301,10 @@ internal sealed class MarketPrices : IDisposable
             var failures = 0;
             var pending = new Stack<uint[]>(chunks);
 
+            // Staged, not published: a chunk's answer joins this set, and the set is swapped in once when
+            // the last chunk has landed. See the remarks on this method for why it is not per chunk.
+            var read = new Dictionary<uint, int>(itemIds.Count);
+
             while (pending.Count > 0)
             {
                 uint[] chunk = pending.Pop();
@@ -300,21 +315,17 @@ internal sealed class MarketPrices : IDisposable
                     string body = await http.GetStringAsync(MountMarket.BatchUrl(location, chunk))
                         .ConfigureAwait(false);
 
-                    var read = new Dictionary<uint, int>();
-                    MountMarket.ParseBatch(body, read);
+                    var answered = new Dictionary<uint, int>();
+                    MountMarket.ParseBatch(body, answered);
 
-                    // Published per chunk, not once at the end: the list re-sorts as each chunk lands,
-                    // so the first prices are usable while the rest are still in flight.
                     lock (gate)
                     {
-                        foreach (KeyValuePair<uint, int> pair in read)
+                        foreach (KeyValuePair<uint, int> pair in answered)
                         {
-                            prices[pair.Key] = pair.Value;
+                            read[pair.Key] = pair.Value;
                         }
 
-                        total += read.Count;
-                        pricesAt = DateTime.UtcNow;
-                        priceVersion++;
+                        total += answered.Count;
                     }
                 }
                 catch (Exception ex) when (chunk.Length > 1 && failures < MaxBatchFailures)
@@ -349,6 +360,20 @@ internal sealed class MarketPrices : IDisposable
 
             lock (gate)
             {
+                // One publish for the whole read, and only if it answered anything: a read that failed
+                // everywhere leaves the previous set (and its version) untouched, so nothing the table is
+                // showing changes and the next attempt is still due.
+                if (read.Count > 0)
+                {
+                    foreach (KeyValuePair<uint, int> pair in read)
+                    {
+                        prices[pair.Key] = pair.Value;
+                    }
+
+                    pricesAt = DateTime.UtcNow;
+                    priceVersion++;
+                }
+
                 batchInFlight = false;
             }
 

@@ -85,8 +85,11 @@ public sealed class MainWindow : GlassWindow, IDisposable
     /// <summary>The market price version <see cref="state"/> was last built from.</summary>
     private int priceVersionBuilt = -1;
 
-    /// <summary>The order the price read was last offered for, so switching to it asks and switching away re-arms.</summary>
-    private MountOrder pricesOrder;
+    /// <summary>
+    /// The view and order the price read was last offered for, so changing either asks once more - and a
+    /// failed read is never a dead end. Null while the shelf is in no state that shows a price.
+    /// </summary>
+    private (MountViewMode Mode, MountOrder Order)? pricesAskedFor;
 
     /// <summary>
     /// The seed <see cref="MountOrder.Random"/> shuffles with. Re-picked whenever the player chooses that
@@ -735,24 +738,35 @@ public sealed class MainWindow : GlassWindow, IDisposable
     }
 
     /// <summary>
-    /// Chooses the moment to read prices: switching to the cheapest-first order is the request, because
-    /// that is the click that makes the answer useful. Switching away and back asks again, so a failed
-    /// read is never a dead end, and nothing is fetched while the list is ordered any other way.
+    /// Chooses the moment to read prices: any frame the table draws its Price column, or any frame the list
+    /// is ordered by price. The read is one batch for the whole tradeable set and it runs off the draw
+    /// thread; nothing here touches the network.
     /// </summary>
+    /// <remarks>
+    /// Reading whenever the column is on screen - and not only while the cheapest-first order is entered -
+    /// is what fills the column. The Price column is part of the table whatever the order, so a player who
+    /// never touched that order saw a column of blanks holding whatever the last Cheapest visit had left in
+    /// the cache: one price here, a gap, another price there. The latch is the (view, order) pair, so a
+    /// change of either offers the read again - a failed read is never a dead end - and the freshness check
+    /// keeps that to at most one batch per <see cref="MarketPrices"/>'s window, because a landed batch makes
+    /// <see cref="MarketPrices.HasFreshPrices"/> true.
+    /// </remarks>
     private void EnsurePrices()
     {
-        if (state.Order != MountOrder.Cheapest)
+        var asked = (state.ViewMode, state.Order);
+
+        if (!MountPriceColumn.Wanted(state.ViewMode, state.Order))
         {
-            pricesOrder = state.Order;
+            pricesAskedFor = null;
             return;
         }
 
-        if (pricesOrder == MountOrder.Cheapest)
+        if (pricesAskedFor == asked)
         {
             return;
         }
 
-        pricesOrder = MountOrder.Cheapest;
+        pricesAskedFor = asked;
 
         if (market.HasFreshPrices() || market.BatchInFlight)
         {
