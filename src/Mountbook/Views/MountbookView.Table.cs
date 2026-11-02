@@ -70,11 +70,13 @@ public sealed partial class MountbookView
         // column is as narrow as that five-letter word allows: 112 px of "Collected" was most of the
         // width the name and the source were short of.
         //
-        // Owners is not a numeric column any more: a rare share is drawn as a capsule badge, and a badge
-        // cannot be right-aligned inside a numeric column without a width the facade does not report, so
-        // the header, the badges and the plain percentages all share the cell's left edge instead.
+        // Owners stays numeric: a share is a number meant to be compared down the column, and a column of
+        // left-aligned ones cannot be - a short share and a long one line up at neither edge, which is the
+        // one thing a column of numbers must never do. A rare share's mark is now a fill painted behind
+        // the number rather than a widget beside it (see DrawRarity), so no cell is wider than its digits
+        // and the "Owners" heading that has always sized the column still does.
         Gw.TableColumn(Loc.T("table.owned"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.OwnedColumn, false);
-        Gw.TableColumn(Loc.T("table.owners"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.RarityColumn, false);
+        Gw.TableColumn(Loc.T("table.owners"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.RarityColumn, true);
         Gw.TableColumn(Loc.T("table.price"), 0f, false, MountTable.ColumnFor(state.Order) == MountTable.PriceColumn, false);
 
         Gw.TableHeaders();
@@ -189,17 +191,27 @@ public sealed partial class MountbookView
             false);
 
     /// <summary>
-    /// The Owners cell: the share of collectors who have this mount, drawn as a badge for the rarest ones
-    /// so that rarity reads as a mark and not only as a digit to be compared across rows.
+    /// The Owners cell: the share of collectors who have this mount, with a filled mark painted behind the
+    /// rarest ones so that rarity reads as a shape and not only as a digit to be compared across rows.
     /// </summary>
     /// <remarks>
-    /// The badge carries the same percentage the plain cell would, so it cannot widen the column past the
-    /// "Owners" heading that already sizes it. The mark is the tier's, not the row's -
-    /// <see cref="MountRarity.IsRare"/> decides, on the rounded share, so the mark can never contradict the
-    /// number it sits on - and the tooltip repeats the share in words for a reader who wants the sentence.
+    /// The mark is a background, not a widget. It is painted into the window's draw list before the run
+    /// is drawn - the draw list keeps call order - and it is sized from the run's own width and clamped to
+    /// the cell, so it adds nothing to what a fit-content column measures. <c>Gw.Badge</c>'s capsule did,
+    /// and its box was not its text: the digits plus one small space of padding each side, and never
+    /// narrower than its own height. So the widest item in the column was a decoration rather than a
+    /// share, the capsule's edge stood further out than the number of every plain row (38 px around 27 px
+    /// of digits in the client), and the column gave up being numeric to hold it - which is why its
+    /// percentages lined up at neither edge. The number here is drawn by <c>Gw.TableText</c> in the same
+    /// footnote run as the plain cells, so it right-aligns with them to the pixel and only its ink
+    /// changes, to whichever ink reads on the fill.
+    ///
+    /// The mark is the tier's, not the row's - <see cref="MountRarity.IsRare"/> decides, on the rounded
+    /// share, so the mark can never contradict the number it sits on - and the tooltip repeats the share
+    /// in words for a reader who wants the sentence.
     /// </remarks>
     /// <param name="item">The mount whose row is being drawn.</param>
-    /// <param name="look">The Look, for the one colour a badge may use.</param>
+    /// <param name="look">The Look, for the one colour a mark may use.</param>
     private static void DrawRarity(MountShelfItem item, Look look)
     {
         string text = RarityLabel(item);
@@ -210,14 +222,59 @@ public sealed partial class MountbookView
             return;
         }
 
-        Gw.Badge(text, look.Warning);
+        Rect mark = RarityMark(text, look);
 
-        // Built only while hovered: the sentence goes through the string table, and it used to be formatted for
-        // every rare row of the list on every frame, hovered or not.
-        if (ImGui.IsItemHovered())
+        // Chosen for the fill and not for the row: the rule Gw.Badge applies to its own label, repeated
+        // because the fill is painted by hand here. Its threshold is Glasswork's (0.55 luminance, light
+        // fill takes the dark ink), so the mark reads exactly like the badges in the detail pane.
+        Color ink = look.Warning.Luminance > 0.55f ? look.InkOverLight : look.InkOverDark;
+
+        ImGui.GetWindowDrawList().AddRectFilled(
+            mark.Min,
+            mark.Max,
+            look.Warning.ToAbgr(),
+            MathF.Min(mark.Height * 0.5f, look.RadiusSmall * Frame.Scale));
+
+        Gw.TableText(text, TextRole.Footnote, ink);
+
+        // Gw.TableText reserves the run at the cell's leading edge, so the last item is that reserve and
+        // not the mark: the hover is tested against the mark's own rect, with the window-ownership half
+        // every hand-rolled hit test here uses.
+        if (ImGui.IsWindowHovered() && ImGui.IsMouseHoveringRect(mark.Min, mark.Max))
         {
             Gw.TooltipFor(true, MountRarity.Describe(item.Community?.OwnedPercent));
         }
+    }
+
+    /// <summary>
+    /// The rect a rare share's mark fills, in screen pixels: the run's width, one small space of gutter
+    /// each side, centred on the row, ending one gutter past the number.
+    /// </summary>
+    /// <remarks>
+    /// The number's right edge is the cell's content edge (that is what a numeric column aligns to), and
+    /// the gutter past it is the cell's own padding - Glasswork pads a cell by one medium space each side
+    /// - clamped to that padding so the mark can never reach the next column however it is themed. The
+    /// left edge is clamped to the cell for the mirror reason: a share wide enough to fill the column must
+    /// not reach back into Owned.
+    /// </remarks>
+    /// <param name="text">The share as the plain cells print it.</param>
+    /// <param name="look">The Look whose type and spacing the cell is drawn with.</param>
+    private static Rect RarityMark(string text, Look look)
+    {
+        var scale = Frame.Scale;
+        Vector2 origin = ImGui.GetCursorScreenPos();
+        float right = origin.X + MathF.Max(0f, ImGui.GetContentRegionAvail().X);
+        float run = TextWidth(text, TextRole.Footnote, scale);
+        float gutter = look.SpaceExtraSmall * scale;
+        float height = TextPaint.LineHeight(TextRole.Footnote, in look, scale) + (gutter * 2f);
+
+        // Every cell in this column reserves the row's full height, so the cell's cursor is the row's top
+        // (the centring offset is (row - content) / 2 and the two are the same height).
+        float top = origin.Y + (((look.RowHeight * scale) - height) * 0.5f);
+        float end = right + MathF.Min(gutter, look.SpaceMedium * scale);
+        float start = MathF.Max(origin.X, end - run - (gutter * 2f));
+
+        return new Rect(new Vector2(start, top), new Vector2(end, top + height));
     }
 
     /// <summary>

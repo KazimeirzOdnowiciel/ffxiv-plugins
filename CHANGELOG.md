@@ -31,6 +31,7 @@ told about.
 - A mount with an unknown patch or seat count shows no badge for it, and the ownership chip says Unowned where it said Not collected.
 - In the grid the group headings sit flush with the tiles under them, and a row is only as tall as its own captions instead of reserving a second line.
 - The table is 32 px rows instead of 48, so 17 fit where 11 did; ownership is one accent dot under "Owned", and the rarity share sits under "Owners" rather than "Collected".
+- A rare mount's share is a mark behind the number now, not a capsule beside it, so the column is as wide as its heading and every share in it ends on the same edge.
 - The table opens in the order you left it in, with the arrow on that column, and Patch and Owners no longer sort backwards in one direction.
 - Clicking a table heading moves the arrow to it: the arrow used to stay on the column you clicked to leave, while the rows were already in the order you asked for.
 - A heading's arrow now points the way its rows run, so "Seats" and "Owned" show a downward arrow over rows that put the most seats, and an owned mount, first.
