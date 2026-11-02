@@ -14,6 +14,23 @@ date typed into a heading instead of a blank page written under deadline.
   the versions descend, no line names a file, and the version being built has a section that is no
   longer marked unreleased - so a bump cannot land without its entry.
 
+## 0.3.0 (2026-11-02)
+
+The obtain data became something the plugin can vouch for, and the filter learned the game's own
+vocabulary.
+
+### Collecting
+
+- Obtain methods are a named taxonomy: 28 types, each with its count in the filter ("Trial (44)"), a group-by-source list, and a source: search term that matches those same names.
+- Saved views: name a set of filters and it comes back as one row of chips; save, rename and delete live behind Manage, or behind a right-click on the filter block before the first preset exists.
+- A mount now says whether you can get it today - Available, Seasonal, Ranked, Premium or Legacy - with one badge in its pane.
+- The filter lists each availability class with how many mounts it holds, and "Farmable now" ships as a saved view.
+
+- The header answers the collector's question - "Rarest missing: Dreadnaught (0.1%)" - with rarity sortable in both directions and a share under 1% drawn as a badge.
+- The obtain data is rebuilt from FFXIV Collect when a patch lands, and every mount's seats and movement are checked against the game's own sheet: the file refuses to ship if any of 356 disagree.
+- The shipped file states its own schema, source and licence, the settings window shows the schema it read, and the detail pane credits the source.
+- A settings file that cannot be read no longer keeps the plugin from loading: it is set aside, the plugin starts from defaults and says so, and Settings gained Reset everything, which asks first.
+
 ## 0.2.0 (2026-11-02)
 
 Everything since 0.1.0, starting with the room to read it: the list keeps a whole card at the

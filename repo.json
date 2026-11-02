@@ -29,7 +29,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/SlotYield-0.8.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793617690
+        "LastUpdate":  1793617764
     },
     {
         "Author":  "Deepseek",
@@ -61,7 +61,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/RouletteBingo-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793617691
+        "LastUpdate":  1793617765
     },
     {
         "Author":  "Deepseek",
@@ -91,7 +91,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/CritSound-0.1.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793617691
+        "LastUpdate":  1793617766
     },
     {
         "Author":  "Deepseek",
@@ -121,7 +121,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/EnemyListCastBars-1.0.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793617692
+        "LastUpdate":  1793617767
     },
     {
         "Author":  "Deepseek",
@@ -151,7 +151,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DesynthLens-0.4.0.3.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793617693
+        "LastUpdate":  1793617768
     },
     {
         "Author":  "Deepseek",
@@ -182,7 +182,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/MechanicWatch-0.2.0.2.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793617694
+        "LastUpdate":  1793617769
     },
     {
         "Author":  "Deepseek",
@@ -213,7 +213,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/GilLedger-0.0.0.2.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793617695
+        "LastUpdate":  1793617770
     },
     {
         "Author":  "Deepseek",
@@ -245,7 +245,7 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/DutyRecap-0.0.0.8.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793617696
+        "LastUpdate":  1793617771
     },
     {
         "Author":  "Deepseek",
@@ -274,13 +274,13 @@
         "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/CrashTrace-0.0.0.1.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793617697
+        "LastUpdate":  1793617771
     },
     {
         "Author":  "Deepseek",
         "Name":  "Mountbook",
         "InternalName":  "Mountbook",
-        "AssemblyVersion":  "0.2.0.0",
+        "AssemblyVersion":  "0.3.0.0",
         "Description":  "Every mount in the game in one window: search and filter (with operators like tradeable:y or patch:\u003e=6.1), order it, group it by expansion, patch or acquire method, and read it as a card grid or a dense sortable table.\r\n\r\nThe detail pane shows the game\u0027s artwork and flavour text, a \"How to obtain\" list where every row that names a duty, quest or achievement opens its page, a token price with your own progress (\"12,000 Seafarer\u0027s Cowries - you have 3,400, 8,600 to go\"), community rarity, and - for a tradeable mount, when you ask - the cheapest listing on your data center.\r\n\r\nThe plugin reads the Mount, MountTransient and Item sheets and your own unlocked-mount state, and it writes nothing to the game. The Ride button uses the same mount action you could press yourself; the whistle link is an ordinary chat item link. Its one network call is the market price you ask for.\r\n\r\nPatch, obtain-source and community-rarity data is derived from FFXIV Collect (ffxivcollect.com), a volunteer community project, and credits it in the window and in this description; that data is used non-commercially, as its API terms require. Everything else - names, artwork, flavour text - is read from your own game\u0027s sheets.\r\n\r\nThe screenshots on this entry are drawn by the plugin\u0027s own preview scenes rather than captured from a session, so they describe the window itself and can be regenerated for any version: https://github.com/KazimeirzOdnowiciel/ffxiv-plugins/blob/main/docs/screenshots.md",
         "ApplicableVersion":  "any",
         "RepoUrl":  "https://github.com/KazimeirzOdnowiciel/Deepseek-Kingdom",
@@ -300,12 +300,12 @@
         "LoadPriority":  0,
         "Punchline":  "A collection book for every mount: how to obtain it, what it costs, what it sells for",
         "AcceptsFeedback":  true,
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/Mountbook-0.2.0.0.zip",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/Mountbook-0.2.0.0.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/Mountbook-0.2.0.0.zip",
-        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/Mountbook-0.2.0.0.png",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/Mountbook-0.3.0.0.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/Mountbook-0.3.0.0.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/Mountbook-0.3.0.0.zip",
+        "IconUrl":  "https://raw.githubusercontent.com/KazimeirzOdnowiciel/ffxiv-plugins/main/dist/icons/Mountbook-0.3.0.0.png",
         "IsHide":  false,
         "IsTestingExclusive":  false,
-        "LastUpdate":  1793617699
+        "LastUpdate":  1793617773
     }
 ]
