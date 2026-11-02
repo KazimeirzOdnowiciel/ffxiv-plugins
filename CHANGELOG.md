@@ -25,6 +25,7 @@ told about.
 - The filter block is five rows instead of seven and a saved view rides the ownership chips: the list keeps a whole card at the smallest window, where it drew none, and 2.5 rows at the default.
 - At a short pane the title and the collected counters share one row, so the header stops taking the card row the list needs.
 - The "shown collected" line sits beside the title instead of above the divider, so a filter no longer costs the list a row.
+- At the smallest window the cards view gives up the saved-views line rather than the last card row, so a card still reads there with a full book.
 - Each dropdown names its own dimension ("All expansions", "Sort: Name") instead of standing in a labelled form, and they stack into one column on a narrow pane rather than clipping.
 - The detail pane's four actions fit on one line, Check price shares a row with the wiki link, and on a wide pane the artwork moves beside the name: about 90 px back, first obtain row intact.
 - At a small pane the artwork steps aside entirely and the obtain list gets the room, and the pane is sized from what it is drawn into, so no stray 2 px scrollbar.

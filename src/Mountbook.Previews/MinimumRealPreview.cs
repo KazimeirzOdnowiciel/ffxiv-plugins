@@ -9,8 +9,9 @@ using Mountbook.Views;
 namespace Mountbook.Previews;
 
 /// <summary>
-/// The window's 820x520 minimum in the state a player actually has: a full book, a saved view in the row,
-/// and a filter narrow enough that the header says how much of the collection is on screen.
+/// The window's 820x520 minimum in the state a player actually has: a full book, a saved view the filter
+/// block has to make room for, and a filter narrow enough that the header says how much of the collection is
+/// on screen.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -31,20 +32,23 @@ namespace Mountbook.Previews;
 /// from it.
 /// </para>
 /// <para>
-/// The numbers this pair pins were re-measured in the render when the table's heading was frozen
-/// (`t_43679848`): the table's rect is 128 px - its 44 px heading, two whole rows of 32.19, and a 9 px sliver
-/// of a third - and the cards view's list clips at 70 px, against the 166 and 118 the same two measured when
-/// these numbers were first taken. The difference is exactly one filter row (48 px): the availability combo
-/// has its own row in the cards view and pairs with the sort in the table's, and it landed after the earlier
-/// numbers. At the default 1040x660 the list is 231 px - 2.2 card rows of the goldens' 106.8 px pitch - which
-/// is the client's own 157 px plus the 48 the preset row used to take there: the ~2.5 rows `t_c3b76c01`
-/// recorded.
+/// The numbers this pair pins were re-measured twice: when the table's heading was frozen (`t_43679848`) and
+/// again when the cards view's filter block was made to give a row back (`t_9a04c7e7`). Both lists now measure
+/// 118 px. The table's rect is its 44 px heading, two whole rows of 32.19 and a 9 px sliver of a third; the
+/// cards' is one whole card row - the 64 px tile, its 8 px caption gap, an 18.75 px caption line and the
+/// 16 px row gap, 106.75 px - with 11 px to spare. Before that the cards view's block was one row taller than
+/// the table's (the grouping combo keeps a row of its own there, and availability pairs with the sort only
+/// where it does not), which left the list 70 px: shorter than a card row, so the first card drew as a bare
+/// tile with its caption clipped and no card read at all.
 /// </para>
 /// <para>
-/// What that leaves in the cards view is recorded here rather than argued away: 70 px is shorter than a card
-/// (90.75 px), so `minimum-real.png` draws the first card's tile and clips its caption - no card reads at the
-/// minimum any more, which is the opposite of what this pair was written to pin. It is the cards view's
-/// layout, not the table's, and it is card `t_9a04c7e7`.
+/// The row comes back from no control - every combo in the block is one a player needs - but from the
+/// saved-view line, the only row that exists merely while a preset does and the only one with a second door
+/// (a right-click on the filter block opens the same dialog). It is drawn only while the list can still show
+/// a whole card row under the block, measured against the block's height on a frame that drew the line
+/// (`LayoutMeasure.FilterBlockCrowdsList`); at 820x520 it cannot, so `minimum-real` draws no preset chips
+/// while `minimum-real-table`, a row shorter and its rows 32 px, keeps them. At the default 1040x660 the line
+/// still rides the ownership chips and the block is unchanged.
 /// </para>
 /// </remarks>
 public sealed class MinimumRealPreview : PreviewScene
@@ -75,7 +79,8 @@ public sealed class MinimumRealPreview : PreviewScene
 /// The same state in the table: the view that failed the sweep's minimum case with a column header and one
 /// clipped row. Its filter block is a row shorter than the grid's (the grouping combo is a grid feature, so
 /// there the availability combo pairs with the sort), which is exactly why the two are separate goldens: one
-/// image cannot pin both blocks.
+/// image cannot pin both blocks - and it is also why this one still draws the preset chips that the cards
+/// view has to give up.
 /// </summary>
 public sealed class MinimumRealTablePreview : PreviewScene
 {

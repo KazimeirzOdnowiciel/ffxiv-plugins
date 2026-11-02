@@ -24,7 +24,9 @@ namespace Mountbook.Views;
 /// the applied chip and the Manage door to sit beside the ownership chips, the presets ride that row
 /// (<see cref="DrawSavedViewsInline"/>): the row costs the list nothing, which at the window's 820x520 minimum is
 /// the difference between one whole card and none. On a column too narrow for that, the presets keep the line
-/// above the search box this type draws, because a chip that has to be clipped to fit is worse than a line.
+/// above the search box this type draws, because a chip that has to be clipped to fit is worse than a line -
+/// and a line the list cannot afford is not drawn at all, which is the third form: the cards view's block is
+/// one row taller than the table's, so at the minimum it drops this line rather than the card row (see DrawFilters).
 /// </para>
 /// <para>
 /// The dialog is the one surface that works from nothing, and it is opened by a right-click on the filter

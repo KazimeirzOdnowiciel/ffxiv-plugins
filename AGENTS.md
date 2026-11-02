@@ -59,12 +59,14 @@ clipping it.
 
 `minimum-real` and `minimum-real-table` are the two scenes at the window's 820x520 minimum in the state a
 player has rather than the easiest one the view can be in: a full book (369 mounts, 136 collected), a saved
-view, and a filter narrow enough that the header says how much of the collection is on screen. They exist
+view the block has to make room for, and a filter narrow enough that the header says how much of the collection is on screen. They exist
 because `minimum` draws neither the saved-view row nor the filtered-count line, and with those two rows the
 list measured 65 px in the client - no card, no table row - while `minimum` stayed green. The numbers they
-pin are in the scenes' own remarks: the table's rect is 128 px there and the cards view's list clips at
-70 px (re-measured when the table's heading was frozen - the earlier 166/118 were one filter row stale, and
-the cards view no longer fits a whole card at that size: `t_9a04c7e7`).
+pin are in the scenes' own remarks, and both lists now measure 118 px: the table's rect is its 44 px heading
+plus two whole 32.19 px rows and a sliver, the cards' is one 106.75 px card row plus 11 px. The cards view gets
+there by giving up its saved-view line whenever the block would otherwise leave the list under a card row
+(`LayoutMeasure.FilterBlockCrowdsList`), which is why the two images disagree about the preset chips and agree
+about the list.
 
 The suite and the golden compare run in CI too: `.github/workflows/ci.yml` has a **Tests** job
 (`dotnet run` on the xunit v3 project, nothing else - it compiles `Services/` by path and

@@ -32,6 +32,24 @@ public sealed partial class MountbookView
     /// so this only says whether the previous one is still usable for the squeeze test.</summary>
     private float filtersHeightScale = -1f;
 
+    /// <summary>
+    /// The filter block's height on the last frame that drew the saved-views line, in pixels; not positive until
+    /// such a frame has been drawn.
+    /// </summary>
+    /// <remarks>
+    /// The line's own decision reads this and not <see cref="filtersHeightPx"/>: dropping the line is what makes
+    /// the list afford it, so a test against the height drawn *without* it would put the line back on the next
+    /// frame and take it away on the one after that. It is re-taken only on a frame that drew the line, which
+    /// makes the answer depend on the block as it is when the row is there.
+    /// </remarks>
+    private float filtersFullHeightPx = -1f;
+
+    /// <summary>The UI scale <see cref="filtersFullHeightPx"/> was measured at.</summary>
+    private float filtersFullHeightScale = -1f;
+
+    /// <summary>Whether the frame being drawn drew the saved-views line, for <see cref="DrawFilterColumn"/>.</summary>
+    private bool savedViewLineDrawn;
+
     private void DrawFilterColumn(MountViewState state, float width, float height)
     {
         if (!ImGui.BeginChild("##filters"u8, new Vector2(width, height)))
@@ -68,10 +86,20 @@ public sealed partial class MountbookView
             DrawCompactEmptyState(state);
         }
 
-        DrawFilters(state);
+        DrawFilters(state, height);
 
         filtersHeightPx = ImGui.GetCursorScreenPos().Y - filtersTop;
         filtersHeightScale = Frame.Scale;
+
+        // The saved-views line is the one row of the block that can go: it exists only when a preset does, and
+        // the dialog keeps its other door (a right-click on this block). So the block's height *with* the line
+        // is remembered from the frames that drew it, and a frame that had to drop the line leaves the number
+        // alone - the drop must not be able to argue itself back into the layout on the next frame.
+        if (savedViewLineDrawn)
+        {
+            filtersFullHeightPx = filtersHeightPx;
+            filtersFullHeightScale = Frame.Scale;
+        }
 
         var gridHeight = MathF.Max(ImGui.GetContentRegionAvail().Y, 1f);
 
@@ -138,7 +166,7 @@ public sealed partial class MountbookView
     /// everywhere else.
     /// </para>
     /// </remarks>
-    private void DrawFilters(MountViewState state)
+    private void DrawFilters(MountViewState state, float columnHeight)
     {
         // The controls fill the column, and a hovered control grows past it (see PushControlRoom). The
         // push is paired in a finally: MainWindow keeps drawing after a failed frame, so a throw that
@@ -164,7 +192,19 @@ public sealed partial class MountbookView
             var chipSlack = Frame.Look.SpaceSmall * scale;
             var views = PlanSavedViews(state, width, chipLabels.Length, widestChipLabel, chipInset, chipSlack, gap);
 
-            if (!views.Inline)
+            // The line is drawn only while the block still leaves the list room for a whole card row, measured
+            // against the block's height on a frame that drew the line (see DrawFilterColumn). At the window's
+            // 820x520 minimum with a full book it is the row that does not fit: the list was left 70 px against a
+            // 106.75 px row, so the first card drew as a bare tile and its caption was clipped - the one thing
+            // this view exists to show. Only the cards ask for the row: a table row is 32 px and its block is a
+            // row shorter, so the table keeps its line and its columns.
+            var viewsLineCrowded = state.ViewMode == MountViewMode.Grid
+                && filtersFullHeightScale == Frame.Scale
+                && LayoutMeasure.FilterBlockCrowdsList(columnHeight, filtersFullHeightPx, CardRowHeightPx());
+
+            savedViewLineDrawn = !views.Inline && state.SavedViews.Count > 0 && !viewsLineCrowded;
+
+            if (savedViewLineDrawn)
             {
                 DrawSavedViewRow(state);
             }
@@ -581,6 +621,26 @@ public sealed partial class MountbookView
     }
 
     /// <summary>
+    /// One card row's height at this Look and UI scale, in pixels: the tile, its caption gap, one caption line
+    /// and the row gap.
+    /// </summary>
+    /// <remarks>
+    /// The same tokens <see cref="DrawGrid"/> pitches its rows with, read through
+    /// <see cref="LayoutMeasure.CardRowHeight"/> so the grid and the filter block's fit test cannot disagree
+    /// about how tall a card is.
+    /// </remarks>
+    private static float CardRowHeightPx()
+    {
+        var scale = Frame.Scale;
+
+        return LayoutMeasure.CardRowHeight(
+            IconSize * scale,
+            Frame.Look.SpaceSmall * scale,
+            Frame.Look.Type.LineHeight(TextRole.Callout) * scale,
+            Frame.Look.SpaceLarge * scale);
+    }
+
+    /// <summary>
     /// Lays the cards out on an explicit grid: position is computed from the row and column, so a long
     /// name can never shift the column after it. <see cref="Gw.EdgeFade"/> in the caller fades the
     /// scrolling edges instead of clipping them hard.
@@ -618,7 +678,7 @@ public sealed partial class MountbookView
         // reserved ~16 px it never drew - 14% of a short row - so the pitch is now the row's own tallest
         // caption. The width is the one DrawCard measures its caption at, so the two cannot disagree.
         var captionWidth = cellPx - (Frame.Look.SpaceExtraSmall * 2f * scale);
-        var singleRowHeight = iconPx + captionGap + lineHeight + rowGap;
+        var singleRowHeight = LayoutMeasure.CardRowHeight(iconPx, captionGap, lineHeight, rowGap);
         var doubleRowHeight = singleRowHeight + lineHeight;
 
         // The hover ease advances once per frame, from the card the pointer was over last frame. It used

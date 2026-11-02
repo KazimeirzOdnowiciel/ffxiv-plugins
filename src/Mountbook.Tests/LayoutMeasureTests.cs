@@ -285,6 +285,45 @@ public sealed class LayoutMeasureTests
         Assert.True(LayoutMeasure.ViewsInline(need + reserve, 4, widest, inset, slack, reserve));
     }
 
+    /// <summary>
+    /// A card row is 106.75 px at the dense Look and scale 1, and the cards view's filter block is the one
+    /// block that can spend the list's last card: at the window's 820x520 minimum it left 70 px, so the first
+    /// card drew as a bare tile with its caption clipped.
+    /// </summary>
+    /// <remarks>
+    /// The two numbers are the whole rule. <c>CardRowHeight</c> is the sum the grid pitches its rows with - the
+    /// 64 px tile, the 8 px caption gap, an 18.75 px caption line and the 16 px row gap - and the crowding test
+    /// is the comparison between the room the column has and the block that spends it. The block heights here
+    /// are the rendered ones: 288 px is its six rows at the minimum (the saved-view line, the search row, the
+    /// chips, the expansion/source pair, availability, and sort/group), and 240 px is the same block with the
+    /// line given up - five rows at the 48 px pitch the render measures.
+    /// </remarks>
+    [Fact]
+    public void TheCardsViewGivesUpTheSavedViewLineRatherThanTheLastCardRow()
+    {
+        const float cardRow = 106.75f;
+
+        // The sum, token by token, is what the grid draws: 64 icon + 8 caption gap + 18.75 line + 16 row gap.
+        Assert.Equal(106.75f, LayoutMeasure.CardRowHeight(64f, 8f, 18.75f, 16f), 3);
+
+        // The minimum: a 358 px column, the block at 288, so the list is left 70 - a caption line short.
+        Assert.True(LayoutMeasure.FilterBlockCrowdsList(358f, 288f, cardRow));
+
+        // With the line given up the list is left 118: one whole card row and 11 px of air, which is what the
+        // cards view draws now - and it stays there, because the test is taken against the block that drew the
+        // line, not against the one that dropped it.
+        Assert.False(LayoutMeasure.FilterBlockCrowdsList(358f, 240f, cardRow));
+
+        // The boundary is the row itself: 12 px short of it the line goes, and at the row's height it stays.
+        Assert.True(LayoutMeasure.FilterBlockCrowdsList(358f, 240f, cardRow + 12f));
+        Assert.False(LayoutMeasure.FilterBlockCrowdsList(358f, 240f, cardRow + 11f));
+
+        // The table's own block is the 240 px one from the start (no grouping row), so the same 358 px column
+        // leaves it its presets line - 118 against the same card row - which is why the two goldens disagree
+        // about the chips and agree about the list.
+        Assert.False(LayoutMeasure.FilterBlockCrowdsList(358f, 240f, cardRow));
+    }
+
     [Fact]
     public void ThePairGateSitsBetweenTheNarrowAndTheMinimumColumn()
     {

@@ -185,6 +185,40 @@ public static class LayoutMeasure
         => ChipsFit(columnWidthPx - reservePx, cells, widestLabelPx, insetPx, slackPx);
 
     /// <summary>
+    /// One card row's height: the icon tile, the gap under it, one caption line and the gap to the next row.
+    /// </summary>
+    /// <remarks>
+    /// The grid pitches a row by its own tallest caption, and this is the one-line case - the shortest a row
+    /// can be while still drawing a caption. Two callers need that number and they have to agree: the grid
+    /// pitches its rows with it, and the filter block asks it whether the list still has room for a card
+    /// (see <see cref="FilterBlockCrowdsList"/>). Two copies of the sum is how a "there is room" test ends up
+    /// one caption line away from the thing it is measuring.
+    /// </remarks>
+    /// <param name="iconPx">The tile's edge, in pixels.</param>
+    /// <param name="captionGapPx">The gap between the tile and its caption, in pixels.</param>
+    /// <param name="lineHeightPx">One caption line's height, in pixels.</param>
+    /// <param name="rowGapPx">The gap under the row, in pixels.</param>
+    public static float CardRowHeight(float iconPx, float captionGapPx, float lineHeightPx, float rowGapPx)
+        => iconPx + captionGapPx + lineHeightPx + rowGapPx;
+
+    /// <summary>
+    /// True when a filter block of <paramref name="filtersHeightPx"/> leaves the column less than one card row
+    /// for the list - the state in which the saved-views line has to give its row back.
+    /// </summary>
+    /// <remarks>
+    /// A column that short is not a corner case at the window's 820x520 minimum with a full book: the block
+    /// then spends every row it has, the cards view is left 70 px against a 106.75 px row, and the caption of
+    /// the first card is clipped - a card nobody can read. The rule is a comparison rather than a window size
+    /// or a pixel budget because both sides are measured: the block's height comes from the render and the
+    /// row's height from the Look.
+    /// </remarks>
+    /// <param name="columnHeightPx">The height the filter column and the list share, in pixels.</param>
+    /// <param name="filtersHeightPx">The filter block's height, in pixels.</param>
+    /// <param name="cardRowPx">One card row's height, in pixels - <see cref="CardRowHeight"/>.</param>
+    public static bool FilterBlockCrowdsList(float columnHeightPx, float filtersHeightPx, float cardRowPx)
+        => columnHeightPx - filtersHeightPx < cardRowPx;
+
+    /// <summary>
     /// How many of the saved-view chips fit across the filter column, leaving the trailing button that opens the
     /// dialog its corner.
     /// </summary>
