@@ -152,14 +152,23 @@ public abstract class SortClickScene : PreviewScene
         new MountQuery(string.Empty, MountOwnership.All, MountExpansion.All, order).Apply(Book, prices: SortClickBook.Prices);
 
     /// <summary>Name, Seats, Name, then the pointer off the window and enough idle frames to settle.</summary>
+    /// <remarks>
+    /// Each click is a press and a release on the frame after it, not a press alone: ImGui applies a header
+    /// click when the button comes up, and the view only believes a sort report on a frame the header was
+    /// pressed - a press that is never released is neither, so a press-only script leaves the picture it
+    /// started from and a pair of images that agree for the wrong reason.
+    /// </remarks>
     private static readonly PreviewInput[] Clicks =
     [
         new(2, PreviewInputKind.Move, SortClickBook.NameHeader),
         new(4, PreviewInputKind.Press, SortClickBook.NameHeader),
+        new(5, PreviewInputKind.Release, SortClickBook.NameHeader),
         new(9, PreviewInputKind.Move, SortClickBook.SeatsHeader),
         new(11, PreviewInputKind.Press, SortClickBook.SeatsHeader),
+        new(12, PreviewInputKind.Release, SortClickBook.SeatsHeader),
         new(16, PreviewInputKind.Move, SortClickBook.NameHeader),
         new(18, PreviewInputKind.Press, SortClickBook.NameHeader),
+        new(19, PreviewInputKind.Release, SortClickBook.NameHeader),
         new(24, PreviewInputKind.Move, SortClickBook.Away),
 
         // A last input on frame 70 is what makes the run that long: the preview stops on the script's last
@@ -184,16 +193,37 @@ public abstract class SortClickScene : PreviewScene
 /// The coordinates are the layout's, not the script's convenience: they are the header row of this
 /// window's table, measured from a render of <see cref="SortClickPreview"/> - the same frame this pair
 /// commits as its golden - so a change that moves the header is a diff in the image rather than a click that
-/// lands on a row. The list scrolls with the wheel here exactly as it does in the client, and the header
-/// scrolls away with it, so the clicks sit at the top of the list where a player's pointer can reach them.
+/// lands on a row. The list scrolls with the wheel here exactly as it does in the client, and the heading
+/// does not move with it: the table owns the scroll and keeps its header row frozen, which is what
+/// <see cref="TableScrollScene"/> clicks at a park to prove.
 /// </remarks>
 internal static class SortClickBook
 {
     /// <summary>The middle of the Name header cell, in logical units from the window's top left corner.</summary>
     internal static readonly Vector2 NameHeader = new(60f, 362f);
 
-    /// <summary>The middle of the Seats header cell.</summary>
-    internal static readonly Vector2 SeatsHeader = new(346f, 362f);
+    /// <summary>
+    /// The middle of the Seats header cell's label: the cell's content edge is where the right-aligned
+    /// heading and the rows' one-digit seat counts both end, and the label is five characters wide.
+    /// </summary>
+    /// <remarks>
+    /// Re-measured for the frozen heading, because the old x was stale: it pointed at the Source heading
+    /// (which has no order of its own, so a click there sorts nothing) since the Price column was declared
+    /// at a fixed width and took the room the others had. A click that lands on a neighbouring heading is
+    /// invisible in an image pair whose two ends are the same list - the middle frame is the only one that
+    /// shows it - which is exactly how the coordinate went stale without a golden moving.
+    /// </remarks>
+    internal static readonly Vector2 SeatsHeader = new(298f, 362f);
+
+    /// <summary>
+    /// Over the table's body, clear of the header row and of both edges: where a wheel turn is addressed.
+    /// </summary>
+    /// <remarks>
+    /// Anywhere in the body would do for a wheel - the turn goes to the window under the pointer, and the
+    /// body is the table's own scrolling area - but a fixed point in the middle keeps it away from the
+    /// scrollbar's track and from the rows' hover ink.
+    /// </remarks>
+    internal static readonly Vector2 Body = new(300f, 520f);
 
     /// <summary>Off the window, over the Preview's backdrop: nothing under the pointer, so no hover ink.</summary>
     internal static readonly Vector2 Away = new(-40f, -40f);

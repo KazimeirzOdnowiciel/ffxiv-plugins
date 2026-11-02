@@ -13,10 +13,17 @@ namespace Mountbook.Views;
 /// for reading rather than browsing.
 /// </summary>
 /// <remarks>
-/// The rows are drawn inside the scroll child the grid uses, in the order the caller produced, so the
-/// table never sorts anything itself: a header click is translated into a <see cref="MountOrder"/> by
-/// <see cref="MountTable.OrderFor"/> and the window re-queries. Two orderings would eventually disagree
-/// about what "oldest first" means, which is how the patch parser ended up duplicated.
+/// <para>
+/// The table is the scroll container for its own rows (<see cref="GwTableFlags.ScrollY"/>), so its heading
+/// stays on screen while the body is scrolled. That is not decoration: a heading that leaves with the rows
+/// makes sorting cost the reader their place, because the column can only be clicked at the top of the list.
+/// </para>
+/// <para>
+/// The rows are in the order the caller produced, so the table never sorts anything itself: a header click
+/// is translated into a <see cref="MountOrder"/> by <see cref="MountTable.OrderFor"/> and the window
+/// re-queries. Two orderings would eventually disagree about what "oldest first" means, which is how the
+/// patch parser ended up duplicated.
+/// </para>
 /// </remarks>
 public sealed partial class MountbookView
 {
@@ -41,18 +48,38 @@ public sealed partial class MountbookView
 
     /// <summary>
     /// Draws the dense table: one table id, one set of column widths, and the rows in the order the caller
-    /// put them in.
+    /// put them in, in a body the table scrolls itself under a heading that stays where it is.
     /// </summary>
     /// <param name="state">The state whose items, selection and order the table draws.</param>
-    private void DrawTable(MountViewState state)
+    /// <param name="height">
+    /// The room the pane has left, in pixels, which is the table's outer height: the table is the scroll
+    /// container, so a zero height here would make it as tall as its rows again and put the scroll back
+    /// outside it.
+    /// </param>
+    private void DrawTable(MountViewState state, float height)
     {
+        // ScrollY with a positive height is what freezes the heading: Glasswork's TableHeaders calls
+        // ImGui.TableSetupScrollFreeze(0, 1) for that flag, so the header row is pinned above a body this
+        // table scrolls. Without it the header is an ordinary first row of a table that grows to its full
+        // content height (11852 px with the 369-mount book) inside whatever draws it, and the drawer moves
+        // the whole thing - measured in the client at scroll.y 640, where the header row was off the top of
+        // the `##mounts` child, so a heading could only ever be clicked at scroll 0.
+        //
+        // The scroll now belongs to the table, which is also why a sort keeps the reader's place: the scroll
+        // is part of the state ImGui keeps per table id, and this table has one id for every order.
         const GwTableFlags Flags =
-            GwTableFlags.Sortable | GwTableFlags.Resizable | GwTableFlags.Zebra | GwTableFlags.Selectable;
+            GwTableFlags.Sortable
+            | GwTableFlags.Resizable
+            | GwTableFlags.Zebra
+            | GwTableFlags.Selectable
+            | GwTableFlags.ScrollY;
 
-        // The pane's width, in logical units (the table scales its own size). A zero size left the table
-        // as wide as its content - 675 px of a 1162 px pane - which the client showed as a table that
-        // stopped two thirds of the way across.
+        // The pane's width and the room it has left, in logical units (the table scales its own size). A
+        // zero size left the table as wide as its content - 675 px of a 1162 px pane - which the client
+        // showed as a table that stopped two thirds of the way across; a zero height does the same thing to
+        // the scroll, and that is the defect the flag above closes.
         var width = ImGui.GetContentRegionAvail().X / Frame.Scale;
+        var bodyHeight = MathF.Max(height / Frame.Scale, 1f);
 
         // ONE id for every order, and the order is nowhere in it. ImGui keeps a table's state by id - the
         // widths it fitted to the cells, the sort spec it saves, the scroll it was left at - so the per-order
@@ -68,7 +95,7 @@ public sealed partial class MountbookView
         // rows are sorted by, from the order, before the header row is submitted, on every frame the header
         // disagrees. One spec, always this order's, and no second table for ImGui to restore anything into -
         // which is the whole class of defect rather than a compensation for it.
-        if (!Gw.BeginTable(MountTable.TableId, MountTable.ColumnCount, Flags, new Vector2(width, 0f)))
+        if (!Gw.BeginTable(MountTable.TableId, MountTable.ColumnCount, Flags, new Vector2(width, bodyHeight)))
         {
             return;
         }
@@ -213,6 +240,12 @@ public sealed partial class MountbookView
                 PriceLabel(MountPriceColumn.PriceOf(state.Prices, item.Id)),
                 TextRole.Footnote);
         }
+
+        // The body fades out at its own edges, as every scrolling child in this window does: inside the
+        // table the current window is the body's own, so the fade reads that window's clip rect and scroll
+        // exactly as it would in a child - a row sliding under the frozen heading dims instead of being cut,
+        // and the heading itself is untouched, because the table draws it outside this window.
+        Gw.EdgeFade();
 
         Gw.EndTable();
     }

@@ -62,7 +62,9 @@ player has rather than the easiest one the view can be in: a full book (369 moun
 view, and a filter narrow enough that the header says how much of the collection is on screen. They exist
 because `minimum` draws neither the saved-view row nor the filtered-count line, and with those two rows the
 list measured 65 px in the client - no card, no table row - while `minimum` stayed green. The numbers they
-pin are in the scenes' own remarks: the list is 118 px in the cards view and 166 px in the table there.
+pin are in the scenes' own remarks: the table's rect is 128 px there and the cards view's list clips at
+70 px (re-measured when the table's heading was frozen - the earlier 166/118 were one filter row stale, and
+the cards view no longer fits a whole card at that size: `t_9a04c7e7`).
 
 The suite and the golden compare run in CI too: `.github/workflows/ci.yml` has a **Tests** job
 (`dotnet run` on the xunit v3 project, nothing else - it compiles `Services/` by path and

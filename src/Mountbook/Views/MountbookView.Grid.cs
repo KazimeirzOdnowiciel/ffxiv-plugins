@@ -88,25 +88,29 @@ public sealed partial class MountbookView
             return;
         }
 
-        PushScrollbarInk();
-
-        if (ImGui.BeginChild("##mounts"u8, new Vector2(0f, gridHeight)))
+        // The table is its own scroll container, and that is the half that keeps its heading on screen: a
+        // table can only hold its header row still over a body it scrolls itself (`GwTableFlags.ScrollY`
+        // plus a height, see DrawTable), so in this mode the child that used to scroll the table is not
+        // drawn at all. Around a scrolling table it would be a second scroll range - two bars, one of them
+        // still moving the header off the top - which is the shape this defect had.
+        if (state.ViewMode == MountViewMode.Table)
         {
-            if (state.ViewMode == MountViewMode.Table)
-            {
-                DrawTable(state);
-            }
-            else
+            DrawTable(state, gridHeight);
+        }
+        else
+        {
+            PushScrollbarInk();
+
+            if (ImGui.BeginChild("##mounts"u8, new Vector2(0f, gridHeight)))
             {
                 DrawGrid(state);
+                Gw.EdgeFade();
             }
 
-            Gw.EdgeFade();
+            ImGui.EndChild();
+
+            PopScrollbarInk();
         }
-
-        ImGui.EndChild();
-
-        PopScrollbarInk();
 
         ImGui.EndChild();
     }

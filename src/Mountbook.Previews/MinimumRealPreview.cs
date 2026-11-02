@@ -31,11 +31,20 @@ namespace Mountbook.Previews;
 /// from it.
 /// </para>
 /// <para>
-/// The numbers this pair pins, measured in the render: the list is 118 px in the cards view and 166 px in the
-/// table, where the same state measured 23 and 71 before the fix (65 in the client), against a card of 90.75 px
-/// and a table row of 32.19. So one whole card draws at the minimum, and the table's 44 px heading plus three
-/// rows. At the default 1040x660 the list is 231 px - 2.2 card rows of the goldens' 106.8 px pitch - which is
-/// the client's own 157 px plus the 48 the preset row used to take there: the ~2.5 rows `t_c3b76c01` recorded.
+/// The numbers this pair pins were re-measured in the render when the table's heading was frozen
+/// (`t_43679848`): the table's rect is 128 px - its 44 px heading, two whole rows of 32.19, and a 9 px sliver
+/// of a third - and the cards view's list clips at 70 px, against the 166 and 118 the same two measured when
+/// these numbers were first taken. The difference is exactly one filter row (48 px): the availability combo
+/// has its own row in the cards view and pairs with the sort in the table's, and it landed after the earlier
+/// numbers. At the default 1040x660 the list is 231 px - 2.2 card rows of the goldens' 106.8 px pitch - which
+/// is the client's own 157 px plus the 48 the preset row used to take there: the ~2.5 rows `t_c3b76c01`
+/// recorded.
+/// </para>
+/// <para>
+/// What that leaves in the cards view is recorded here rather than argued away: 70 px is shorter than a card
+/// (90.75 px), so `minimum-real.png` draws the first card's tile and clips its caption - no card reads at the
+/// minimum any more, which is the opposite of what this pair was written to pin. It is the cards view's
+/// layout, not the table's, and it is card `t_9a04c7e7`.
 /// </para>
 /// </remarks>
 public sealed class MinimumRealPreview : PreviewScene
