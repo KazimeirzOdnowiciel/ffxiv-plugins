@@ -14,6 +14,17 @@ date typed into a heading instead of a blank page written under deadline.
   the versions descend, no line names a file, and the version being built has a section that is no
   longer marked unreleased - so a bump cannot land without its entry.
 
+## 0.4.0 (2026-11-02)
+
+A mount now carries what you have done about it, and what it costs you to find out.
+
+### Prices and progress
+
+- Grind tracking: banked and needed steppers, a progress bar and a note per mount, for anything that costs tokens or that you chose to track, kept across restarts.
+- The wanted board lists what you want and do not own with its first source and your progress, sortable by patch or by the cheapest price it already knows, with no new lookups.
+- Price watch: give a mount a threshold and its market price is checked every 24 to 36 minutes, with one toast when it crosses.
+- The header shows how many mounts you are watching, and nothing at all when you are watching none.
+
 ## 0.3.0 (2026-11-02)
 
 The obtain data became something the plugin can vouch for, and the filter learned the game's own
