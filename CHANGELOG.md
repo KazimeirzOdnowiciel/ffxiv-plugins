@@ -14,6 +14,18 @@ date typed into a heading instead of a blank page written under deadline.
   the versions descend, no line names a file, and the version being built has a section that is no
   longer marked unreleased - so a bump cannot land without its entry.
 
+## 1.0.0 (2026-11-02)
+
+First public release: the window is finished, and the work underneath it is written down so the
+next patch is a routine instead of a surprise.
+
+### Under the hood
+
+- The window's wording now comes from a table per language and follows your client's interface language; English is the only one shipped, so nothing reads differently yet.
+- Your settings can no longer break the window: an entry a hand edit made unusable is dropped instead, and the detail header no longer collapses when your UI scale is above 100%.
+- The table stopped rebuilding four strings per visible row on every frame, which is about 1,500 allocations per frame that are simply not there any more.
+- The next Dalamud API break is audited: this tree was compiled against API 16 in a scratch copy, and the five edits it needs are written down.
+
 ## 0.4.0 (2026-11-02)
 
 A mount now carries what you have done about it, and what it costs you to find out.
