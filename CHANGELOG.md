@@ -14,11 +14,11 @@ date typed into a heading instead of a blank page written under deadline.
   the versions descend, no line names a file, and the version being built has a section that is no
   longer marked unreleased - so a bump cannot land without its entry.
 
-## 0.2.0 (unreleased)
+## 0.2.0 (2026-11-02)
 
-Everything since 0.1.0. The list got shorter above it and denser inside it, the obtain data became
-something the plugin can vouch for, and a mount now carries your progress and a price you asked to be
-told about.
+Everything since 0.1.0, starting with the room to read it: the list keeps a whole card at the
+smallest window, the table fits 17 rows where it fitted 11, and a heading stays put while the rows
+scroll under it.
 
 ### The window
 
@@ -43,32 +43,6 @@ told about.
 - The header's Themes button is gone: Settings, then Appearance, then Open themes opens the same folder.
 - First run says one line, once per install, and an empty list names the single action its button takes.
 - Reset in the settings window clears the source filter with the rest, so it does what its label says.
-
-### Collecting
-
-- Obtain methods are a named taxonomy: 28 types, each with its count in the filter ("Trial (44)"), a group-by-source list, and a source: search term that matches those same names.
-- Saved views: name a set of filters and it comes back as one row of chips; save, rename and delete live behind Manage, or behind a right-click on the filter block before the first preset exists.
-- A mount now says whether you can get it today - Available, Seasonal, Ranked, Premium or Legacy - with one badge in its pane.
-- The filter lists each availability class with how many mounts it holds, and "Farmable now" ships as a saved view.
-
-- The header answers the collector's question - "Rarest missing: Dreadnaught (0.1%)" - with rarity sortable in both directions and a share under 1% drawn as a badge.
-- The obtain data is rebuilt from FFXIV Collect when a patch lands, and every mount's seats and movement are checked against the game's own sheet: the file refuses to ship if any of 356 disagree.
-- The shipped file states its own schema, source and licence, the settings window shows the schema it read, and the detail pane credits the source.
-- A settings file that cannot be read no longer keeps the plugin from loading: it is set aside, the plugin starts from defaults and says so, and Settings gained Reset everything, which asks first.
-
-### Prices and progress
-
-- Grind tracking: banked and needed steppers, a progress bar and a note per mount, for anything that costs tokens or that you chose to track, kept across restarts.
-- The wanted board lists what you want and do not own with its first source and your progress, sortable by patch or by the cheapest price it already knows, with no new lookups.
-- Price watch: give a mount a threshold and its market price is checked every 24 to 36 minutes, with one toast when it crosses.
-- The header shows how many mounts you are watching, and nothing at all when you are watching none.
-
-### Under the hood
-
-- The window's wording now comes from a table per language and follows your client's interface language; English is the only one shipped, so nothing reads differently yet.
-- Your settings can no longer break the window: an entry a hand edit made unusable is dropped instead, and the detail header no longer collapses when your UI scale is above 100%.
-- The table stopped rebuilding four strings per visible row on every frame, which is about 1,500 allocations per frame that are simply not there any more.
-- The next Dalamud API break is audited: this tree was compiled against API 16 in a scratch copy, and the five edits it needs are written down.
 
 ## 0.1.0 (2026-10-31)
 
